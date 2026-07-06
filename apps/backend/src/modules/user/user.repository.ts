@@ -19,15 +19,25 @@ export interface UserRecord {
   roles: Array<{
     code: string;
     name: string;
+    permissions: string[];
   }>;
+  spaceIds: string[];
 }
 
-type UserModel = Omit<UserRecord, 'roles'> & {
+type UserModel = Omit<UserRecord, 'roles' | 'spaceIds'> & {
   roles?: Array<{
     role: {
       code: string;
       name: string;
+      permissions?: Array<{
+        permission: {
+          code: string;
+        };
+      }>;
     };
+  }>;
+  spaces?: Array<{
+    spaceId: string;
   }>;
 };
 
@@ -39,7 +49,13 @@ const toUserRecord = (user: UserModel): UserRecord => ({
   isActive: user.isActive,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
-  roles: user.roles?.map(({ role }) => ({ code: role.code, name: role.name })) ?? [],
+  roles:
+    user.roles?.map(({ role }) => ({
+      code: role.code,
+      name: role.name,
+      permissions: role.permissions?.map(({ permission }) => permission.code) ?? [],
+    })) ?? [],
+  spaceIds: user.spaces?.map((space) => space.spaceId) ?? [],
 });
 
 @Injectable()
@@ -52,7 +68,20 @@ export class UserRepository {
       include: {
         roles: {
           include: {
-            role: true,
+            role: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        spaces: {
+          select: {
+            spaceId: true,
           },
         },
       },
@@ -67,7 +96,20 @@ export class UserRepository {
       include: {
         roles: {
           include: {
-            role: true,
+            role: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        spaces: {
+          select: {
+            spaceId: true,
           },
         },
       },
@@ -93,7 +135,20 @@ export class UserRepository {
       include: {
         roles: {
           include: {
-            role: true,
+            role: {
+              include: {
+                permissions: {
+                  include: {
+                    permission: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+        spaces: {
+          select: {
+            spaceId: true,
           },
         },
       },

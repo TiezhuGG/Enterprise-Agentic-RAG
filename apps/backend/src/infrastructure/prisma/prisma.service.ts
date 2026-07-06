@@ -31,6 +31,18 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.rolePermission;
   }
 
+  get knowledgeSpace() {
+    return this.client.knowledgeSpace;
+  }
+
+  get spaceMember() {
+    return this.client.spaceMember;
+  }
+
+  get document() {
+    return this.client.document;
+  }
+
   async onModuleInit(): Promise<void> {
     await this.client.$connect();
   }

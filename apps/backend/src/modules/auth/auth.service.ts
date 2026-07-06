@@ -6,6 +6,8 @@ import { UserRepository } from '../user';
 import type { AuthenticatedUser, JwtPayload, LoginResponse } from './auth.types';
 import type { LoginDto } from './dto/login.dto';
 
+const unique = (values: string[]): string[] => [...new Set(values)];
+
 @Injectable()
 export class AuthService {
   constructor(
@@ -32,11 +34,17 @@ export class AuthService {
       id: user.id,
       email: user.email,
       roles: user.roles.map((role) => role.code),
+      permissions: unique(user.roles.flatMap((role) => role.permissions)),
+      spaceIds: user.spaceIds,
+      metadata: {},
     };
     const payload: JwtPayload = {
       sub: authUser.id,
       email: authUser.email,
       roles: authUser.roles,
+      permissions: authUser.permissions,
+      spaceIds: authUser.spaceIds,
+      metadata: authUser.metadata,
     };
     const { expiresIn } = this.configService.getJwtConfig();
     const accessToken = await this.jwtService.signAsync(payload);
