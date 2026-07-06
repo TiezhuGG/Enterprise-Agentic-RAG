@@ -1,7 +1,11 @@
 import { NestFactory } from '@nestjs/core';
+import { hash } from 'bcryptjs';
 import { AppModule } from '../../app.module';
 import { AuthRepository } from '../../modules/auth';
 import { UserRepository } from '../../modules/user';
+
+export const seedAdminPassword = 'Admin123!';
+const passwordSaltRounds = 10;
 
 const permissions = [
   {
@@ -62,7 +66,7 @@ async function seed() {
     const admin = await userRepository.upsert({
       email: 'admin@example.com',
       name: 'System Administrator',
-      passwordHash: 'seeded-admin-password-hash',
+      passwordHash: await hash(seedAdminPassword, passwordSaltRounds),
       isActive: true,
     });
 

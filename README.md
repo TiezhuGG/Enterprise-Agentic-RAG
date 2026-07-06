@@ -2,7 +2,7 @@
 
 Enterprise Agentic RAG 是一个面向企业级 Agentic RAG 系统的 monorepo 工程骨架。
 
-当前任务已完成工程初始化、统一配置系统和 Prisma 数据库访问层，不包含登录流程、AI 能力或任何业务接口实现。
+当前任务已完成工程初始化、统一配置系统、Prisma 数据库访问层和 JWT 认证系统，不包含 AI 能力或业务接口实现。
 
 ## 目录结构
 
@@ -33,8 +33,19 @@ enterprise-agentic-rag/
 │  │     │     └─ seed.ts
 │  │     ├─ modules/
 │  │     │  ├─ auth/
+│  │     │  │  ├─ decorators/
+│  │     │  │  │  └─ current-user.decorator.ts
+│  │     │  │  ├─ dto/
+│  │     │  │  │  └─ login.dto.ts
+│  │     │  │  ├─ guards/
+│  │     │  │  │  └─ jwt-auth.guard.ts
+│  │     │  │  ├─ strategies/
+│  │     │  │  │  └─ jwt.strategy.ts
+│  │     │  │  ├─ auth.controller.ts
 │  │     │  │  ├─ auth.module.ts
-│  │     │  │  └─ auth.repository.ts
+│  │     │  │  ├─ auth.repository.ts
+│  │     │  │  ├─ auth.service.ts
+│  │     │  │  └─ auth.types.ts
 │  │     │  └─ user/
 │  │     │     ├─ user.module.ts
 │  │     │     └─ user.repository.ts
@@ -77,7 +88,7 @@ enterprise-agentic-rag/
 - `env.schema.ts` 使用 zod 校验启动所需环境变量，校验失败会阻止 Nest 应用启动。
 - `configuration.ts` 负责从本地 `.env` 或运行时环境读取变量，并组装 app、database、redis、minio 配置。
 - `ConfigModule` 是全局 Nest module，`AppModule` 统一引入。
-- `ConfigService` 提供 `get()`、`getAppConfig()`、`getDatabaseConfig()`、`getRedisConfig()`、`getMinioConfig()`，业务代码必须通过它访问配置。
+- `ConfigService` 提供 `get()`、`getAppConfig()`、`getDatabaseConfig()`、`getRedisConfig()`、`getMinioConfig()`、`getJwtConfig()`，业务代码必须通过它访问配置。
 
 前端配置集中在 `apps/frontend/lib/env.ts`：
 
@@ -100,6 +111,8 @@ MINIO_ENDPOINT=valid URL
 MINIO_ACCESS_KEY=non-empty string
 MINIO_SECRET_KEY=non-empty string
 MINIO_BUCKET=non-empty string
+JWT_SECRET=non-empty string, at least 32 characters
+JWT_EXPIRES_IN=non-empty string
 ```
 
 前端必需变量：
@@ -165,6 +178,56 @@ await userRepository.assignRole(user.id, 'admin');
 ```ts
 const credentials = await authRepository.findUserCredentialsByEmail('admin@example.com');
 await authRepository.attachPermissionToRole('admin', 'role.manage');
+```
+
+## 认证系统
+
+认证模块位于 `apps/backend/src/modules/auth`，提供：
+
+- `POST /auth/login`
+- `GET /auth/me`
+- `JwtAuthGuard`
+- `@CurrentUser()` decorator
+
+登录流程：
+
+```text
+email + password
+-> AuthController
+-> AuthService
+-> UserRepository
+-> bcrypt compare
+-> JwtService sign
+-> return bearer token
+```
+
+Controller 只接收请求并调用 service；JWT 签发在 `AuthService`；token 解析和 payload validation 在 `JwtStrategy`；Guard 只负责触发 Passport JWT 验证。
+
+JWT payload：
+
+```json
+{
+  "sub": "user id",
+  "email": "user@example.com",
+  "roles": ["admin"]
+}
+```
+
+Guard 使用方式：
+
+```ts
+@Get('me')
+@UseGuards(JwtAuthGuard)
+getMe(@CurrentUser() user: AuthenticatedUser) {
+  return user;
+}
+```
+
+seed 后可用本地管理员账号验证登录：
+
+```text
+email: admin@example.com
+password: Admin123!
 ```
 
 ## 启动
@@ -246,11 +309,10 @@ pnpm db:seed
 
 ## 当前边界
 
-本工程当前包含项目骨架、开发工具链配置、本地基础设施编排、统一配置系统和 Prisma 数据库访问层。
+本工程当前包含项目骨架、开发工具链配置、本地基础设施编排、统一配置系统、Prisma 数据库访问层和 JWT 认证系统。
 
 以下内容尚未实现：
 
-- 登录
 - AI 或 RAG 能力
 - 后端业务接口
 - 前端页面

@@ -63,5 +63,9 @@ export const createConfiguration = (): AppConfiguration => {
       secretKey: env.MINIO_SECRET_KEY,
       bucket: env.MINIO_BUCKET,
     },
+    jwt: {
+      secret: env.JWT_SECRET,
+      expiresIn: env.JWT_EXPIRES_IN,
+    },
   };
 };

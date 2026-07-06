@@ -4,6 +4,7 @@ import type {
   AppConfig,
   AppConfiguration,
   DatabaseConfig,
+  JwtConfig,
   MinioConfig,
   RedisConfig,
 } from './config.types';
@@ -36,5 +37,9 @@ export class ConfigService {
 
   getMinioConfig(): Readonly<MinioConfig> {
     return this.config.minio;
+  }
+
+  getJwtConfig(): Readonly<JwtConfig> {
+    return this.config.jwt;
   }
 }

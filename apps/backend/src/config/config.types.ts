@@ -22,9 +22,15 @@ export interface MinioConfig {
   bucket: string;
 }
 
+export interface JwtConfig {
+  secret: string;
+  expiresIn: string;
+}
+
 export interface AppConfiguration {
   app: AppConfig;
   database: DatabaseConfig;
   redis: RedisConfig;
   minio: MinioConfig;
+  jwt: JwtConfig;
 }

@@ -28,6 +28,8 @@ export const envSchema = z.object({
   MINIO_ACCESS_KEY: requiredString('MINIO_ACCESS_KEY'),
   MINIO_SECRET_KEY: requiredString('MINIO_SECRET_KEY'),
   MINIO_BUCKET: requiredString('MINIO_BUCKET'),
+  JWT_SECRET: requiredString('JWT_SECRET').min(32, 'JWT_SECRET must be at least 32 characters'),
+  JWT_EXPIRES_IN: requiredString('JWT_EXPIRES_IN'),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;
