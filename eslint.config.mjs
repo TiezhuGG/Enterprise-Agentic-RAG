@@ -12,6 +12,7 @@ export default [
       '**/coverage/**',
       '**/.next/**',
       '**/out/**',
+      'apps/backend/src/infrastructure/prisma/generated/**',
       '**/next-env.d.ts',
       '**/*.tsbuildinfo',
       'pnpm-lock.yaml',

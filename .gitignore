@@ -3,6 +3,7 @@ dist/
 coverage/
 .next/
 out/
+apps/backend/src/infrastructure/prisma/generated/
 
 .env
 .env.*
