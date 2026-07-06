@@ -4,10 +4,13 @@ services:
   postgres:
     image: postgres:16-alpine
     container_name: enterprise-agentic-rag-postgres
+    env_file:
+      - path: ../.env
+        required: false
     environment:
-      POSTGRES_DB: enterprise_agentic_rag
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_USER: postgres
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
     ports:
       - '5432:5432'
     volumes:
@@ -16,6 +19,9 @@ services:
   redis:
     image: redis:7-alpine
     container_name: enterprise-agentic-rag-redis
+    env_file:
+      - path: ../.env
+        required: false
     ports:
       - '6379:6379'
     volumes:
@@ -25,9 +31,12 @@ services:
     image: quay.io/minio/minio:latest
     container_name: enterprise-agentic-rag-minio
     command: server /data --console-address ':9001'
+    env_file:
+      - path: ../.env
+        required: false
     environment:
-      MINIO_ROOT_PASSWORD: minioadmin
-      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
     ports:
       - '9000:9000'
       - '9001:9001'
