@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import type { MemoryContext } from '../../memory';
 import type { ContextChunk } from '../../retrieval';
 import type { ChatHistoryMessage, ChatMessage } from '../chat.types';
 import { buildUserPrompt, systemPrompt } from './prompt.templates';
@@ -9,6 +10,7 @@ export class PromptBuilder {
     question: string,
     contextChunks: ContextChunk[],
     historyMessages: ChatHistoryMessage[] = [],
+    memoryContext?: MemoryContext,
   ): ChatMessage[] {
     return [
       {
@@ -18,12 +20,28 @@ export class PromptBuilder {
       {
         role: 'user',
         content: buildUserPrompt({
-          history: this.formatHistory(historyMessages),
-          context: this.formatContext(contextChunks),
+          historyContext: this.formatHistory(historyMessages),
+          knowledgeContext: this.formatContext(contextChunks),
+          memoryContext: this.formatMemory(memoryContext),
           question,
+          summary: memoryContext?.summary ?? 'No summary memory.',
         }),
       },
     ];
+  }
+
+  private formatMemory(memoryContext: MemoryContext | undefined): string {
+    if (!memoryContext) {
+      return 'No memory context.';
+    }
+
+    const shortTermMemory = memoryContext.shortTermMessages.map(
+      (message) => `${message.role.toUpperCase()}: ${message.content}`,
+    );
+    const longTermMemory = memoryContext.longTermMemories.map((memory) => `- ${memory.content}`);
+    const lines = [...longTermMemory, ...shortTermMemory];
+
+    return lines.length > 0 ? lines.join('\n') : 'No memory context.';
   }
 
   private formatHistory(historyMessages: ChatHistoryMessage[]): string {

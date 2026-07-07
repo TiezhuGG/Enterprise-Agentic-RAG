@@ -1,16 +1,24 @@
 export const systemPrompt = '企业知识助手。只能依据Context回答。';
 
 export interface UserPromptInput {
-  history: string;
-  context: string;
+  historyContext: string;
+  knowledgeContext: string;
+  memoryContext: string;
   question: string;
+  summary: string;
 }
 
-export const buildUserPrompt = (input: UserPromptInput): string => `History:
-${input.history}
+export const buildUserPrompt = (input: UserPromptInput): string => `Memory Context:
+${input.memoryContext}
 
-Context:
-${input.context}
+Summary:
+${input.summary}
+
+History:
+${input.historyContext}
+
+Knowledge Context:
+${input.knowledgeContext}
 
 Question:
 ${input.question}`;

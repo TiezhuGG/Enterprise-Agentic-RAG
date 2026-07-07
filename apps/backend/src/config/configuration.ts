@@ -57,6 +57,12 @@ export const createConfiguration = (): AppConfiguration => {
     redis: {
       url: env.REDIS_URL,
     },
+    memory: {
+      redisTtlSeconds: env.REDIS_MEMORY_TTL,
+      windowSize: env.MEMORY_WINDOW_SIZE,
+      mem0ApiUrl: env.MEM0_API_URL,
+      mem0ApiKey: env.MEM0_API_KEY,
+    },
     minio: {
       endpoint: env.MINIO_ENDPOINT,
       accessKey: env.MINIO_ACCESS_KEY,

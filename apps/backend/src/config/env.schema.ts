@@ -24,6 +24,20 @@ export const envSchema = z.object({
     .max(65535, 'APP_PORT must be less than or equal to 65535'),
   DATABASE_URL: requiredUrl('DATABASE_URL'),
   REDIS_URL: requiredUrl('REDIS_URL'),
+  REDIS_MEMORY_TTL: z.coerce
+    .number({
+      error: 'REDIS_MEMORY_TTL is required',
+    })
+    .int('REDIS_MEMORY_TTL must be an integer')
+    .min(1, 'REDIS_MEMORY_TTL must be greater than 0'),
+  MEMORY_WINDOW_SIZE: z.coerce
+    .number({
+      error: 'MEMORY_WINDOW_SIZE is required',
+    })
+    .int('MEMORY_WINDOW_SIZE must be an integer')
+    .min(1, 'MEMORY_WINDOW_SIZE must be greater than 0'),
+  MEM0_API_URL: requiredUrl('MEM0_API_URL'),
+  MEM0_API_KEY: requiredString('MEM0_API_KEY'),
   MINIO_ENDPOINT: requiredUrl('MINIO_ENDPOINT'),
   MINIO_ACCESS_KEY: requiredString('MINIO_ACCESS_KEY'),
   MINIO_SECRET_KEY: requiredString('MINIO_SECRET_KEY'),

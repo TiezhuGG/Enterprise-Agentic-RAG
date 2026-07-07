@@ -7,6 +7,7 @@ import type {
   EmbeddingConfig,
   JwtConfig,
   LlmConfig,
+  MemoryConfig,
   MinioConfig,
   RedisConfig,
   RerankerConfig,
@@ -36,6 +37,10 @@ export class ConfigService {
 
   getRedisConfig(): Readonly<RedisConfig> {
     return this.config.redis;
+  }
+
+  getMemoryConfig(): Readonly<MemoryConfig> {
+    return this.config.memory;
   }
 
   getMinioConfig(): Readonly<MinioConfig> {

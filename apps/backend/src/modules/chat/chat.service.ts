@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { ExecutionContext } from '../../common';
 import { ConversationService, type MessageEntity } from '../conversation';
+import { MemoryService } from '../memory';
 import { RetrievalService } from '../retrieval';
 import type { ContextChunk } from '../retrieval';
 import type { ChatCitation, ChatHistoryMessage, ChatRequestDto, ChatResponse } from './chat.types';
@@ -13,6 +14,7 @@ export class ChatService {
     @Inject(LLM_PROVIDER)
     private readonly llmProvider: LlmProvider,
     private readonly conversationService: ConversationService,
+    private readonly memoryService: MemoryService,
     private readonly promptBuilder: PromptBuilder,
     private readonly retrievalService: RetrievalService,
   ) {}
@@ -23,7 +25,10 @@ export class ChatService {
     input: ChatRequestDto,
   ): Promise<ChatResponse> {
     const question = input.question.trim();
-    const historyMessages = await this.getHistoryMessages(context, conversationId);
+    const [memoryContext, historyMessages] = await Promise.all([
+      this.memoryService.getMemory(context, conversationId, question),
+      this.getHistoryMessages(context, conversationId),
+    ]);
 
     await this.conversationService.createMessage(context, conversationId, {
       role: 'USER',
@@ -34,7 +39,12 @@ export class ChatService {
     });
 
     const contextChunks = await this.retrieveContext(context, input, question);
-    const messages = this.promptBuilder.build(question, contextChunks, historyMessages);
+    const messages = this.promptBuilder.build(
+      question,
+      contextChunks,
+      historyMessages,
+      memoryContext,
+    );
     const answer = await this.llmProvider.chat(messages);
     const citations = this.toCitations(contextChunks);
 
@@ -45,6 +55,12 @@ export class ChatService {
         citations,
         source: 'chat',
       },
+    });
+    await this.memoryService.saveTurn(context, {
+      answer,
+      conversationId,
+      messages: await this.getHistoryMessages(context, conversationId),
+      question,
     });
 
     return {
@@ -59,7 +75,10 @@ export class ChatService {
     input: ChatRequestDto,
   ): AsyncIterable<string> {
     const question = input.question.trim();
-    const historyMessages = await this.getHistoryMessages(context, conversationId);
+    const [memoryContext, historyMessages] = await Promise.all([
+      this.memoryService.getMemory(context, conversationId, question),
+      this.getHistoryMessages(context, conversationId),
+    ]);
 
     await this.conversationService.createMessage(context, conversationId, {
       role: 'USER',
@@ -70,7 +89,12 @@ export class ChatService {
     });
 
     const contextChunks = await this.retrieveContext(context, input, question);
-    const messages = this.promptBuilder.build(question, contextChunks, historyMessages);
+    const messages = this.promptBuilder.build(
+      question,
+      contextChunks,
+      historyMessages,
+      memoryContext,
+    );
     const answerTokens: string[] = [];
 
     for await (const token of this.llmProvider.stream(messages)) {
@@ -78,13 +102,21 @@ export class ChatService {
       yield token;
     }
 
+    const answer = answerTokens.join('');
+
     await this.conversationService.createMessage(context, conversationId, {
       role: 'ASSISTANT',
-      content: answerTokens.join(''),
+      content: answer,
       metadata: {
         citations: this.toCitations(contextChunks),
         source: 'chat-stream',
       },
+    });
+    await this.memoryService.saveTurn(context, {
+      answer,
+      conversationId,
+      messages: await this.getHistoryMessages(context, conversationId),
+      question,
     });
   }
 

@@ -3,6 +3,7 @@ import { RequestContextModule } from '../../common';
 import { ConfigModule } from '../../config';
 import { AuthModule } from '../auth';
 import { ConversationModule } from '../conversation';
+import { MemoryModule } from '../memory';
 import { RetrievalModule } from '../retrieval';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
@@ -11,7 +12,14 @@ import { OpenAiCompatibleLlmProvider } from './providers/openai-compatible.provi
 import { PromptBuilder } from './prompt/prompt.builder';
 
 @Module({
-  imports: [AuthModule, ConfigModule, ConversationModule, RequestContextModule, RetrievalModule],
+  imports: [
+    AuthModule,
+    ConfigModule,
+    ConversationModule,
+    MemoryModule,
+    RequestContextModule,
+    RetrievalModule,
+  ],
   controllers: [ChatController],
   providers: [
     ChatService,

@@ -15,6 +15,13 @@ export interface RedisConfig {
   url: string;
 }
 
+export interface MemoryConfig {
+  redisTtlSeconds: number;
+  windowSize: number;
+  mem0ApiUrl: string;
+  mem0ApiKey: string;
+}
+
 export interface MinioConfig {
   endpoint: string;
   accessKey: string;
@@ -52,6 +59,7 @@ export interface AppConfiguration {
   app: AppConfig;
   database: DatabaseConfig;
   redis: RedisConfig;
+  memory: MemoryConfig;
   minio: MinioConfig;
   jwt: JwtConfig;
   embedding: EmbeddingConfig;
