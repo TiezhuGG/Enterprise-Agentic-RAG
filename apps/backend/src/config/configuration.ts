@@ -78,5 +78,12 @@ export const createConfiguration = (): AppConfiguration => {
       apiKey: env.RERANKER_API_KEY,
       model: env.RERANKER_MODEL,
     },
+    llm: {
+      apiUrl: env.LLM_API_URL,
+      apiKey: env.LLM_API_KEY,
+      model: env.LLM_MODEL,
+      temperature: env.LLM_TEMPERATURE,
+      maxTokens: env.LLM_MAX_TOKENS,
+    },
   };
 };

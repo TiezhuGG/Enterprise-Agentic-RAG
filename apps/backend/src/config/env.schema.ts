@@ -42,6 +42,21 @@ export const envSchema = z.object({
   RERANKER_API_URL: requiredUrl('RERANKER_API_URL'),
   RERANKER_API_KEY: requiredString('RERANKER_API_KEY'),
   RERANKER_MODEL: requiredString('RERANKER_MODEL'),
+  LLM_API_URL: requiredUrl('LLM_API_URL'),
+  LLM_API_KEY: requiredString('LLM_API_KEY'),
+  LLM_MODEL: requiredString('LLM_MODEL'),
+  LLM_TEMPERATURE: z.coerce
+    .number({
+      error: 'LLM_TEMPERATURE is required',
+    })
+    .min(0, 'LLM_TEMPERATURE must be greater than or equal to 0')
+    .max(2, 'LLM_TEMPERATURE must be less than or equal to 2'),
+  LLM_MAX_TOKENS: z.coerce
+    .number({
+      error: 'LLM_MAX_TOKENS is required',
+    })
+    .int('LLM_MAX_TOKENS must be an integer')
+    .min(1, 'LLM_MAX_TOKENS must be greater than 0'),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;

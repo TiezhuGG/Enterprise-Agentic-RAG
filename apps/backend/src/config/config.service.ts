@@ -6,6 +6,7 @@ import type {
   DatabaseConfig,
   EmbeddingConfig,
   JwtConfig,
+  LlmConfig,
   MinioConfig,
   RedisConfig,
   RerankerConfig,
@@ -51,5 +52,9 @@ export class ConfigService {
 
   getRerankerConfig(): Readonly<RerankerConfig> {
     return this.config.reranker;
+  }
+
+  getLlmConfig(): Readonly<LlmConfig> {
+    return this.config.llm;
   }
 }

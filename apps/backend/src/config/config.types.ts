@@ -40,6 +40,14 @@ export interface RerankerConfig {
   model: string;
 }
 
+export interface LlmConfig {
+  apiUrl: string;
+  apiKey: string;
+  model: string;
+  temperature: number;
+  maxTokens: number;
+}
+
 export interface AppConfiguration {
   app: AppConfig;
   database: DatabaseConfig;
@@ -48,4 +56,5 @@ export interface AppConfiguration {
   jwt: JwtConfig;
   embedding: EmbeddingConfig;
   reranker: RerankerConfig;
+  llm: LlmConfig;
 }
