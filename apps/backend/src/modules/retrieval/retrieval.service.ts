@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { ContextBuilder } from './context/context.builder';
 import { RrfFusion } from './fusion/rrf.fusion';
+import { GraphRetriever } from './retrievers/graph.retriever';
 import { KeywordRetriever } from './retrievers/keyword.retriever';
 import { VectorRetriever } from './retrievers/vector.retriever';
 import { RerankerService } from '../reranker';
@@ -17,6 +18,7 @@ import {
 export class RetrievalService {
   constructor(
     private readonly contextBuilder: ContextBuilder,
+    private readonly graphRetriever: GraphRetriever,
     private readonly keywordRetriever: KeywordRetriever,
     private readonly rerankerService: RerankerService,
     private readonly rrfFusion: RrfFusion,
@@ -43,11 +45,15 @@ export class RetrievalService {
     const vectorLimit = this.resolveLimit(request.vectorLimit, defaultRetrieverCandidateLimit);
     const keywordLimit = this.resolveLimit(request.keywordLimit, defaultRetrieverCandidateLimit);
     const contextTokenBudget = this.resolveLimit(request.maxContextTokens, MAX_CONTEXT_TOKENS);
-    const [vectorResults, keywordResults] = await Promise.all([
+    const [vectorResults, keywordResults, graphResults] = await Promise.all([
       this.vectorRetriever.retrieve(query, accessContext, vectorLimit),
       this.keywordRetriever.retrieve(query, accessContext, keywordLimit),
+      this.graphRetriever.retrieve(query, accessContext, keywordLimit),
     ]);
-    const rrfResults = this.rrfFusion.fuse([vectorResults, keywordResults], resultLimit);
+    const rrfResults = this.rrfFusion.fuse(
+      [vectorResults, keywordResults, graphResults],
+      resultLimit,
+    );
     const rerankedResults = await this.rerankerService.rerank(query, rrfResults);
 
     return this.contextBuilder.buildContextChunks(rerankedResults, contextTokenBudget);

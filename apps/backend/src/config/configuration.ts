@@ -63,6 +63,11 @@ export const createConfiguration = (): AppConfiguration => {
       mem0ApiUrl: env.MEM0_API_URL,
       mem0ApiKey: env.MEM0_API_KEY,
     },
+    graph: {
+      uri: env.NEO4J_URI,
+      username: env.NEO4J_USERNAME,
+      password: env.NEO4J_PASSWORD,
+    },
     minio: {
       endpoint: env.MINIO_ENDPOINT,
       accessKey: env.MINIO_ACCESS_KEY,

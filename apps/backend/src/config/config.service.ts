@@ -5,6 +5,7 @@ import type {
   AppConfiguration,
   DatabaseConfig,
   EmbeddingConfig,
+  GraphConfig,
   JwtConfig,
   LlmConfig,
   MemoryConfig,
@@ -41,6 +42,10 @@ export class ConfigService {
 
   getMemoryConfig(): Readonly<MemoryConfig> {
     return this.config.memory;
+  }
+
+  getGraphConfig(): Readonly<GraphConfig> {
+    return this.config.graph;
   }
 
   getMinioConfig(): Readonly<MinioConfig> {

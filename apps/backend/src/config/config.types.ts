@@ -22,6 +22,12 @@ export interface MemoryConfig {
   mem0ApiKey: string;
 }
 
+export interface GraphConfig {
+  uri: string;
+  username: string;
+  password: string;
+}
+
 export interface MinioConfig {
   endpoint: string;
   accessKey: string;
@@ -60,6 +66,7 @@ export interface AppConfiguration {
   database: DatabaseConfig;
   redis: RedisConfig;
   memory: MemoryConfig;
+  graph: GraphConfig;
   minio: MinioConfig;
   jwt: JwtConfig;
   embedding: EmbeddingConfig;

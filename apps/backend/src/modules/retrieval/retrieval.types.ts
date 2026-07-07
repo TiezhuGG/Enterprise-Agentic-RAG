@@ -25,7 +25,7 @@ export interface RetrievalAccessContext {
   canRetrieve: boolean;
 }
 
-export type RetrievalSource = 'vector' | 'keyword';
+export type RetrievalSource = 'vector' | 'keyword' | 'graph';
 
 export interface RetrieverResult {
   chunkId: string;
