@@ -1,11 +1,11 @@
-import { Injectable, OnModuleInit } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { Client } from 'minio';
 import { ConfigService } from '../../config';
 
 const defaultRegion = 'us-east-1';
 
 @Injectable()
-export class StorageClient implements OnModuleInit {
+export class StorageClient {
   private readonly bucket: string;
   private readonly client: Client;
 
@@ -22,10 +22,6 @@ export class StorageClient implements OnModuleInit {
       accessKey: minioConfig.accessKey,
       secretKey: minioConfig.secretKey,
     });
-  }
-
-  async onModuleInit(): Promise<void> {
-    await this.ensureBucket();
   }
 
   getClient(): Client {

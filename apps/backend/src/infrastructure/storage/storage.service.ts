@@ -39,6 +39,7 @@ export class StorageService {
   }
 
   async getObject(key: string): Promise<StoredObject> {
+    await this.storageClient.ensureBucket();
     const client = this.storageClient.getClient();
     const bucket = this.storageClient.getBucket();
     const [objectStream, objectStat] = await Promise.all([
@@ -55,11 +56,13 @@ export class StorageService {
   }
 
   async deleteObject(key: string): Promise<void> {
+    await this.storageClient.ensureBucket();
     await this.storageClient.getClient().removeObject(this.storageClient.getBucket(), key);
   }
 
   async exists(key: string): Promise<boolean> {
     try {
+      await this.storageClient.ensureBucket();
       await this.storageClient.getClient().statObject(this.storageClient.getBucket(), key);
       return true;
     } catch (error) {
