@@ -3,6 +3,7 @@ import { ConfigModule } from './config';
 import { AuthModule } from './modules/auth';
 import { ChatModule } from './modules/chat';
 import { ChunkModule } from './modules/chunk';
+import { ConversationModule } from './modules/conversation';
 import { DocumentModule } from './modules/document';
 import { DocumentProcessingModule } from './modules/document-processing';
 import { EmbeddingModule } from './modules/embedding';
@@ -17,6 +18,7 @@ import { UserModule } from './modules/user';
     ConfigModule,
     AuthModule,
     UserModule,
+    ConversationModule,
     ChatModule,
     KnowledgeSpaceModule,
     DocumentModule,

@@ -6,6 +6,11 @@ export interface ChatMessage {
   content: string;
 }
 
+export interface ChatHistoryMessage {
+  role: ChatMessage['role'];
+  content: string;
+}
+
 export class ChatRequestDto {
   @IsString()
   @MinLength(1)

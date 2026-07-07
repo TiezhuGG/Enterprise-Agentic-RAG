@@ -1,11 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import type { ContextChunk } from '../../retrieval';
-import type { ChatMessage } from '../chat.types';
+import type { ChatHistoryMessage, ChatMessage } from '../chat.types';
 import { buildUserPrompt, systemPrompt } from './prompt.templates';
 
 @Injectable()
 export class PromptBuilder {
-  build(question: string, contextChunks: ContextChunk[]): ChatMessage[] {
+  build(
+    question: string,
+    contextChunks: ContextChunk[],
+    historyMessages: ChatHistoryMessage[] = [],
+  ): ChatMessage[] {
     return [
       {
         role: 'system',
@@ -13,9 +17,23 @@ export class PromptBuilder {
       },
       {
         role: 'user',
-        content: buildUserPrompt(question, this.formatContext(contextChunks)),
+        content: buildUserPrompt({
+          history: this.formatHistory(historyMessages),
+          context: this.formatContext(contextChunks),
+          question,
+        }),
       },
     ];
+  }
+
+  private formatHistory(historyMessages: ChatHistoryMessage[]): string {
+    if (historyMessages.length === 0) {
+      return 'No previous messages.';
+    }
+
+    return historyMessages
+      .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
+      .join('\n');
   }
 
   private formatContext(contextChunks: ContextChunk[]): string {

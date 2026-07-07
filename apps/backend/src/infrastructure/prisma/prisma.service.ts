@@ -56,6 +56,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.chunkEmbedding;
   }
 
+  get conversation() {
+    return this.client.conversation;
+  }
+
+  get message() {
+    return this.client.message;
+  }
+
   async queryRaw<T = unknown>(
     query: TemplateStringsArray | Prisma.Sql,
     ...values: unknown[]

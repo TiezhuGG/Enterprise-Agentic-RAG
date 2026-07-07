@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { RequestContextModule } from '../../common';
 import { ConfigModule } from '../../config';
 import { AuthModule } from '../auth';
+import { ConversationModule } from '../conversation';
 import { RetrievalModule } from '../retrieval';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
@@ -10,7 +11,7 @@ import { OpenAiCompatibleLlmProvider } from './providers/openai-compatible.provi
 import { PromptBuilder } from './prompt/prompt.builder';
 
 @Module({
-  imports: [AuthModule, ConfigModule, RequestContextModule, RetrievalModule],
+  imports: [AuthModule, ConfigModule, ConversationModule, RequestContextModule, RetrievalModule],
   controllers: [ChatController],
   providers: [
     ChatService,

@@ -1,7 +1,16 @@
-export const systemPrompt = '你是企业知识助手。只能依据Context回答。';
+export const systemPrompt = '企业知识助手。只能依据Context回答。';
 
-export const buildUserPrompt = (question: string, context: string): string => `Question:
-${question}
+export interface UserPromptInput {
+  history: string;
+  context: string;
+  question: string;
+}
+
+export const buildUserPrompt = (input: UserPromptInput): string => `History:
+${input.history}
 
 Context:
-${context}`;
+${input.context}
+
+Question:
+${input.question}`;

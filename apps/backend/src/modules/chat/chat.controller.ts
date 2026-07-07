@@ -1,4 +1,4 @@
-import { Body, Controller, Post, Res, UseGuards } from '@nestjs/common';
+import { Body, Controller, Param, Post, Res, UseGuards } from '@nestjs/common';
 import { RequestContextService, type ExecutionContext } from '../../common';
 import { CurrentUser, JwtAuthGuard, type AuthenticatedUser } from '../auth';
 import { ChatRequestDto, type ChatResponse } from './chat.types';
@@ -19,17 +19,19 @@ export class ChatController {
     private readonly requestContextService: RequestContextService,
   ) {}
 
-  @Post()
+  @Post(':conversationId')
   chat(
     @CurrentUser() user: AuthenticatedUser,
+    @Param('conversationId') conversationId: string,
     @Body() chatRequestDto: ChatRequestDto,
   ): Promise<ChatResponse> {
-    return this.chatService.chat(this.createExecutionContext(user), chatRequestDto);
+    return this.chatService.chat(this.createExecutionContext(user), conversationId, chatRequestDto);
   }
 
-  @Post('stream')
+  @Post(':conversationId/stream')
   async stream(
     @CurrentUser() user: AuthenticatedUser,
+    @Param('conversationId') conversationId: string,
     @Body() chatRequestDto: ChatRequestDto,
     @Res() response: SseResponse,
   ): Promise<void> {
@@ -41,6 +43,7 @@ export class ChatController {
     try {
       for await (const token of this.chatService.stream(
         this.createExecutionContext(user),
+        conversationId,
         chatRequestDto,
       )) {
         response.write(`data: ${JSON.stringify({ token })}\n\n`);
