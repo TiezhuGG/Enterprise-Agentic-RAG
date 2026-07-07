@@ -6,6 +6,7 @@ import { DocumentModule } from './modules/document';
 import { DocumentProcessingModule } from './modules/document-processing';
 import { EmbeddingModule } from './modules/embedding';
 import { KnowledgeSpaceModule } from './modules/knowledge-space';
+import { RetrievalModule } from './modules/retrieval';
 import { UploadModule } from './modules/upload';
 import { UserModule } from './modules/user';
 
@@ -19,6 +20,7 @@ import { UserModule } from './modules/user';
     DocumentProcessingModule,
     ChunkModule,
     EmbeddingModule,
+    RetrievalModule,
     UploadModule,
   ],
 })

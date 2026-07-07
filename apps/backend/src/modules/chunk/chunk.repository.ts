@@ -11,6 +11,28 @@ export interface CreateChunkInput {
   metadata: ChunkMetadata;
 }
 
+export interface KeywordSearchInput {
+  query: string;
+  spaceIds: string[];
+  limit: number;
+}
+
+export interface ChunkSearchResult {
+  chunkId: string;
+  documentId: string;
+  content: string;
+  score: number;
+  metadata: ChunkMetadata;
+}
+
+interface KeywordSearchRow {
+  chunkId: string;
+  documentId: string;
+  content: string;
+  score: number;
+  metadata: unknown;
+}
+
 type ChunkModel = Omit<ChunkEntity, 'metadata'> & {
   metadata: unknown;
 };
@@ -101,5 +123,39 @@ export class ChunkRepository {
     });
 
     return chunks.map(toChunkEntity);
+  }
+
+  async searchByKeyword(input: KeywordSearchInput): Promise<ChunkSearchResult[]> {
+    if (input.spaceIds.length === 0) {
+      return [];
+    }
+
+    const rows = await this.prisma.queryRaw<KeywordSearchRow[]>`
+      WITH search_query AS (
+        SELECT websearch_to_tsquery('simple', ${input.query}) AS query
+      )
+      SELECT
+        c.id AS "chunkId",
+        c.document_id AS "documentId",
+        c.content,
+        c.metadata,
+        ts_rank_cd(to_tsvector('simple', c.content), search_query.query)::double precision AS score
+      FROM chunks c
+      INNER JOIN documents d ON d.id = c.document_id
+      CROSS JOIN search_query
+      WHERE d.space_id = ANY(${input.spaceIds}::text[])
+        AND d.status = 'READY'
+        AND to_tsvector('simple', c.content) @@ search_query.query
+      ORDER BY score DESC, c.sequence ASC
+      LIMIT ${input.limit}
+    `;
+
+    return rows.map((row) => ({
+      chunkId: row.chunkId,
+      documentId: row.documentId,
+      content: row.content,
+      score: Number(row.score),
+      metadata: toChunkMetadata(row.metadata),
+    }));
   }
 }

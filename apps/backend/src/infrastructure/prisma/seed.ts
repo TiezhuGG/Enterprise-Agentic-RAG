@@ -23,6 +23,16 @@ const permissions = [
     name: 'Manage roles',
     description: 'Manage roles and permissions.',
   },
+  {
+    code: 'knowledge.read',
+    name: 'Read knowledge',
+    description: 'Read knowledge spaces, documents, chunks, and retrieval candidates.',
+  },
+  {
+    code: 'knowledge.retrieve',
+    name: 'Retrieve knowledge',
+    description: 'Run knowledge retrieval over accessible spaces.',
+  },
 ] as const;
 
 const roles = [
@@ -31,14 +41,14 @@ const roles = [
     name: 'Administrator',
     description: 'Full platform administration access.',
     isSystem: true,
-    permissions: ['user.read', 'user.write', 'role.manage'],
+    permissions: ['user.read', 'user.write', 'role.manage', 'knowledge.read', 'knowledge.retrieve'],
   },
   {
     code: 'user',
     name: 'User',
     description: 'Default authenticated user access.',
     isSystem: true,
-    permissions: ['user.read'],
+    permissions: ['user.read', 'knowledge.read', 'knowledge.retrieve'],
   },
 ] as const;
 

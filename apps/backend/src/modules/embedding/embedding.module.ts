@@ -15,6 +15,6 @@ import { OpenAiCompatibleEmbeddingProvider } from './providers/openai-compatible
       useClass: OpenAiCompatibleEmbeddingProvider,
     },
   ],
-  exports: [EmbeddingService],
+  exports: [EmbeddingService, EMBEDDING_PROVIDER],
 })
 export class EmbeddingModule {}

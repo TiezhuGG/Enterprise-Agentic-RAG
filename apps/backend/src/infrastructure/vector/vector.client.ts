@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../prisma';
-import type { ChunkEmbeddingRecord, CreateChunkEmbeddingInput } from './vector.types';
+import type {
+  ChunkEmbeddingRecord,
+  CreateChunkEmbeddingInput,
+  VectorSearchInput,
+  VectorSearchResult,
+} from './vector.types';
 
 type ChunkEmbeddingModel = ChunkEmbeddingRecord;
 
@@ -13,6 +18,27 @@ const toChunkEmbeddingRecord = (embedding: ChunkEmbeddingModel): ChunkEmbeddingR
   createdAt: embedding.createdAt,
   updatedAt: embedding.updatedAt,
 });
+
+const cosineSimilarity = (left: number[], right: number[]): number => {
+  let dotProduct = 0;
+  let leftMagnitude = 0;
+  let rightMagnitude = 0;
+
+  for (let index = 0; index < left.length; index += 1) {
+    const leftValue = left[index] ?? 0;
+    const rightValue = right[index] ?? 0;
+
+    dotProduct += leftValue * rightValue;
+    leftMagnitude += leftValue * leftValue;
+    rightMagnitude += rightValue * rightValue;
+  }
+
+  if (leftMagnitude === 0 || rightMagnitude === 0) {
+    return 0;
+  }
+
+  return dotProduct / (Math.sqrt(leftMagnitude) * Math.sqrt(rightMagnitude));
+};
 
 @Injectable()
 export class VectorClient {
@@ -81,5 +107,46 @@ export class VectorClient {
     });
 
     return embeddings.map(toChunkEmbeddingRecord);
+  }
+
+  async searchSimilar(input: VectorSearchInput): Promise<VectorSearchResult[]> {
+    if (input.spaceIds.length === 0) {
+      return [];
+    }
+
+    const embeddings = await this.prisma.chunkEmbedding.findMany({
+      where: {
+        dimension: input.vector.length,
+        chunk: {
+          document: {
+            status: 'READY',
+            spaceId: {
+              in: input.spaceIds,
+            },
+          },
+        },
+      },
+      include: {
+        chunk: {
+          select: {
+            id: true,
+            documentId: true,
+            content: true,
+            metadata: true,
+          },
+        },
+      },
+    });
+
+    return embeddings
+      .map((embedding) => ({
+        chunkId: embedding.chunk.id,
+        documentId: embedding.chunk.documentId,
+        content: embedding.chunk.content,
+        score: cosineSimilarity(input.vector, embedding.vector),
+        metadata: embedding.chunk.metadata as Record<string, unknown>,
+      }))
+      .sort((left, right) => right.score - left.score)
+      .slice(0, input.limit);
   }
 }

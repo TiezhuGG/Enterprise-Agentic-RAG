@@ -1,6 +1,7 @@
 import { Injectable, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '../../config';
 import { createPrismaClient, type PrismaClientInstance } from './prisma.client';
+import type { Prisma } from './generated/client';
 
 @Injectable()
 export class PrismaService implements OnModuleInit, OnModuleDestroy {
@@ -53,6 +54,13 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
 
   get chunkEmbedding() {
     return this.client.chunkEmbedding;
+  }
+
+  async queryRaw<T = unknown>(
+    query: TemplateStringsArray | Prisma.Sql,
+    ...values: unknown[]
+  ): Promise<T> {
+    return this.client.$queryRaw<T>(query, ...values);
   }
 
   async onModuleInit(): Promise<void> {

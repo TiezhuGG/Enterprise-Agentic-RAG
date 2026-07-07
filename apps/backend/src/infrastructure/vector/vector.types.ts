@@ -14,3 +14,17 @@ export interface CreateChunkEmbeddingInput {
   dimension: number;
   vector: number[];
 }
+
+export interface VectorSearchInput {
+  vector: number[];
+  spaceIds: string[];
+  limit: number;
+}
+
+export interface VectorSearchResult {
+  chunkId: string;
+  documentId: string;
+  content: string;
+  score: number;
+  metadata: Record<string, unknown>;
+}

@@ -1,6 +1,11 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { VectorClient } from './vector.client';
-import type { ChunkEmbeddingRecord, CreateChunkEmbeddingInput } from './vector.types';
+import type {
+  ChunkEmbeddingRecord,
+  CreateChunkEmbeddingInput,
+  VectorSearchInput,
+  VectorSearchResult,
+} from './vector.types';
 
 @Injectable()
 export class VectorService {
@@ -24,6 +29,14 @@ export class VectorService {
 
   async listByDocumentId(documentId: string): Promise<ChunkEmbeddingRecord[]> {
     return this.vectorClient.listByDocumentId(documentId);
+  }
+
+  async searchSimilar(input: VectorSearchInput): Promise<VectorSearchResult[]> {
+    if (input.vector.some((value) => !Number.isFinite(value))) {
+      throw new BadRequestException('Query vector must contain finite numbers');
+    }
+
+    return this.vectorClient.searchSimilar(input);
   }
 
   private validateEmbeddings(input: CreateChunkEmbeddingInput[]): void {
