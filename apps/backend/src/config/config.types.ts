@@ -34,6 +34,12 @@ export interface EmbeddingConfig {
   dimension: number;
 }
 
+export interface RerankerConfig {
+  apiUrl: string;
+  apiKey: string;
+  model: string;
+}
+
 export interface AppConfiguration {
   app: AppConfig;
   database: DatabaseConfig;
@@ -41,4 +47,5 @@ export interface AppConfiguration {
   minio: MinioConfig;
   jwt: JwtConfig;
   embedding: EmbeddingConfig;
+  reranker: RerankerConfig;
 }

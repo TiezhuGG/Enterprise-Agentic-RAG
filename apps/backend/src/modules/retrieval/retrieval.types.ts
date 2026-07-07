@@ -6,6 +6,7 @@ export type KnowledgeRequestContext = ExecutionContext;
 export const retrievalPermissions = ['knowledge.retrieve', 'knowledge.read'] as const;
 export const defaultRetrievalLimit = 10;
 export const defaultRetrieverCandidateLimit = 20;
+export const MAX_CONTEXT_TOKENS = 3000;
 export const rrfRankConstant = 60;
 
 export interface RetrievalRequest {
@@ -13,6 +14,7 @@ export interface RetrievalRequest {
   limit?: number;
   vectorLimit?: number;
   keywordLimit?: number;
+  maxContextTokens?: number;
 }
 
 export interface RetrievalAccessContext {
@@ -35,6 +37,14 @@ export interface RetrieverResult {
 }
 
 export interface RetrievalResult {
+  chunkId: string;
+  documentId: string;
+  content: string;
+  score: number;
+  metadata: ChunkMetadata;
+}
+
+export interface ContextChunk {
   chunkId: string;
   documentId: string;
   content: string;

@@ -8,6 +8,7 @@ import type {
   JwtConfig,
   MinioConfig,
   RedisConfig,
+  RerankerConfig,
 } from './config.types';
 
 @Injectable()
@@ -46,5 +47,9 @@ export class ConfigService {
 
   getEmbeddingConfig(): Readonly<EmbeddingConfig> {
     return this.config.embedding;
+  }
+
+  getRerankerConfig(): Readonly<RerankerConfig> {
+    return this.config.reranker;
   }
 }

@@ -39,6 +39,9 @@ export const envSchema = z.object({
     })
     .int('EMBEDDING_DIMENSION must be an integer')
     .min(1, 'EMBEDDING_DIMENSION must be greater than 0'),
+  RERANKER_API_URL: requiredUrl('RERANKER_API_URL'),
+  RERANKER_API_KEY: requiredString('RERANKER_API_KEY'),
+  RERANKER_MODEL: requiredString('RERANKER_MODEL'),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;

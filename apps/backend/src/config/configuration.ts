@@ -73,5 +73,10 @@ export const createConfiguration = (): AppConfiguration => {
       model: env.EMBEDDING_MODEL,
       dimension: env.EMBEDDING_DIMENSION,
     },
+    reranker: {
+      apiUrl: env.RERANKER_API_URL,
+      apiKey: env.RERANKER_API_KEY,
+      model: env.RERANKER_MODEL,
+    },
   };
 };
