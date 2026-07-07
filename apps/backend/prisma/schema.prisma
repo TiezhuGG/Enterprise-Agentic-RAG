@@ -140,23 +140,35 @@ model SpaceMember {
 }
 
 model Document {
-  id          String         @id @default(cuid())
-  spaceId     String         @map("space_id")
+  id          String           @id @default(cuid())
+  spaceId     String           @map("space_id")
   title       String
   description String?
   type        DocumentType
-  status      DocumentStatus @default(CREATED)
-  storageKey  String?        @map("storage_key")
-  mimeType    String?        @map("mime_type")
+  status      DocumentStatus   @default(CREATED)
+  storageKey  String?          @map("storage_key")
+  mimeType    String?          @map("mime_type")
   size        Int?
-  createdBy   String         @map("created_by")
-  createdAt   DateTime       @default(now()) @map("created_at")
-  updatedAt   DateTime       @updatedAt @map("updated_at")
-  creator     User           @relation("DocumentCreator", fields: [createdBy], references: [id], onDelete: Restrict)
-  space       KnowledgeSpace @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+  createdBy   String           @map("created_by")
+  createdAt   DateTime         @default(now()) @map("created_at")
+  updatedAt   DateTime         @updatedAt @map("updated_at")
+  content     DocumentContent?
+  creator     User             @relation("DocumentCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  space       KnowledgeSpace   @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 
   @@index([spaceId])
   @@index([createdBy])
   @@index([status])
   @@map("documents")
+}
+
+model DocumentContent {
+  id         String   @id @default(cuid())
+  documentId String   @unique @map("document_id")
+  content    String
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@map("document_contents")
 }

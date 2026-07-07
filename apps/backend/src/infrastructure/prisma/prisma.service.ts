@@ -43,6 +43,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.document;
   }
 
+  get documentContent() {
+    return this.client.documentContent;
+  }
+
   async onModuleInit(): Promise<void> {
     await this.client.$connect();
   }

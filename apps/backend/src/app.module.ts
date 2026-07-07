@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule } from './config';
 import { AuthModule } from './modules/auth';
 import { DocumentModule } from './modules/document';
+import { DocumentProcessingModule } from './modules/document-processing';
 import { KnowledgeSpaceModule } from './modules/knowledge-space';
 import { UploadModule } from './modules/upload';
 import { UserModule } from './modules/user';
@@ -13,6 +14,7 @@ import { UserModule } from './modules/user';
     UserModule,
     KnowledgeSpaceModule,
     DocumentModule,
+    DocumentProcessingModule,
     UploadModule,
   ],
 })

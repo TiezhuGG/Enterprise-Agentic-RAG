@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma';
+import type { DocumentContentEntity } from './entities/document-content.entity';
 import type { DocumentEntity, DocumentStatus, DocumentType } from './entities/document.entity';
 
 export interface CreateDocumentInput {
@@ -24,6 +25,7 @@ export interface UpdateDocumentInput {
 }
 
 type DocumentModel = DocumentEntity;
+type DocumentContentModel = DocumentContentEntity;
 
 const activeDocumentWhere = {
   status: {
@@ -44,6 +46,14 @@ const toDocumentEntity = (document: DocumentModel): DocumentEntity => ({
   createdBy: document.createdBy,
   createdAt: document.createdAt,
   updatedAt: document.updatedAt,
+});
+
+const toDocumentContentEntity = (content: DocumentContentModel): DocumentContentEntity => ({
+  id: content.id,
+  documentId: content.documentId,
+  content: content.content,
+  createdAt: content.createdAt,
+  updatedAt: content.updatedAt,
 });
 
 @Injectable()
@@ -101,5 +111,32 @@ export class DocumentRepository {
     });
 
     return toDocumentEntity(document);
+  }
+
+  async upsertContent(documentId: string, content: string): Promise<DocumentContentEntity> {
+    const documentContent = await this.prisma.documentContent.upsert({
+      where: {
+        documentId,
+      },
+      update: {
+        content,
+      },
+      create: {
+        documentId,
+        content,
+      },
+    });
+
+    return toDocumentContentEntity(documentContent);
+  }
+
+  async findContentByDocumentId(documentId: string): Promise<DocumentContentEntity | null> {
+    const content = await this.prisma.documentContent.findUnique({
+      where: {
+        documentId,
+      },
+    });
+
+    return content ? toDocumentContentEntity(content) : null;
   }
 }
