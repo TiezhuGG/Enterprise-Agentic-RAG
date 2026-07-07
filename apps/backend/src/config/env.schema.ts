@@ -30,6 +30,15 @@ export const envSchema = z.object({
   MINIO_BUCKET: requiredString('MINIO_BUCKET'),
   JWT_SECRET: requiredString('JWT_SECRET').min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_EXPIRES_IN: requiredString('JWT_EXPIRES_IN'),
+  EMBEDDING_API_URL: requiredUrl('EMBEDDING_API_URL'),
+  EMBEDDING_API_KEY: requiredString('EMBEDDING_API_KEY'),
+  EMBEDDING_MODEL: requiredString('EMBEDDING_MODEL'),
+  EMBEDDING_DIMENSION: z.coerce
+    .number({
+      error: 'EMBEDDING_DIMENSION is required',
+    })
+    .int('EMBEDDING_DIMENSION must be an integer')
+    .min(1, 'EMBEDDING_DIMENSION must be greater than 0'),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;

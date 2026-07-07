@@ -51,6 +51,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.chunk;
   }
 
+  get chunkEmbedding() {
+    return this.client.chunkEmbedding;
+  }
+
   async onModuleInit(): Promise<void> {
     await this.client.$connect();
   }

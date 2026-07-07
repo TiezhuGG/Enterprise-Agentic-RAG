@@ -4,6 +4,7 @@ import type {
   AppConfig,
   AppConfiguration,
   DatabaseConfig,
+  EmbeddingConfig,
   JwtConfig,
   MinioConfig,
   RedisConfig,
@@ -41,5 +42,9 @@ export class ConfigService {
 
   getJwtConfig(): Readonly<JwtConfig> {
     return this.config.jwt;
+  }
+
+  getEmbeddingConfig(): Readonly<EmbeddingConfig> {
+    return this.config.embedding;
   }
 }

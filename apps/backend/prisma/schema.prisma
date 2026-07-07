@@ -175,17 +175,32 @@ model DocumentContent {
 }
 
 model Chunk {
-  id         String   @id @default(cuid())
-  documentId String   @map("document_id")
+  id         String          @id @default(cuid())
+  documentId String          @map("document_id")
   content    String
   sequence   Int
-  tokenCount Int      @map("token_count")
+  tokenCount Int             @map("token_count")
   metadata   Json
-  createdAt  DateTime @default(now()) @map("created_at")
-  updatedAt  DateTime @updatedAt @map("updated_at")
-  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  createdAt  DateTime        @default(now()) @map("created_at")
+  updatedAt  DateTime        @updatedAt @map("updated_at")
+  document   Document        @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  embedding  ChunkEmbedding?
 
   @@unique([documentId, sequence])
   @@index([documentId])
   @@map("chunks")
+}
+
+model ChunkEmbedding {
+  id        String   @id @default(cuid())
+  chunkId   String   @unique @map("chunk_id")
+  model     String
+  dimension Int
+  vector    Float[]
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+  chunk     Chunk    @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+
+  @@index([model])
+  @@map("chunk_embeddings")
 }

@@ -4,6 +4,7 @@ import { AuthModule } from './modules/auth';
 import { ChunkModule } from './modules/chunk';
 import { DocumentModule } from './modules/document';
 import { DocumentProcessingModule } from './modules/document-processing';
+import { EmbeddingModule } from './modules/embedding';
 import { KnowledgeSpaceModule } from './modules/knowledge-space';
 import { UploadModule } from './modules/upload';
 import { UserModule } from './modules/user';
@@ -17,6 +18,7 @@ import { UserModule } from './modules/user';
     DocumentModule,
     DocumentProcessingModule,
     ChunkModule,
+    EmbeddingModule,
     UploadModule,
   ],
 })

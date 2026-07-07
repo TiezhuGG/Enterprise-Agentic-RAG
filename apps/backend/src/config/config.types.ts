@@ -27,10 +27,18 @@ export interface JwtConfig {
   expiresIn: string;
 }
 
+export interface EmbeddingConfig {
+  apiUrl: string;
+  apiKey: string;
+  model: string;
+  dimension: number;
+}
+
 export interface AppConfiguration {
   app: AppConfig;
   database: DatabaseConfig;
   redis: RedisConfig;
   minio: MinioConfig;
   jwt: JwtConfig;
+  embedding: EmbeddingConfig;
 }

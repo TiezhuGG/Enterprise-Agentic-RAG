@@ -67,5 +67,11 @@ export const createConfiguration = (): AppConfiguration => {
       secret: env.JWT_SECRET,
       expiresIn: env.JWT_EXPIRES_IN,
     },
+    embedding: {
+      apiUrl: env.EMBEDDING_API_URL,
+      apiKey: env.EMBEDDING_API_KEY,
+      model: env.EMBEDDING_MODEL,
+      dimension: env.EMBEDDING_DIMENSION,
+    },
   };
 };
