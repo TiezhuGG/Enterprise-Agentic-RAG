@@ -152,6 +152,7 @@ model Document {
   createdBy   String           @map("created_by")
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
+  chunks      Chunk[]
   content     DocumentContent?
   creator     User             @relation("DocumentCreator", fields: [createdBy], references: [id], onDelete: Restrict)
   space       KnowledgeSpace   @relation(fields: [spaceId], references: [id], onDelete: Cascade)
@@ -171,4 +172,20 @@ model DocumentContent {
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
 
   @@map("document_contents")
+}
+
+model Chunk {
+  id         String   @id @default(cuid())
+  documentId String   @map("document_id")
+  content    String
+  sequence   Int
+  tokenCount Int      @map("token_count")
+  metadata   Json
+  createdAt  DateTime @default(now()) @map("created_at")
+  updatedAt  DateTime @updatedAt @map("updated_at")
+  document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, sequence])
+  @@index([documentId])
+  @@map("chunks")
 }

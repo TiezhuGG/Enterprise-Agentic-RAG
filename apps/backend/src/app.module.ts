@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from './config';
 import { AuthModule } from './modules/auth';
+import { ChunkModule } from './modules/chunk';
 import { DocumentModule } from './modules/document';
 import { DocumentProcessingModule } from './modules/document-processing';
 import { KnowledgeSpaceModule } from './modules/knowledge-space';
@@ -15,6 +16,7 @@ import { UserModule } from './modules/user';
     KnowledgeSpaceModule,
     DocumentModule,
     DocumentProcessingModule,
+    ChunkModule,
     UploadModule,
   ],
 })
