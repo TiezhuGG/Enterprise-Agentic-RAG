@@ -1,0 +1,196 @@
+name: enterprise-agentic-rag-prod
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: enterprise-agentic-rag-prod-postgres
+    env_file:
+      - path: ../.env.production
+        required: false
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    ports:
+      - '5432:5432'
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    container_name: enterprise-agentic-rag-prod-redis
+    command: redis-server --appendonly yes
+    env_file:
+      - path: ../.env.production
+        required: false
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    ports:
+      - '6379:6379'
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  minio:
+    image: quay.io/minio/minio:latest
+    container_name: enterprise-agentic-rag-prod-minio
+    command: server /data --console-address ':9001'
+    env_file:
+      - path: ../.env.production
+        required: false
+    environment:
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'mc ready local || curl -fsS http://127.0.0.1:9000/minio/health/live || exit 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    ports:
+      - '9000:9000'
+      - '9001:9001'
+    restart: unless-stopped
+    volumes:
+      - minio_data:/data
+
+  neo4j:
+    image: neo4j:5-community
+    container_name: enterprise-agentic-rag-prod-neo4j
+    env_file:
+      - path: ../.env.production
+        required: false
+    environment:
+      NEO4J_AUTH: ${NEO4J_USERNAME:?NEO4J_USERNAME is required}/${NEO4J_PASSWORD:?NEO4J_PASSWORD is required}
+    healthcheck:
+      test: ['CMD-SHELL', 'wget --quiet --tries=1 --spider http://127.0.0.1:7474 || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    ports:
+      - '7474:7474'
+      - '7687:7687'
+    restart: unless-stopped
+    volumes:
+      - neo4j_data:/data
+
+  backend:
+    build:
+      context: ..
+      dockerfile: apps/backend/Dockerfile
+    image: enterprise-agentic-rag-backend:latest
+    container_name: enterprise-agentic-rag-prod-backend
+    depends_on:
+      minio:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - path: ../.env.production
+        required: false
+    environment:
+      AGENT_ENABLE_GRAPH: ${AGENT_ENABLE_GRAPH:?AGENT_ENABLE_GRAPH is required}
+      AGENT_ENABLE_MEMORY: ${AGENT_ENABLE_MEMORY:?AGENT_ENABLE_MEMORY is required}
+      AGENT_MAX_ITERATIONS: ${AGENT_MAX_ITERATIONS:?AGENT_MAX_ITERATIONS is required}
+      APP_ENV: ${APP_ENV:?APP_ENV is required}
+      APP_PORT: ${APP_PORT:?APP_PORT is required}
+      DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:?EMBEDDING_API_KEY is required}
+      EMBEDDING_API_URL: ${EMBEDDING_API_URL:?EMBEDDING_API_URL is required}
+      EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:?EMBEDDING_DIMENSION is required}
+      EMBEDDING_MODEL: ${EMBEDDING_MODEL:?EMBEDDING_MODEL is required}
+      JWT_EXPIRES_IN: ${JWT_EXPIRES_IN:?JWT_EXPIRES_IN is required}
+      JWT_SECRET: ${JWT_SECRET:?JWT_SECRET is required}
+      LLM_API_KEY: ${LLM_API_KEY:?LLM_API_KEY is required}
+      LLM_API_URL: ${LLM_API_URL:?LLM_API_URL is required}
+      LLM_MAX_TOKENS: ${LLM_MAX_TOKENS:?LLM_MAX_TOKENS is required}
+      LLM_MODEL: ${LLM_MODEL:?LLM_MODEL is required}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:?LLM_TEMPERATURE is required}
+      MEMORY_WINDOW_SIZE: ${MEMORY_WINDOW_SIZE:?MEMORY_WINDOW_SIZE is required}
+      MEM0_API_KEY: ${MEM0_API_KEY:?MEM0_API_KEY is required}
+      MEM0_API_URL: ${MEM0_API_URL:?MEM0_API_URL is required}
+      MINIO_ACCESS_KEY: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+      MINIO_BUCKET: ${MINIO_BUCKET:?MINIO_BUCKET is required}
+      MINIO_ENDPOINT: ${MINIO_ENDPOINT:?MINIO_ENDPOINT is required}
+      MINIO_SECRET_KEY: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+      NEO4J_PASSWORD: ${NEO4J_PASSWORD:?NEO4J_PASSWORD is required}
+      NEO4J_URI: ${NEO4J_URI:?NEO4J_URI is required}
+      NEO4J_USERNAME: ${NEO4J_USERNAME:?NEO4J_USERNAME is required}
+      REDIS_MEMORY_TTL: ${REDIS_MEMORY_TTL:?REDIS_MEMORY_TTL is required}
+      REDIS_URL: ${REDIS_URL:?REDIS_URL is required}
+      RERANKER_API_KEY: ${RERANKER_API_KEY:?RERANKER_API_KEY is required}
+      RERANKER_API_URL: ${RERANKER_API_URL:?RERANKER_API_URL is required}
+      RERANKER_MODEL: ${RERANKER_MODEL:?RERANKER_MODEL is required}
+      RUN_SEED: ${RUN_SEED:-false}
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:${APP_PORT:-3000}/health'').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    ports:
+      - '${BACKEND_PORT:-3000}:${APP_PORT:-3000}'
+    restart: unless-stopped
+
+  frontend:
+    build:
+      context: ..
+      dockerfile: apps/frontend/Dockerfile
+      args:
+        APP_ENV: ${APP_ENV:-production}
+        NEXT_STANDALONE: 'true'
+        NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL is required}
+    image: enterprise-agentic-rag-frontend:latest
+    container_name: enterprise-agentic-rag-prod-frontend
+    depends_on:
+      backend:
+        condition: service_healthy
+    env_file:
+      - path: ../.env.production
+        required: false
+    environment:
+      APP_ENV: ${APP_ENV:?APP_ENV is required}
+      NEXT_PUBLIC_API_BASE_URL: ${NEXT_PUBLIC_API_BASE_URL:?NEXT_PUBLIC_API_BASE_URL is required}
+      PORT: 3001
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3001'').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    ports:
+      - '${FRONTEND_PORT:-3001}:3001'
+    restart: unless-stopped
+
+volumes:
+  minio_data:
+  neo4j_data:
+  postgres_data:
+  redis_data:
