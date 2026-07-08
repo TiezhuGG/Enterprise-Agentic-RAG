@@ -6,7 +6,7 @@ import { ChatWindow } from '@/components/chat/ChatWindow';
 import { DemoGuidePanel, SystemReadinessPanel } from '@/components/demo';
 import { useDemoStore } from '@/store/demo.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
-import { AuthTokenPanel } from './AuthTokenPanel';
+import { AuthPanel } from './AuthPanel';
 import { DocumentListPanel } from './DocumentListPanel';
 import { DocumentMetadataPanel } from './DocumentMetadataPanel';
 import { DocumentUploadPanel } from './DocumentUploadPanel';
@@ -67,7 +67,7 @@ export function DemoWorkbench() {
           </button>
         </div>
 
-        <AuthTokenPanel />
+        <AuthPanel />
         <SystemReadinessPanel />
         <SpaceSwitcher />
       </aside>

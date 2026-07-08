@@ -20,6 +20,7 @@ export function DemoGuidePanel() {
   const finalResponse = useAgentDebugStore((state) => state.finalResponse);
   const activeTab = useWorkbenchStore((state) => state.activeTab);
   const authToken = useWorkbenchStore((state) => state.authToken);
+  const authUser = useWorkbenchStore((state) => state.authUser);
   const documents = useWorkbenchStore((state) => state.documents);
   const ingestionStatus = useWorkbenchStore((state) => state.ingestionStatus);
   const selectedDocumentId = useWorkbenchStore((state) => state.selectedDocumentId);
@@ -41,7 +42,11 @@ export function DemoGuidePanel() {
       status: readiness === 'ready' ? 'done' : readiness === 'degraded' ? 'blocked' : 'active',
     },
     {
-      detail: authToken ? 'JWT token is saved for API calls.' : 'Save a JWT token.',
+      detail: authUser
+        ? `Logged in as ${authUser.email}.`
+        : authToken
+          ? 'JWT token is saved for API calls.'
+          : 'Sign in to load workspace data.',
       id: 'auth',
       label: 'Auth',
       status: authToken ? 'done' : 'blocked',

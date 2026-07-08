@@ -1007,6 +1007,46 @@ textarea:disabled {
   min-height: calc(100vh - 36px);
 }
 
+.auth-panel {
+  box-shadow: none;
+}
+
+.auth-panel__form {
+  display: grid;
+  gap: 10px;
+}
+
+.auth-panel__logout {
+  min-height: 32px;
+  padding: 6px 10px;
+}
+
+.auth-panel__error {
+  background: #fff7f5;
+  border: 1px solid #f0b8af;
+  border-radius: 8px;
+  color: var(--danger);
+  font-size: 12px;
+  line-height: 1.4;
+  margin: 0;
+  padding: 8px 10px;
+}
+
+.auth-panel__manual {
+  border-top: 1px solid var(--border);
+  padding-top: 10px;
+}
+
+.auth-panel__manual summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.auth-panel__manual form {
+  margin-top: 10px;
+}
+
 .demo-guide {
   background: #ffffff;
   border: 1px solid var(--border);

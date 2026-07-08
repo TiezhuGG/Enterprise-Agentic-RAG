@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { getAuthToken, setAuthToken as persistAuthToken } from '@/services/api-client';
+import { authService } from '@/services/auth.service';
 import { documentService } from '@/services/document.service';
 import { ingestionService } from '@/services/ingestion.service';
 import { knowledgeSpaceService } from '@/services/knowledge-space.service';
@@ -18,12 +19,16 @@ import type {
   PipelineJob,
   UploadState,
 } from '@/types/workbench';
+import type { AuthenticatedUser } from '@/types/auth';
 
 export type WorkbenchTab = 'pipeline' | 'agent-debug' | 'assistant';
 
 interface WorkbenchStore {
   activeTab: WorkbenchTab;
+  authError: string | null;
+  authLoading: boolean;
   authToken: string;
+  authUser: AuthenticatedUser | null;
   documentMetadata: DocumentContentMetadata | null;
   documents: KnowledgeDocument[];
   error: string | null;
@@ -39,12 +44,14 @@ interface WorkbenchStore {
   selectedSpaceId: string | null;
   spaces: KnowledgeSpace[];
   uploadState: UploadState;
+  clearAuth: () => void;
   createSpace: (name: string) => Promise<void>;
   deleteSelectedDocument: () => Promise<void>;
   ingestSelectedDocument: () => Promise<void>;
   initialize: () => Promise<void>;
   loadDocuments: (spaceId?: string) => Promise<void>;
   loadPipeline: (documentId: string, preferredJobId?: string) => Promise<void>;
+  login: (email: string, password: string) => Promise<void>;
   selectDocument: (documentId: string | null) => Promise<void>;
   selectPipelineJob: (jobId: string) => Promise<void>;
   selectSpace: (spaceId: string) => Promise<void>;
@@ -72,9 +79,34 @@ const isMetadataUnavailable = (error: unknown): boolean => {
   return message.includes('not found') || message.includes('404') || message.includes('metadata');
 };
 
+const emptyWorkspaceState = () => ({
+  documentMetadata: null,
+  documents: [],
+  error: null,
+  ingestionState: {
+    status: 'idle' as const,
+  },
+  ingestionStatus: null,
+  loading: false,
+  loadingDocuments: false,
+  loadingPipeline: false,
+  pipelineEvents: [],
+  pipelineJobs: [],
+  selectedDocumentId: null,
+  selectedPipelineJobId: null,
+  selectedSpaceId: null,
+  spaces: [],
+  uploadState: {
+    status: 'idle' as const,
+  },
+});
+
 export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   activeTab: 'pipeline',
+  authError: null,
+  authLoading: false,
   authToken: '',
+  authUser: null,
   documentMetadata: null,
   documents: [],
   error: null,
@@ -93,6 +125,17 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   spaces: [],
   uploadState: {
     status: 'idle',
+  },
+
+  clearAuth() {
+    persistAuthToken('');
+    set({
+      ...emptyWorkspaceState(),
+      authError: null,
+      authLoading: false,
+      authToken: '',
+      authUser: null,
+    });
   },
 
   async createSpace(name: string) {
@@ -189,11 +232,22 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   },
 
   async initialize() {
+    const authToken = getAuthToken();
+
     set({
-      authToken: getAuthToken(),
+      authToken,
       error: null,
-      loading: true,
     });
+
+    if (!authToken) {
+      set({
+        ...emptyWorkspaceState(),
+        authToken: '',
+      });
+      return;
+    }
+
+    set({ loading: true });
 
     try {
       const spaces = await knowledgeSpaceService.list();
@@ -286,6 +340,36 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     }
   },
 
+  async login(email: string, password: string) {
+    set({
+      authError: null,
+      authLoading: true,
+    });
+
+    try {
+      const response = await authService.login({
+        email: email.trim(),
+        password,
+      });
+
+      persistAuthToken(response.accessToken);
+      set({
+        ...emptyWorkspaceState(),
+        authError: null,
+        authLoading: false,
+        authToken: response.accessToken,
+        authUser: response.user,
+      });
+
+      await get().initialize();
+    } catch (error) {
+      set({
+        authError: toErrorMessage(error),
+        authLoading: false,
+      });
+    }
+  },
+
   async selectDocument(documentId: string | null) {
     set({
       documentMetadata: null,
@@ -358,20 +442,16 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   },
 
   async setAuthToken(token: string) {
-    persistAuthToken(token.trim());
+    const normalizedToken = token.trim();
+
+    persistAuthToken(normalizedToken);
+
     set({
-      authToken: token.trim(),
-      documentMetadata: null,
-      documents: [],
-      error: null,
-      ingestionState: { status: 'idle' },
-      ingestionStatus: null,
-      pipelineEvents: [],
-      pipelineJobs: [],
-      selectedDocumentId: null,
-      selectedPipelineJobId: null,
-      selectedSpaceId: null,
-      spaces: [],
+      ...emptyWorkspaceState(),
+      authError: null,
+      authLoading: false,
+      authToken: normalizedToken,
+      authUser: null,
     });
 
     await get().initialize();
