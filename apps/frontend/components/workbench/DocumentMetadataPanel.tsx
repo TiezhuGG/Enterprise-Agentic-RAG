@@ -1,6 +1,7 @@
 'use client';
 
 import { useWorkbenchStore } from '@/store/workbench.store';
+import { DemoEmptyState } from '@/components/demo';
 import type { DocumentContentMetadata } from '@/types/workbench';
 
 const shortenHash = (hash?: string): string => {
@@ -39,7 +40,9 @@ export function DocumentMetadataPanel() {
         </div>
       </div>
 
-      {!metadata ? <p className="workbench-empty">No metadata.</p> : null}
+      {!metadata ? (
+        <DemoEmptyState title="No Metadata" action="Metadata appears after processing completes." />
+      ) : null}
 
       {metadata ? (
         <>

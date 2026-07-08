@@ -1,6 +1,7 @@
 'use client';
 
 import type { AgentDebugEventItem } from '@/store/agent-debug.store';
+import { DemoEmptyState } from '@/components/demo';
 
 interface AgentEventTimelineProps {
   events: AgentDebugEventItem[];
@@ -16,7 +17,12 @@ export function AgentEventTimeline({ events }: AgentEventTimelineProps) {
         </div>
       </div>
 
-      {events.length === 0 ? <p className="workbench-empty">No events.</p> : null}
+      {events.length === 0 ? (
+        <DemoEmptyState
+          title="No Agent Events"
+          action="Run a question to stream execution events."
+        />
+      ) : null}
 
       <ol className="agent-debug-events">
         {events.map((event) => (

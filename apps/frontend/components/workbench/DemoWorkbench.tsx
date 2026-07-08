@@ -3,6 +3,8 @@
 import { useEffect } from 'react';
 import { AgentDebugWorkbench } from '@/components/agent-debug';
 import { ChatWindow } from '@/components/chat/ChatWindow';
+import { DemoGuidePanel, SystemReadinessPanel } from '@/components/demo';
+import { useDemoStore } from '@/store/demo.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
 import { AuthTokenPanel } from './AuthTokenPanel';
 import { DocumentListPanel } from './DocumentListPanel';
@@ -15,13 +17,15 @@ import { SpaceSwitcher } from './SpaceSwitcher';
 export function DemoWorkbench() {
   const activeTab = useWorkbenchStore((state) => state.activeTab);
   const error = useWorkbenchStore((state) => state.error);
+  const initializeDemo = useDemoStore((state) => state.initialize);
   const initialize = useWorkbenchStore((state) => state.initialize);
   const loading = useWorkbenchStore((state) => state.loading);
   const setActiveTab = useWorkbenchStore((state) => state.setActiveTab);
 
   useEffect(() => {
     void initialize();
-  }, [initialize]);
+    void initializeDemo();
+  }, [initialize, initializeDemo]);
 
   return (
     <main className="workbench-shell">
@@ -64,11 +68,13 @@ export function DemoWorkbench() {
         </div>
 
         <AuthTokenPanel />
+        <SystemReadinessPanel />
         <SpaceSwitcher />
       </aside>
 
       <section className="workbench-main">
         {error ? <div className="workbench-error">{error}</div> : null}
+        <DemoGuidePanel />
 
         {activeTab === 'pipeline' ? (
           <div className="workbench-grid" aria-busy={loading}>

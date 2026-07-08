@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { DemoQuestionBank } from '@/components/demo';
 import { useAgentDebugStore } from '@/store/agent-debug.store';
 import { AgentCitationInspector } from './AgentCitationInspector';
 import { AgentEventTimeline } from './AgentEventTimeline';
@@ -52,6 +53,8 @@ export function AgentDebugWorkbench() {
         question={question}
         runConfig={runConfig}
       />
+
+      <DemoQuestionBank disabled={running} onSelect={setQuestion} />
 
       <div className="agent-debug-grid">
         <div className="agent-debug-column">

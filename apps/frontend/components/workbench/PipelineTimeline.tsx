@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { DemoEmptyState } from '@/components/demo';
 import { useWorkbenchStore } from '@/store/workbench.store';
 import type { PipelineEvent, PipelineJobStatus } from '@/types/workbench';
 
@@ -81,7 +82,10 @@ export function PipelineTimeline() {
 
       {loadingPipeline ? <p className="workbench-empty">Loading pipeline...</p> : null}
       {!loadingPipeline && sortedEvents.length === 0 ? (
-        <p className="workbench-empty">No pipeline events.</p>
+        <DemoEmptyState
+          title="No Pipeline Events"
+          action="Run ingestion for the selected document."
+        />
       ) : null}
 
       <div className="pipeline-timeline">

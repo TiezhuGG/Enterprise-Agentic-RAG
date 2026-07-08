@@ -1,5 +1,7 @@
 'use client';
 
+import { DemoEmptyState } from '@/components/demo';
+
 interface AgentTokenStreamProps {
   answer: string;
   running: boolean;
@@ -16,7 +18,11 @@ export function AgentTokenStream({ answer, running }: AgentTokenStreamProps) {
       </div>
 
       <div className="agent-debug-token-stream">
-        {answer ? <p>{answer}</p> : <p className="workbench-empty">No answer.</p>}
+        {answer ? (
+          <p>{answer}</p>
+        ) : (
+          <DemoEmptyState title="No Answer" action="Token output appears while the Agent runs." />
+        )}
       </div>
     </section>
   );

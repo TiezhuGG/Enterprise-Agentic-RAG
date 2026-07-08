@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { DemoEmptyState } from '@/components/demo';
 import { useWorkbenchStore } from '@/store/workbench.store';
 import type { DocumentStatus, KnowledgeDocument } from '@/types/workbench';
 
@@ -71,12 +72,14 @@ export function DocumentListPanel() {
       </div>
 
       <div className="document-list">
-        {!selectedSpaceId ? <p className="workbench-empty">No space selected.</p> : null}
+        {!selectedSpaceId ? (
+          <DemoEmptyState title="No Space selected" action="Create or select a Space first." />
+        ) : null}
         {selectedSpaceId && loadingDocuments ? (
           <p className="workbench-empty">Loading documents...</p>
         ) : null}
         {selectedSpaceId && !loadingDocuments && documents.length === 0 ? (
-          <p className="workbench-empty">No documents.</p>
+          <DemoEmptyState title="No Documents" action="Upload docs/demo/sample-policy.md." />
         ) : null}
 
         {documents.map((document) => (

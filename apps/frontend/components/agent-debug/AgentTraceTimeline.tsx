@@ -1,6 +1,7 @@
 'use client';
 
 import type { AgentTraceEntry } from '@/types/agent';
+import { DemoEmptyState } from '@/components/demo';
 
 interface AgentTraceTimelineProps {
   trace: AgentTraceEntry[];
@@ -30,7 +31,9 @@ export function AgentTraceTimeline({ trace }: AgentTraceTimelineProps) {
         </div>
       </div>
 
-      {trace.length === 0 ? <p className="workbench-empty">No trace.</p> : null}
+      {trace.length === 0 ? (
+        <DemoEmptyState title="No Trace" action="Trace is available after the done event." />
+      ) : null}
 
       <ol className="agent-debug-trace">
         {trace.map((entry) => (

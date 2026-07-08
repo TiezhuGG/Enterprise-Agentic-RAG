@@ -1,6 +1,7 @@
 'use client';
 
 import type { AgentCitation } from '@/types/agent';
+import { DemoEmptyState } from '@/components/demo';
 
 interface AgentCitationInspectorProps {
   citations: AgentCitation[];
@@ -19,7 +20,12 @@ export function AgentCitationInspector({ citations }: AgentCitationInspectorProp
         </div>
       </div>
 
-      {citations.length === 0 ? <p className="workbench-empty">No citations.</p> : null}
+      {citations.length === 0 ? (
+        <DemoEmptyState
+          title="No Citations"
+          action="Citations appear when retrieval returns sources."
+        />
+      ) : null}
 
       <div className="agent-debug-citations">
         {citations.map((citation) => (
