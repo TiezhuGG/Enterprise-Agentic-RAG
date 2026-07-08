@@ -1,4 +1,5 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ObservabilityService } from '../../../infrastructure/observability';
 import { LLM_PROVIDER, type LlmProvider } from '../../chat/providers/llm.provider';
 import { PromptBuilder } from '../../chat/prompt/prompt.builder';
 import type { ContextChunk } from '../../retrieval';
@@ -11,6 +12,7 @@ export class AnswerNode implements AgentNode {
   constructor(
     @Inject(LLM_PROVIDER)
     private readonly llmProvider: LlmProvider,
+    private readonly observabilityService: ObservabilityService,
     private readonly promptBuilder: PromptBuilder,
   ) {}
 
@@ -22,7 +24,29 @@ export class AnswerNode implements AgentNode {
       state.historyMessages,
       state.memoryContext ?? undefined,
     );
-    const answer = await this.llmProvider.chat(messages);
+    const startedAt = Date.now();
+    let answer: string;
+
+    try {
+      answer = await this.llmProvider.chat(messages);
+      this.observabilityService.recordLlmRequest({
+        context: state.executionContext,
+        durationMs: Date.now() - startedAt,
+        mode: 'chat',
+        operation: 'agent.answer',
+        status: 'success',
+      });
+    } catch (error) {
+      this.observabilityService.recordLlmRequest({
+        context: state.executionContext,
+        durationMs: Date.now() - startedAt,
+        error,
+        mode: 'chat',
+        operation: 'agent.answer',
+        status: 'failed',
+      });
+      throw error;
+    }
 
     return {
       ...state,
@@ -43,10 +67,32 @@ export class AnswerNode implements AgentNode {
       state.memoryContext ?? undefined,
     );
     const answerTokens: string[] = [];
+    const startedAt = Date.now();
 
-    for await (const token of this.llmProvider.stream(messages)) {
-      answerTokens.push(token);
-      await onToken(token);
+    try {
+      for await (const token of this.llmProvider.stream(messages)) {
+        answerTokens.push(token);
+        await onToken(token);
+      }
+      this.observabilityService.recordLlmRequest({
+        context: state.executionContext,
+        durationMs: Date.now() - startedAt,
+        mode: 'stream',
+        operation: 'agent.answer',
+        status: 'success',
+        tokenCount: answerTokens.length,
+      });
+    } catch (error) {
+      this.observabilityService.recordLlmRequest({
+        context: state.executionContext,
+        durationMs: Date.now() - startedAt,
+        error,
+        mode: 'stream',
+        operation: 'agent.answer',
+        status: 'failed',
+        tokenCount: answerTokens.length,
+      });
+      throw error;
     }
 
     return {

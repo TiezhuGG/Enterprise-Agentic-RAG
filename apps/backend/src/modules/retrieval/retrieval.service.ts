@@ -1,4 +1,5 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
+import { ObservabilityService } from '../../infrastructure/observability';
 import { ContextBuilder } from './context/context.builder';
 import { RrfFusion } from './fusion/rrf.fusion';
 import { GraphRetriever } from './retrievers/graph.retriever';
@@ -20,6 +21,7 @@ export class RetrievalService {
     private readonly contextBuilder: ContextBuilder,
     private readonly graphRetriever: GraphRetriever,
     private readonly keywordRetriever: KeywordRetriever,
+    private readonly observabilityService: ObservabilityService,
     private readonly rerankerService: RerankerService,
     private readonly rrfFusion: RrfFusion,
     private readonly vectorRetriever: VectorRetriever,
@@ -29,36 +31,69 @@ export class RetrievalService {
     context: KnowledgeRequestContext,
     request: RetrievalRequest,
   ): Promise<ContextChunk[]> {
-    const query = request.query.trim();
+    const startedAt = Date.now();
 
-    if (!query) {
-      throw new BadRequestException('Retrieval query is required');
+    try {
+      const query = request.query.trim();
+
+      if (!query) {
+        throw new BadRequestException('Retrieval query is required');
+      }
+
+      const accessContext = this.contextBuilder.build(context);
+
+      if (!accessContext.canRetrieve) {
+        this.observabilityService.recordRetrieval({
+          context,
+          durationMs: Date.now() - startedAt,
+          resultCount: 0,
+          source: 'hybrid',
+          status: 'success',
+        });
+        return [];
+      }
+
+      const resultLimit = this.resolveLimit(request.limit, defaultRetrievalLimit);
+      const vectorLimit = this.resolveLimit(request.vectorLimit, defaultRetrieverCandidateLimit);
+      const keywordLimit = this.resolveLimit(request.keywordLimit, defaultRetrieverCandidateLimit);
+      const contextTokenBudget = this.resolveLimit(request.maxContextTokens, MAX_CONTEXT_TOKENS);
+      const [vectorResults, keywordResults, graphResults] = await Promise.all([
+        this.vectorRetriever.retrieve(query, accessContext, vectorLimit),
+        this.keywordRetriever.retrieve(query, accessContext, keywordLimit),
+        request.enableGraph === false
+          ? Promise.resolve([])
+          : this.graphRetriever.retrieve(query, accessContext, keywordLimit),
+      ]);
+      const rrfResults = this.rrfFusion.fuse(
+        [vectorResults, keywordResults, graphResults],
+        resultLimit,
+      );
+      const rerankedResults = await this.rerankerService.rerank(query, rrfResults);
+      const contextChunks = this.contextBuilder.buildContextChunks(
+        rerankedResults,
+        contextTokenBudget,
+      );
+
+      this.observabilityService.recordRetrieval({
+        context,
+        durationMs: Date.now() - startedAt,
+        resultCount: contextChunks.length,
+        source: 'hybrid',
+        status: 'success',
+      });
+
+      return contextChunks;
+    } catch (error) {
+      this.observabilityService.recordRetrieval({
+        context,
+        durationMs: Date.now() - startedAt,
+        error,
+        resultCount: 0,
+        source: 'hybrid',
+        status: 'failed',
+      });
+      throw error;
     }
-
-    const accessContext = this.contextBuilder.build(context);
-
-    if (!accessContext.canRetrieve) {
-      return [];
-    }
-
-    const resultLimit = this.resolveLimit(request.limit, defaultRetrievalLimit);
-    const vectorLimit = this.resolveLimit(request.vectorLimit, defaultRetrieverCandidateLimit);
-    const keywordLimit = this.resolveLimit(request.keywordLimit, defaultRetrieverCandidateLimit);
-    const contextTokenBudget = this.resolveLimit(request.maxContextTokens, MAX_CONTEXT_TOKENS);
-    const [vectorResults, keywordResults, graphResults] = await Promise.all([
-      this.vectorRetriever.retrieve(query, accessContext, vectorLimit),
-      this.keywordRetriever.retrieve(query, accessContext, keywordLimit),
-      request.enableGraph === false
-        ? Promise.resolve([])
-        : this.graphRetriever.retrieve(query, accessContext, keywordLimit),
-    ]);
-    const rrfResults = this.rrfFusion.fuse(
-      [vectorResults, keywordResults, graphResults],
-      resultLimit,
-    );
-    const rerankedResults = await this.rerankerService.rerank(query, rrfResults);
-
-    return this.contextBuilder.buildContextChunks(rerankedResults, contextTokenBudget);
   }
 
   private resolveLimit(value: number | undefined, fallback: number): number {

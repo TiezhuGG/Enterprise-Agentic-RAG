@@ -1,5 +1,6 @@
 import { Inject, Injectable } from '@nestjs/common';
 import { ConfigService } from '../../../config';
+import { ObservabilityService } from '../../../infrastructure/observability';
 import { LLM_PROVIDER, type LlmProvider } from '../../chat/providers/llm.provider';
 import type { AgentNode, PlannerDecision } from '../agent.types';
 import type { AgentState } from '../graph/agent.state';
@@ -13,21 +14,45 @@ export class PlannerNode implements AgentNode {
     private readonly configService: ConfigService,
     @Inject(LLM_PROVIDER)
     private readonly llmProvider: LlmProvider,
+    private readonly observabilityService: ObservabilityService,
   ) {}
 
   async run(state: AgentState): Promise<AgentState> {
     const agentConfig = this.configService.getAgentConfig();
-    const plannerAnswer = await this.llmProvider.chat([
-      {
-        role: 'system',
-        content:
-          'You are the planner for an Enterprise RAG workflow. Return strict JSON only: {"needsRetrieval":true,"needsGraph":boolean}. Simple factual questions use retrieval only. Complex relationship, dependency, causal, cross-document, or multi-hop questions need graph.',
-      },
-      {
-        role: 'user',
-        content: `Question:\n${state.question}`,
-      },
-    ]);
+    const startedAt = Date.now();
+    let plannerAnswer: string;
+
+    try {
+      plannerAnswer = await this.llmProvider.chat([
+        {
+          role: 'system',
+          content:
+            'You are the planner for an Enterprise RAG workflow. Return strict JSON only: {"needsRetrieval":true,"needsGraph":boolean}. Simple factual questions use retrieval only. Complex relationship, dependency, causal, cross-document, or multi-hop questions need graph.',
+        },
+        {
+          role: 'user',
+          content: `Question:\n${state.question}`,
+        },
+      ]);
+      this.observabilityService.recordLlmRequest({
+        context: state.executionContext,
+        durationMs: Date.now() - startedAt,
+        mode: 'chat',
+        operation: 'agent.planner',
+        status: 'success',
+      });
+    } catch (error) {
+      this.observabilityService.recordLlmRequest({
+        context: state.executionContext,
+        durationMs: Date.now() - startedAt,
+        error,
+        mode: 'chat',
+        operation: 'agent.planner',
+        status: 'failed',
+      });
+      throw error;
+    }
+
     const decision = this.parseDecision(plannerAnswer, state.question);
 
     return {

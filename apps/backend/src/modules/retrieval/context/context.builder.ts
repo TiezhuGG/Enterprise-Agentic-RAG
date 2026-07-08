@@ -28,6 +28,7 @@ export class ContextBuilder {
       permissions,
       spaceIds,
       canRetrieve: roles.length > 0 && hasRetrievalPermission && spaceIds.length > 0,
+      metadata: context.metadata,
     };
   }
 

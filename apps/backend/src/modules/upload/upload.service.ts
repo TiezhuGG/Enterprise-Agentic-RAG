@@ -7,6 +7,7 @@ import {
 } from '@nestjs/common';
 import { basename, extname, parse } from 'node:path';
 import type { ExecutionContext } from '../../common';
+import { ObservabilityService } from '../../infrastructure/observability';
 import { StorageService } from '../../infrastructure/storage';
 import { DocumentRepository, type DocumentEntity, type DocumentType } from '../document';
 import { KnowledgeSpaceRepository, type SpaceMemberRole } from '../knowledge-space';
@@ -25,6 +26,7 @@ export class UploadService {
   constructor(
     private readonly documentRepository: DocumentRepository,
     private readonly knowledgeSpaceRepository: KnowledgeSpaceRepository,
+    private readonly observabilityService: ObservabilityService,
     private readonly storageService: StorageService,
   ) {}
 
@@ -34,33 +36,60 @@ export class UploadService {
     input: UploadDocumentDto,
     file: UploadedDocumentFile | undefined,
   ): Promise<DocumentEntity> {
-    const uploadFile = this.validateFile(file);
-    await this.ensureSpaceRole(context, spaceId);
-
-    const document = await this.documentRepository.create({
-      spaceId,
-      title: this.resolveTitle(input.title, uploadFile.originalname),
-      description: input.description,
-      type: this.resolveDocumentType(uploadFile),
-      mimeType: uploadFile.mimetype,
-      size: uploadFile.size,
-      createdBy: context.userId,
-    });
-    const storageKey = this.createObjectKey(spaceId, document.id, uploadFile.originalname);
+    const startedAt = Date.now();
+    let uploadFile: UploadedDocumentFile | undefined;
 
     try {
-      await this.storageService.uploadObject(storageKey, uploadFile.buffer, uploadFile.mimetype);
-    } catch {
-      await this.documentRepository.update(document.id, {
-        status: 'FAILED',
-      });
-      throw new InternalServerErrorException('Document upload failed');
-    }
+      uploadFile = this.validateFile(file);
+      await this.ensureSpaceRole(context, spaceId);
 
-    return this.documentRepository.update(document.id, {
-      storageKey,
-      status: 'PROCESSING',
-    });
+      const document = await this.documentRepository.create({
+        spaceId,
+        title: this.resolveTitle(input.title, uploadFile.originalname),
+        description: input.description,
+        type: this.resolveDocumentType(uploadFile),
+        mimeType: uploadFile.mimetype,
+        size: uploadFile.size,
+        createdBy: context.userId,
+      });
+      const storageKey = this.createObjectKey(spaceId, document.id, uploadFile.originalname);
+
+      try {
+        await this.storageService.uploadObject(storageKey, uploadFile.buffer, uploadFile.mimetype);
+      } catch {
+        await this.documentRepository.update(document.id, {
+          status: 'FAILED',
+        });
+        throw new InternalServerErrorException('Document upload failed');
+      }
+
+      const updatedDocument = await this.documentRepository.update(document.id, {
+        storageKey,
+        status: 'PROCESSING',
+      });
+
+      this.observabilityService.recordUpload({
+        context,
+        durationMs: Date.now() - startedAt,
+        mimeType: uploadFile.mimetype,
+        size: uploadFile.size,
+        spaceId,
+        status: 'success',
+      });
+
+      return updatedDocument;
+    } catch (error) {
+      this.observabilityService.recordUpload({
+        context,
+        durationMs: Date.now() - startedAt,
+        error,
+        mimeType: uploadFile?.mimetype,
+        size: uploadFile?.size,
+        spaceId,
+        status: 'failed',
+      });
+      throw error;
+    }
   }
 
   private validateFile(file: UploadedDocumentFile | undefined): UploadedDocumentFile {

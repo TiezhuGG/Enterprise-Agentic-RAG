@@ -1,5 +1,6 @@
 import { InternalServerErrorException, Injectable } from '@nestjs/common';
 import { ConfigService } from '../../../config';
+import { ObservabilityService } from '../../../infrastructure/observability';
 import { AnswerNode } from '../nodes/answer.node';
 import { GraphNode } from '../nodes/graph.node';
 import { MemoryNode } from '../nodes/memory.node';
@@ -23,6 +24,7 @@ export class AgentGraph {
     private readonly configService: ConfigService,
     private readonly graphNode: GraphNode,
     private readonly memoryNode: MemoryNode,
+    private readonly observabilityService: ObservabilityService,
     private readonly plannerNode: PlannerNode,
     private readonly retrievalNode: RetrievalNode,
     private readonly verificationNode: VerificationNode,
@@ -35,6 +37,8 @@ export class AgentGraph {
     const visit = async (nodeName: string, handler: () => Promise<AgentState>) => {
       iterations += 1;
       const startTime = new Date().toISOString();
+      const startedAt = Date.now();
+      const requestId = this.observabilityService.getRequestId(state.executionContext);
 
       if (iterations > this.configService.getAgentConfig().maxIterations) {
         throw new InternalServerErrorException(`Agent max iterations exceeded at ${nodeName}`);
@@ -42,6 +46,15 @@ export class AgentGraph {
 
       try {
         const nextState = await handler();
+        const durationMs = Date.now() - startedAt;
+
+        this.observabilityService.recordAgentNode({
+          durationMs,
+          executionId: nextState.executionId,
+          node: nodeName,
+          requestId,
+          status: 'success',
+        });
 
         return {
           ...nextState,
@@ -56,6 +69,15 @@ export class AgentGraph {
           ],
         };
       } catch (error) {
+        const durationMs = Date.now() - startedAt;
+
+        this.observabilityService.recordAgentNode({
+          durationMs,
+          executionId: state.executionId,
+          node: nodeName,
+          requestId,
+          status: 'failed',
+        });
         state = {
           ...state,
           trace: [
@@ -74,6 +96,14 @@ export class AgentGraph {
     };
     const skip = (nodeName: string) => {
       const timestamp = new Date().toISOString();
+
+      this.observabilityService.recordAgentNode({
+        durationMs: 0,
+        executionId: state.executionId,
+        node: nodeName,
+        requestId: this.observabilityService.getRequestId(state.executionContext),
+        status: 'skipped',
+      });
 
       state = {
         ...state,

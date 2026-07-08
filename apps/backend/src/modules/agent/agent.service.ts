@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { ExecutionContext } from '../../common';
 import { ConfigService } from '../../config';
+import { ObservabilityService } from '../../infrastructure/observability';
 import type { ChatHistoryMessage, ChatRequestDto } from '../chat/chat.types';
 import { ConversationService, type MessageEntity } from '../conversation';
 import type { AgentChatRequestDto, AgentEvent, AgentResponse, AgentRunResult } from './agent.types';
@@ -51,6 +52,7 @@ export class AgentService {
     private readonly configService: ConfigService,
     private readonly conversationService: ConversationService,
     private readonly memoryTool: MemoryTool,
+    private readonly observabilityService: ObservabilityService,
   ) {}
 
   async execute(context: ExecutionContext, request: AgentChatRequestDto): Promise<AgentResponse> {
@@ -139,56 +141,85 @@ export class AgentService {
     source: string,
     onEvent?: (event: AgentEvent) => Promise<void> | void,
   ): Promise<AgentState> {
+    const startedAt = Date.now();
+    const requestId = this.observabilityService.ensureRequestId(context);
+    const executionId = this.observabilityService.ensureExecutionId(context);
     const question = request.question.trim();
 
     if (!question) {
       throw new BadRequestException('Question is required');
     }
 
-    const historyMessages = await this.getHistoryMessages(context, request.conversationId);
+    try {
+      const historyMessages = await this.getHistoryMessages(context, request.conversationId);
 
-    await this.conversationService.createMessage(context, request.conversationId, {
-      content: question,
-      metadata: {
-        source,
-      },
-      role: 'USER',
-    });
-
-    const finalState = await this.agentGraph.run(
-      createInitialAgentState({
-        conversationId: request.conversationId,
-        executionContext: context,
-        historyMessages,
-        question,
-        request,
-      }),
-      { onEvent },
-    );
-    const answer = finalState.answer ?? '';
-
-    await this.conversationService.createMessage(context, request.conversationId, {
-      content: answer,
-      metadata: {
-        citations: finalState.citations,
-        executionId: finalState.executionId,
-        source,
-        trace: finalState.trace,
-        verified: finalState.verified,
-      },
-      role: 'ASSISTANT',
-    });
-
-    if (this.configService.getAgentConfig().enableMemory) {
-      await this.memoryTool.saveTurn(context, {
-        answer,
-        conversationId: request.conversationId,
-        messages: await this.getHistoryMessages(context, request.conversationId),
-        question,
+      await this.conversationService.createMessage(context, request.conversationId, {
+        content: question,
+        metadata: {
+          executionId,
+          requestId,
+          source,
+        },
+        role: 'USER',
       });
-    }
 
-    return finalState;
+      const finalState = await this.agentGraph.run(
+        createInitialAgentState({
+          conversationId: request.conversationId,
+          executionContext: context,
+          executionId,
+          historyMessages,
+          question,
+          request,
+        }),
+        { onEvent },
+      );
+      const answer = finalState.answer ?? '';
+
+      await this.conversationService.createMessage(context, request.conversationId, {
+        content: answer,
+        metadata: {
+          citations: finalState.citations,
+          executionId: finalState.executionId,
+          requestId,
+          source,
+          trace: finalState.trace,
+          verified: finalState.verified,
+        },
+        role: 'ASSISTANT',
+      });
+
+      if (this.configService.getAgentConfig().enableMemory) {
+        await this.memoryTool.saveTurn(context, {
+          answer,
+          conversationId: request.conversationId,
+          messages: await this.getHistoryMessages(context, request.conversationId),
+          question,
+        });
+      }
+
+      this.observabilityService.recordAgentWorkflow({
+        durationMs: Date.now() - startedAt,
+        executionId,
+        requestId,
+        status: 'success',
+        usedGraph: finalState.needsGraph,
+        usedRetrieval: finalState.needsRetrieval,
+        userId: context.userId,
+      });
+
+      return finalState;
+    } catch (error) {
+      this.observabilityService.recordAgentWorkflow({
+        durationMs: Date.now() - startedAt,
+        error,
+        executionId,
+        requestId,
+        status: 'failed',
+        userId: context.userId,
+      });
+      throw error;
+    }
   }
 
   private toAgentResponse(finalState: AgentState): AgentResponse {

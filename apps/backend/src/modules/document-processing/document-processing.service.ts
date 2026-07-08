@@ -1,19 +1,20 @@
-import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
+import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import { ObservabilityService } from '../../infrastructure/observability';
 import { StorageService } from '../../infrastructure/storage';
 import { DocumentRepository, type DocumentContentEntity, type DocumentEntity } from '../document';
 import { ParserFactory } from './parser.factory';
 
 @Injectable()
 export class DocumentProcessingService {
-  private readonly logger = new Logger(DocumentProcessingService.name);
-
   constructor(
     private readonly documentRepository: DocumentRepository,
+    private readonly observabilityService: ObservabilityService,
     private readonly parserFactory: ParserFactory,
     private readonly storageService: StorageService,
   ) {}
 
   async processDocument(documentId: string): Promise<DocumentContentEntity> {
+    const startedAt = Date.now();
     const document = await this.findActiveDocument(documentId);
 
     try {
@@ -33,13 +34,23 @@ export class DocumentProcessingService {
       await this.documentRepository.update(document.id, {
         status: 'READY',
       });
+      this.observabilityService.recordDocumentProcessing({
+        documentId: document.id,
+        durationMs: Date.now() - startedAt,
+        status: 'success',
+      });
 
       return content;
     } catch (error) {
       await this.documentRepository.update(document.id, {
         status: 'FAILED',
       });
-      this.logger.error(`Failed to process document ${document.id}`, error);
+      this.observabilityService.recordDocumentProcessing({
+        documentId: document.id,
+        durationMs: Date.now() - startedAt,
+        error,
+        status: 'failed',
+      });
       throw error;
     }
   }

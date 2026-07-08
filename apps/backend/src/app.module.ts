@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from './config';
+import { ObservabilityModule } from './infrastructure/observability';
 import { AgentModule } from './modules/agent';
 import { AuthModule } from './modules/auth';
 import { ChatModule } from './modules/chat';
@@ -19,6 +20,7 @@ import { UserModule } from './modules/user';
 @Module({
   imports: [
     ConfigModule,
+    ObservabilityModule,
     AgentModule,
     AuthModule,
     UserModule,

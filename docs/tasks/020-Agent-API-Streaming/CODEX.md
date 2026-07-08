@@ -2,9 +2,9 @@
 
 请严格遵守：
 
-docs/tasks/020-Agent-Production-API/SPEC.md
+docs/tasks/020-Agent-API-Streaming/SPEC.md
 
-docs/tasks/020-Agent-Production-API/SEQUENCE.md
+docs/tasks/020-Agent-API-Streaming/SEQUENCE.md
 
 目标：
 

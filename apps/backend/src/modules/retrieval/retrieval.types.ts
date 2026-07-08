@@ -24,6 +24,7 @@ export interface RetrievalAccessContext {
   permissions: string[];
   spaceIds: string[];
   canRetrieve: boolean;
+  metadata: Record<string, unknown>;
 }
 
 export type RetrievalSource = 'vector' | 'keyword' | 'graph';
