@@ -1,0 +1,38 @@
+{
+  "name": "example-rag-evaluation",
+  "description": "示例数据集。请将 spaceIds、chunk/document id 和 conversationId 替换为本地环境真实值。",
+  "defaultContext": {
+    "userId": "seed-admin-user",
+    "roles": ["ADMIN"],
+    "permissions": ["knowledge.retrieve", "knowledge.read"],
+    "spaceIds": ["replace-with-space-id"],
+    "metadata": {
+      "source": "evaluation"
+    }
+  },
+  "cases": [
+    {
+      "id": "policy-reimbursement-basic",
+      "query": "报销制度的核心要求是什么？",
+      "expectedAnswer": "报销制度要求提交有效票据并遵守审批流程。",
+      "expectedCitationChunkIds": ["replace-with-chunk-id"],
+      "expectedCitationDocumentIds": ["replace-with-document-id"],
+      "retrieval": {
+        "limit": 5,
+        "vectorLimit": 10,
+        "keywordLimit": 10,
+        "maxContextTokens": 2000
+      }
+    },
+    {
+      "id": "policy-owner-relationship",
+      "query": "财务部和报销制度之间是什么关系？",
+      "expectedAnswer": "财务部负责报销制度。",
+      "expectedCitationDocumentIds": ["replace-with-document-id"],
+      "retrieval": {
+        "limit": 5,
+        "enableGraph": true
+      }
+    }
+  ]
+}
