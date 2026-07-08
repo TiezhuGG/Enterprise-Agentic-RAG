@@ -44,6 +44,14 @@ const cosineSimilarity = (left: number[], right: number[]): number => {
 export class VectorClient {
   constructor(private readonly prisma: PrismaService) {}
 
+  async healthCheck(): Promise<void> {
+    await this.prisma.chunkEmbedding.findFirst({
+      select: {
+        id: true,
+      },
+    });
+  }
+
   async deleteByDocumentId(documentId: string): Promise<number> {
     const result = await this.prisma.chunkEmbedding.deleteMany({
       where: {

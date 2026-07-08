@@ -10,6 +10,10 @@ export class RedisService {
     return Number(await this.redisClient.command('DEL', key));
   }
 
+  async ping(): Promise<void> {
+    await this.redisClient.command('PING');
+  }
+
   async get(key: string): Promise<string | null> {
     const value = await this.redisClient.command('GET', key);
 

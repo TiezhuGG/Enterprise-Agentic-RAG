@@ -1,6 +1,7 @@
 import { Inject, Injectable } from '@nestjs/common';
 import type { ExecutionContext } from '../../common';
 import { ConfigService } from '../../config';
+import { ObservabilityService } from '../../infrastructure/observability';
 import type { ChatHistoryMessage } from '../chat/chat.types';
 import { LLM_PROVIDER, type LlmProvider } from '../chat/providers/llm.provider';
 import { MemoryRepository } from './memory.repository';
@@ -24,6 +25,7 @@ export class MemoryService {
   constructor(
     private readonly configService: ConfigService,
     private readonly memoryRepository: MemoryRepository,
+    private readonly observabilityService: ObservabilityService,
     @Inject(LLM_PROVIDER)
     private readonly llmProvider: LlmProvider,
     @Inject(MEM0_MEMORY_PROVIDER)
@@ -36,10 +38,29 @@ export class MemoryService {
   }
 
   async deleteMemory(context: ExecutionContext, memoryId: string): Promise<void> {
-    await this.mem0Provider.delete({
-      id: memoryId,
-      userId: context.userId,
-    });
+    const startedAt = Date.now();
+
+    try {
+      await this.mem0Provider.delete({
+        id: memoryId,
+        userId: context.userId,
+      });
+      this.observabilityService.recordMemory({
+        durationMs: Date.now() - startedAt,
+        operation: 'deleteMemory',
+        recordCount: 1,
+        status: 'success',
+      });
+    } catch (error) {
+      this.observabilityService.recordMemory({
+        durationMs: Date.now() - startedAt,
+        error,
+        operation: 'deleteMemory',
+        recordCount: 1,
+        status: 'failed',
+      });
+      throw error;
+    }
   }
 
   async getMemory(
@@ -47,49 +68,107 @@ export class MemoryService {
     conversationId: string,
     query: string,
   ): Promise<MemoryContext> {
-    const [shortTermMessages, summary, longTermMemories] = await Promise.all([
-      this.memoryRepository.getConversationWindow(conversationId, context.userId),
-      this.memoryRepository.getSummary(conversationId, context.userId),
-      this.mem0Provider.search({
-        userId: context.userId,
-        query,
-        limit: longTermMemoryLimit,
-      }),
-    ]);
+    const startedAt = Date.now();
 
-    return {
-      shortTermMessages,
-      summary,
-      longTermMemories,
-    };
+    try {
+      const [shortTermMessages, summary, longTermMemories] = await Promise.all([
+        this.memoryRepository.getConversationWindow(conversationId, context.userId),
+        this.memoryRepository.getSummary(conversationId, context.userId),
+        this.mem0Provider.search({
+          userId: context.userId,
+          query,
+          limit: longTermMemoryLimit,
+        }),
+      ]);
+      const recordCount = shortTermMessages.length + longTermMemories.length + (summary ? 1 : 0);
+
+      this.observabilityService.recordMemory({
+        durationMs: Date.now() - startedAt,
+        operation: 'getMemory',
+        recordCount,
+        status: 'success',
+      });
+
+      return {
+        shortTermMessages,
+        summary,
+        longTermMemories,
+      };
+    } catch (error) {
+      this.observabilityService.recordMemory({
+        durationMs: Date.now() - startedAt,
+        error,
+        operation: 'getMemory',
+        status: 'failed',
+      });
+      throw error;
+    }
   }
 
   async listMemory(context: ExecutionContext, query = ''): Promise<MemoryListResponse> {
-    const memories = await this.mem0Provider.search({
-      userId: context.userId,
-      query,
-      limit: longTermMemoryLimit,
-    });
+    const startedAt = Date.now();
 
-    return { memories };
+    try {
+      const memories = await this.mem0Provider.search({
+        userId: context.userId,
+        query,
+        limit: longTermMemoryLimit,
+      });
+
+      this.observabilityService.recordMemory({
+        durationMs: Date.now() - startedAt,
+        operation: 'listMemory',
+        recordCount: memories.length,
+        status: 'success',
+      });
+
+      return { memories };
+    } catch (error) {
+      this.observabilityService.recordMemory({
+        durationMs: Date.now() - startedAt,
+        error,
+        operation: 'listMemory',
+        status: 'failed',
+      });
+      throw error;
+    }
   }
 
   async saveTurn(context: ExecutionContext, input: SaveConversationTurnInput): Promise<void> {
-    const memoryMessages = this.toMemoryMessages(input.messages);
-    const windowMessageCount = this.windowSize * 2;
-    const recentMessages = memoryMessages.slice(-windowMessageCount);
+    const startedAt = Date.now();
 
-    await this.memoryRepository.saveConversationWindow(
-      input.conversationId,
-      context.userId,
-      recentMessages,
-      this.redisTtlSeconds,
-    );
+    try {
+      const memoryMessages = this.toMemoryMessages(input.messages);
+      const windowMessageCount = this.windowSize * 2;
+      const recentMessages = memoryMessages.slice(-windowMessageCount);
 
-    await Promise.all([
-      this.saveSummaryIfNeeded(context, input.conversationId, input.messages),
-      this.saveUserFactIfPresent(context, input),
-    ]);
+      await this.memoryRepository.saveConversationWindow(
+        input.conversationId,
+        context.userId,
+        recentMessages,
+        this.redisTtlSeconds,
+      );
+
+      await Promise.all([
+        this.saveSummaryIfNeeded(context, input.conversationId, input.messages),
+        this.saveUserFactIfPresent(context, input),
+      ]);
+
+      this.observabilityService.recordMemory({
+        durationMs: Date.now() - startedAt,
+        operation: 'saveTurn',
+        recordCount: recentMessages.length,
+        status: 'success',
+      });
+    } catch (error) {
+      this.observabilityService.recordMemory({
+        durationMs: Date.now() - startedAt,
+        error,
+        operation: 'saveTurn',
+        status: 'failed',
+      });
+      throw error;
+    }
   }
 
   private extractUserFact(question: string): string | null {

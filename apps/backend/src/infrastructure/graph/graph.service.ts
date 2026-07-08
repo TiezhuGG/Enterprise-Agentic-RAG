@@ -9,4 +9,8 @@ export class GraphService {
   run(cypher: string, parameters: GraphParameters = {}): Promise<GraphQueryResult[]> {
     return this.graphClient.run(cypher, parameters);
   }
+
+  async healthCheck(): Promise<void> {
+    await this.graphClient.run('RETURN 1 AS ok');
+  }
 }

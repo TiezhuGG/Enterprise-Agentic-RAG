@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from './config';
 import { ObservabilityModule } from './infrastructure/observability';
+import { ReadinessModule } from './infrastructure/observability/readiness.module';
 import { AgentModule } from './modules/agent';
 import { AuthModule } from './modules/auth';
 import { ChatModule } from './modules/chat';
@@ -26,6 +27,7 @@ import { UserModule } from './modules/user';
   imports: [
     ConfigModule,
     ObservabilityModule,
+    ReadinessModule,
     AgentModule,
     AuthModule,
     UserModule,

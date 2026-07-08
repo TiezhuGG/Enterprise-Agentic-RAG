@@ -2,6 +2,9 @@ import type { ExecutionContext } from '../../common';
 
 export type ObservabilityLogLevel = 'debug' | 'info' | 'warn' | 'error';
 export type ObservabilityStatus = 'success' | 'failed' | 'skipped';
+export type ProviderHealthStatus = 'ok' | 'failed' | 'skipped';
+export type ProviderHealthName =
+  'database' | 'redis' | 'storage' | 'graph' | 'vector' | 'llm' | 'embedding' | 'reranker';
 
 export interface ObservabilityLogInput {
   level: ObservabilityLogLevel;
@@ -37,6 +40,19 @@ export interface HealthResponse {
   status: 'ok';
   uptimeSeconds: number;
   timestamp: string;
+}
+
+export interface ReadinessCheck {
+  name: ProviderHealthName;
+  status: ProviderHealthStatus;
+  durationMs?: number;
+  message?: string;
+}
+
+export interface ReadinessResponse {
+  status: 'ok' | 'degraded';
+  timestamp: string;
+  checks: ReadinessCheck[];
 }
 
 export interface HttpRequestObservation {
@@ -123,4 +139,58 @@ export interface IngestionStageObservation {
   stage: string;
   status: ObservabilityStatus;
   error?: unknown;
+}
+
+export interface EmbeddingObservation {
+  context?: Pick<ExecutionContext, 'metadata' | 'userId'>;
+  dimension?: number;
+  durationMs: number;
+  error?: unknown;
+  model?: string;
+  operation: string;
+  status: ObservabilityStatus;
+  vectorCount: number;
+}
+
+export interface RerankerObservation {
+  context?: Pick<ExecutionContext, 'metadata' | 'userId'>;
+  documentCount: number;
+  durationMs: number;
+  error?: unknown;
+  model?: string;
+  operation: string;
+  status: ObservabilityStatus;
+}
+
+export interface VectorObservation {
+  durationMs: number;
+  error?: unknown;
+  operation: string;
+  recordCount?: number;
+  status: ObservabilityStatus;
+}
+
+export interface StorageOperationObservation {
+  contentType?: string;
+  durationMs: number;
+  error?: unknown;
+  operation: string;
+  size?: number;
+  status: ObservabilityStatus;
+}
+
+export interface MemoryObservation {
+  durationMs: number;
+  error?: unknown;
+  operation: string;
+  recordCount?: number;
+  status: ObservabilityStatus;
+}
+
+export interface ProviderHealthObservation {
+  durationMs: number;
+  error?: unknown;
+  message?: string;
+  name: ProviderHealthName;
+  status: ProviderHealthStatus;
 }

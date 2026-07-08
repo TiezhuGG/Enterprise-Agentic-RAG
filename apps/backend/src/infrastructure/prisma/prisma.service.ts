@@ -84,6 +84,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.executionTraceEvent;
   }
 
+  async healthCheck(): Promise<void> {
+    await this.client.$queryRaw`SELECT 1`;
+  }
+
   async queryRaw<T = unknown>(
     query: TemplateStringsArray | Prisma.Sql,
     ...values: unknown[]

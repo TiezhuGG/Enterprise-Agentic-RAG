@@ -7,15 +7,21 @@ import type {
   CounterSnapshot,
   DocumentProcessingObservation,
   DurationSnapshot,
+  EmbeddingObservation,
   HealthResponse,
   HttpRequestObservation,
   IngestionObservation,
   IngestionStageObservation,
   LlmObservation,
   MetricLabels,
+  MemoryObservation,
   ObservabilityLogInput,
+  ProviderHealthObservation,
+  RerankerObservation,
+  StorageOperationObservation,
   RetrievalObservation,
   UploadObservation,
+  VectorObservation,
 } from './observability.types';
 
 const sensitiveKeyPattern =
@@ -35,6 +41,14 @@ const requiredCounterNames = [
   'document_processing_total',
   'ingestion_requests_total',
   'ingestion_stage_total',
+  'embedding_requests_total',
+  'embedding_vectors_total',
+  'reranker_requests_total',
+  'reranker_documents_total',
+  'vector_operations_total',
+  'storage_operations_total',
+  'memory_operations_total',
+  'provider_health_total',
   'errors_total',
 ];
 
@@ -439,6 +453,200 @@ export class ObservabilityService {
     });
   }
 
+  recordEmbedding(input: EmbeddingObservation): void {
+    this.incrementCounter('embedding_requests_total', {
+      model: input.model,
+      operation: input.operation,
+      status: input.status,
+    });
+    this.incrementCounter(
+      'embedding_vectors_total',
+      {
+        model: input.model,
+        operation: input.operation,
+        status: input.status,
+      },
+      input.vectorCount,
+    );
+    this.observeDuration('embedding_duration_ms', input.durationMs, {
+      model: input.model,
+      operation: input.operation,
+      status: input.status,
+    });
+
+    if (input.status === 'failed') {
+      this.recordError('embedding', input.error, this.toObservationContext(input.context));
+    }
+
+    this.log({
+      durationMs: input.durationMs,
+      error: input.error,
+      event: 'embedding',
+      executionId: input.context ? this.getExecutionId(input.context) : undefined,
+      level: input.status === 'failed' ? 'error' : 'info',
+      metadata: {
+        dimension: input.dimension,
+        model: input.model,
+        operation: input.operation,
+        vectorCount: input.vectorCount,
+      },
+      requestId: input.context ? this.getRequestId(input.context) : undefined,
+      status: input.status,
+      userId: input.context?.userId,
+    });
+  }
+
+  recordReranker(input: RerankerObservation): void {
+    this.incrementCounter('reranker_requests_total', {
+      model: input.model,
+      operation: input.operation,
+      status: input.status,
+    });
+    this.incrementCounter(
+      'reranker_documents_total',
+      {
+        model: input.model,
+        operation: input.operation,
+        status: input.status,
+      },
+      input.documentCount,
+    );
+    this.observeDuration('reranker_duration_ms', input.durationMs, {
+      model: input.model,
+      operation: input.operation,
+      status: input.status,
+    });
+
+    if (input.status === 'failed') {
+      this.recordError('reranker', input.error, this.toObservationContext(input.context));
+    }
+
+    this.log({
+      durationMs: input.durationMs,
+      error: input.error,
+      event: 'reranker',
+      executionId: input.context ? this.getExecutionId(input.context) : undefined,
+      level: input.status === 'failed' ? 'error' : 'info',
+      metadata: {
+        documentCount: input.documentCount,
+        model: input.model,
+        operation: input.operation,
+      },
+      requestId: input.context ? this.getRequestId(input.context) : undefined,
+      status: input.status,
+      userId: input.context?.userId,
+    });
+  }
+
+  recordVector(input: VectorObservation): void {
+    this.incrementCounter('vector_operations_total', {
+      operation: input.operation,
+      status: input.status,
+    });
+    this.observeDuration('vector_operation_duration_ms', input.durationMs, {
+      operation: input.operation,
+      status: input.status,
+    });
+
+    if (input.status === 'failed') {
+      this.recordError('vector', input.error, {});
+    }
+
+    this.log({
+      durationMs: input.durationMs,
+      error: input.error,
+      event: 'vector.operation',
+      level: input.status === 'failed' ? 'error' : 'info',
+      metadata: {
+        operation: input.operation,
+        recordCount: input.recordCount,
+      },
+      status: input.status,
+    });
+  }
+
+  recordStorage(input: StorageOperationObservation): void {
+    this.incrementCounter('storage_operations_total', {
+      operation: input.operation,
+      status: input.status,
+    });
+    this.observeDuration('storage_operation_duration_ms', input.durationMs, {
+      operation: input.operation,
+      status: input.status,
+    });
+
+    if (input.status === 'failed') {
+      this.recordError('storage', input.error, {});
+    }
+
+    this.log({
+      durationMs: input.durationMs,
+      error: input.error,
+      event: 'storage.operation',
+      level: input.status === 'failed' ? 'error' : 'info',
+      metadata: {
+        contentType: input.contentType,
+        operation: input.operation,
+        size: input.size,
+      },
+      status: input.status,
+    });
+  }
+
+  recordMemory(input: MemoryObservation): void {
+    this.incrementCounter('memory_operations_total', {
+      operation: input.operation,
+      status: input.status,
+    });
+    this.observeDuration('memory_operation_duration_ms', input.durationMs, {
+      operation: input.operation,
+      status: input.status,
+    });
+
+    if (input.status === 'failed') {
+      this.recordError('memory', input.error, {});
+    }
+
+    this.log({
+      durationMs: input.durationMs,
+      error: input.error,
+      event: 'memory.operation',
+      level: input.status === 'failed' ? 'error' : 'info',
+      metadata: {
+        operation: input.operation,
+        recordCount: input.recordCount,
+      },
+      status: input.status,
+    });
+  }
+
+  recordProviderHealth(input: ProviderHealthObservation): void {
+    this.incrementCounter('provider_health_total', {
+      name: input.name,
+      status: input.status,
+    });
+    this.observeDuration('provider_health_duration_ms', input.durationMs, {
+      name: input.name,
+      status: input.status,
+    });
+
+    if (input.status === 'failed') {
+      this.recordError('provider.health', input.error ?? input.message, {});
+    }
+
+    this.log({
+      durationMs: input.durationMs,
+      error: input.error,
+      event: 'provider.health',
+      level: input.status === 'failed' ? 'warn' : 'info',
+      metadata: {
+        message: input.message,
+        name: input.name,
+      },
+      status: input.status,
+    });
+  }
+
   recordError(
     source: string,
     error: unknown,
@@ -556,6 +764,20 @@ export class ObservabilityService {
         .filter(([, value]) => value !== undefined)
         .map(([key, value]) => [key, String(value)]),
     );
+  }
+
+  private toObservationContext(
+    context: Pick<ExecutionContext, 'metadata' | 'userId'> | undefined,
+  ): { requestId?: string; executionId?: string; userId?: string } {
+    if (!context) {
+      return {};
+    }
+
+    return {
+      executionId: this.getExecutionId(context),
+      requestId: this.getRequestId(context),
+      userId: context.userId,
+    };
   }
 
   private formatLabels(labels: Record<string, string>): string {
