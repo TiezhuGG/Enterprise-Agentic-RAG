@@ -15,6 +15,7 @@ import { KnowledgeSpaceModule } from './modules/knowledge-space';
 import { KnowledgeGraphModule } from './modules/knowledge-graph';
 import { MemoryModule } from './modules/memory';
 import { MultimodalModule } from './modules/multimodal';
+import { PipelineModule } from './modules/pipeline';
 import { RerankerModule } from './modules/reranker';
 import { RetrievalModule } from './modules/retrieval';
 import { UploadModule } from './modules/upload';
@@ -39,6 +40,7 @@ import { UserModule } from './modules/user';
     EmbeddingModule,
     IngestionModule,
     EvaluationModule,
+    PipelineModule,
     RerankerModule,
     RetrievalModule,
     UploadModule,

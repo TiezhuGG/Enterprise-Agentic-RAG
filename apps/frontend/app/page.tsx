@@ -1,5 +1,5 @@
-import { ChatWindow } from '@/components/chat/ChatWindow';
+import { DemoWorkbench } from '@/components/workbench';
 
 export default function HomePage() {
-  return <ChatWindow />;
+  return <DemoWorkbench />;
 }

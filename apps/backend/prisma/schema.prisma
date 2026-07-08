@@ -66,6 +66,20 @@ enum MultimodalAttachmentStatus {
   FAILED
 }
 
+enum PipelineJobStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+  CANCELED
+}
+
+enum PipelineEventStatus {
+  STARTED
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
 model User {
   id                    String                 @id @default(cuid())
   email                 String                 @unique
@@ -146,6 +160,7 @@ model KnowledgeSpace {
   documents   Document[]
   members     SpaceMember[]
   owner       User                     @relation("KnowledgeSpaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
+  pipelineJobs PipelineJob[]
 
   @@index([ownerId])
   @@map("knowledge_spaces")
@@ -179,6 +194,7 @@ model Document {
   chunks      Chunk[]
   content     DocumentContent?
   creator     User             @relation("DocumentCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  pipelineJobs PipelineJob[]
   space       KnowledgeSpace   @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 
   @@index([spaceId])
@@ -228,6 +244,50 @@ model ChunkEmbedding {
 
   @@index([model])
   @@map("chunk_embeddings")
+}
+
+model PipelineJob {
+  id          String            @id @default(cuid())
+  documentId  String            @map("document_id")
+  spaceId     String            @map("space_id")
+  executionId String?           @map("execution_id")
+  requestId   String?           @map("request_id")
+  triggeredBy String?           @map("triggered_by")
+  status      PipelineJobStatus @default(RUNNING)
+  metadata    Json              @default("{}")
+  startedAt   DateTime          @default(now()) @map("started_at")
+  finishedAt  DateTime?         @map("finished_at")
+  createdAt   DateTime          @default(now()) @map("created_at")
+  updatedAt   DateTime          @updatedAt @map("updated_at")
+  document    Document          @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  events      PipelineEvent[]
+  space       KnowledgeSpace    @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@index([documentId, createdAt])
+  @@index([spaceId, createdAt])
+  @@index([executionId])
+  @@index([status])
+  @@map("pipeline_jobs")
+}
+
+model PipelineEvent {
+  id           String              @id @default(cuid())
+  jobId        String              @map("job_id")
+  documentId   String              @map("document_id")
+  spaceId      String              @map("space_id")
+  stage        String
+  status       PipelineEventStatus
+  durationMs   Int?                @map("duration_ms")
+  metadata     Json                @default("{}")
+  errorMessage String?             @map("error_message")
+  createdAt    DateTime            @default(now()) @map("created_at")
+  job          PipelineJob         @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@index([jobId, createdAt])
+  @@index([documentId, createdAt])
+  @@index([spaceId, createdAt])
+  @@index([stage, status])
+  @@map("pipeline_events")
 }
 
 model Conversation {

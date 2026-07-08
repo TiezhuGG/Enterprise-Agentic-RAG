@@ -56,6 +56,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.chunkEmbedding;
   }
 
+  get pipelineJob() {
+    return this.client.pipelineJob;
+  }
+
+  get pipelineEvent() {
+    return this.client.pipelineEvent;
+  }
+
   get conversation() {
     return this.client.conversation;
   }

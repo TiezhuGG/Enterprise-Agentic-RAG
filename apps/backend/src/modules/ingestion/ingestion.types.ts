@@ -31,6 +31,7 @@ export interface IngestionCounts {
 export interface IngestionResult {
   documentId: string;
   spaceId: string;
+  pipelineJobId?: string;
   status: Extract<DocumentStatus, 'READY' | 'FAILED'>;
   readyForRetrieval: boolean;
   stages: IngestionStageResult[];

@@ -7,6 +7,7 @@ import { DocumentModule } from '../document';
 import { DocumentProcessingModule } from '../document-processing';
 import { EmbeddingModule } from '../embedding';
 import { KnowledgeGraphModule } from '../knowledge-graph';
+import { PipelineModule } from '../pipeline';
 import { IngestionController } from './ingestion.controller';
 import { IngestionRepository } from './ingestion.repository';
 import { IngestionService } from './ingestion.service';
@@ -19,6 +20,7 @@ import { IngestionService } from './ingestion.service';
     DocumentProcessingModule,
     EmbeddingModule,
     KnowledgeGraphModule,
+    PipelineModule,
     PrismaModule,
     RequestContextModule,
   ],

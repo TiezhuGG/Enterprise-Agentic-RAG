@@ -12,6 +12,7 @@ import { DocumentRepository, type DocumentEntity, type DocumentType } from '../d
 import { EmbeddingService } from '../embedding';
 import { KnowledgeGraphService } from '../knowledge-graph';
 import type { SpaceMemberRole } from '../knowledge-space';
+import { PipelineService, type PipelineJobEntity, type PipelineJobStatus } from '../pipeline';
 import type { IngestDocumentDto } from './dto/ingest-document.dto';
 import type { IngestSpaceDto } from './dto/ingest-space.dto';
 import { IngestionRepository } from './ingestion.repository';
@@ -45,6 +46,7 @@ export class IngestionService {
     private readonly ingestionRepository: IngestionRepository,
     private readonly knowledgeGraphService: KnowledgeGraphService,
     private readonly observabilityService: ObservabilityService,
+    private readonly pipelineService: PipelineService,
   ) {}
 
   async ingestDocument(
@@ -57,6 +59,7 @@ export class IngestionService {
     const startedAt = Date.now();
     let document: DocumentEntity | null = null;
     let enteredProcessing = false;
+    let pipelineJob: PipelineJobEntity | null = null;
 
     this.observabilityService.ensureRequestId(context);
     this.observabilityService.ensureExecutionId(context);
@@ -74,20 +77,27 @@ export class IngestionService {
       document = access.document;
       const activeDocument = document;
       this.ensureWriteRole(access.memberRole);
+      pipelineJob = await this.pipelineService.startDocumentJob(context, activeDocument, {
+        force: options.force,
+        includeEmbedding: options.includeEmbedding,
+        includeGraph: options.includeGraph,
+      });
 
       const skipResult = await this.maybeSkipReadyDocument(
         context,
         activeDocument,
         options,
         stages,
+        pipelineJob,
       );
 
       if (skipResult) {
+        await this.pipelineService.finishJob(pipelineJob.id, 'SUCCEEDED');
         this.recordIngestion(context, activeDocument, stages, startedAt, 'success');
         return skipResult;
       }
 
-      await this.runStage(context, activeDocument, stages, 'validate', () => {
+      await this.runStage(context, activeDocument, stages, pipelineJob, 'validate', () => {
         this.validateDocument(activeDocument, options);
         return {
           documentStatus: activeDocument.status,
@@ -100,15 +110,26 @@ export class IngestionService {
       });
       enteredProcessing = true;
 
-      await this.runStage(context, activeDocument, stages, 'document-processing', async () => {
-        const content = await this.documentProcessingService.processDocument(activeDocument.id);
+      await this.runStage(
+        context,
+        activeDocument,
+        stages,
+        pipelineJob,
+        'document-processing',
+        async () => {
+          const content = await this.documentProcessingService.processDocument(activeDocument.id);
 
-        return {
-          documentContentId: content.id,
-        };
-      });
+          return {
+            cleaner: content.metadata.cleaner,
+            contentHash: content.metadata.contentHash,
+            documentContentId: content.id,
+            language: content.metadata.language,
+            sourceHash: content.metadata.sourceHash,
+          };
+        },
+      );
 
-      await this.runStage(context, activeDocument, stages, 'chunking', async () => {
+      await this.runStage(context, activeDocument, stages, pipelineJob, 'chunking', async () => {
         const chunks = await this.chunkService.processChunks(activeDocument.id);
 
         return {
@@ -117,7 +138,7 @@ export class IngestionService {
       });
 
       if (options.includeEmbedding) {
-        await this.runStage(context, activeDocument, stages, 'embedding', async () => {
+        await this.runStage(context, activeDocument, stages, pipelineJob, 'embedding', async () => {
           const result = await this.embeddingService.processEmbedding(activeDocument.id);
 
           return {
@@ -126,28 +147,39 @@ export class IngestionService {
           };
         });
       } else {
-        this.addSkippedStage(
+        await this.addSkippedStage(
           context,
           activeDocument,
           stages,
+          pipelineJob,
           'embedding',
           'includeEmbedding=false',
         );
       }
 
       const graphCounts = options.includeGraph
-        ? await this.runStage(context, activeDocument, stages, 'graph-extraction', async () => {
-            const result = await this.knowledgeGraphService.extractDocumentGraph(activeDocument.id);
-
-            return {
-              graphEntities: result.entityCount,
-              graphRelations: result.relationCount,
-            };
-          })
-        : this.addSkippedStage(
+        ? await this.runStage(
             context,
             activeDocument,
             stages,
+            pipelineJob,
+            'graph-extraction',
+            async () => {
+              const result = await this.knowledgeGraphService.extractDocumentGraph(
+                activeDocument.id,
+              );
+
+              return {
+                graphEntities: result.entityCount,
+                graphRelations: result.relationCount,
+              };
+            },
+          )
+        : await this.addSkippedStage(
+            context,
+            activeDocument,
+            stages,
+            pipelineJob,
             'graph-extraction',
             'includeGraph=false',
           );
@@ -156,7 +188,7 @@ export class IngestionService {
         status: 'READY',
       });
 
-      await this.runStage(context, activeDocument, stages, 'done', async () => {
+      await this.runStage(context, activeDocument, stages, pipelineJob, 'done', async () => {
         const status = await this.getStatusRecord(activeDocument.id);
 
         this.ensureReadyStatus(status, options);
@@ -168,6 +200,7 @@ export class IngestionService {
         };
       });
 
+      await this.pipelineService.finishJob(pipelineJob.id, 'SUCCEEDED');
       this.recordIngestion(context, activeDocument, stages, startedAt, 'success');
 
       return this.createResult(
@@ -175,10 +208,15 @@ export class IngestionService {
         stages,
         options,
         this.toGraphCounts(graphCounts),
+        pipelineJob.id,
       );
     } catch (error) {
       if (document && enteredProcessing) {
         await this.markDocumentFailed(document.id);
+      }
+
+      if (pipelineJob) {
+        await this.finishPipelineJobSafely(pipelineJob, 'FAILED');
       }
 
       this.recordIngestion(context, document, stages, startedAt, 'failed', error);
@@ -257,14 +295,21 @@ export class IngestionService {
     document: DocumentEntity,
     options: NormalizedIngestionOptions,
     stages: IngestionStageResult[],
+    pipelineJob: PipelineJobEntity,
   ): Promise<IngestionResult | null> {
     if (document.status !== 'READY' || options.force) {
       return null;
     }
 
-    this.addSkippedStage(context, document, stages, 'validate', 'already-ready');
+    await this.addSkippedStage(context, document, stages, pipelineJob, 'validate', 'already-ready');
 
-    return this.createResult(await this.getStatusRecord(document.id), stages, options);
+    return this.createResult(
+      await this.getStatusRecord(document.id),
+      stages,
+      options,
+      undefined,
+      pipelineJob.id,
+    );
   }
 
   private validateDocument(document: DocumentEntity, options: NormalizedIngestionOptions): void {
@@ -289,6 +334,7 @@ export class IngestionService {
     context: ExecutionContext,
     document: DocumentEntity,
     stages: IngestionStageResult[],
+    pipelineJob: PipelineJobEntity,
     stage: IngestionStage,
     action: () => Promise<TMetadata> | TMetadata,
   ): Promise<TMetadata> {
@@ -300,6 +346,7 @@ export class IngestionService {
 
       stages.push(result);
       this.recordStage(context, document, result);
+      await this.recordPipelineStage(pipelineJob, result);
 
       return metadata;
     } catch (error) {
@@ -307,17 +354,19 @@ export class IngestionService {
 
       stages.push(result);
       this.recordStage(context, document, result, error);
+      await this.recordPipelineStage(pipelineJob, result);
       throw error;
     }
   }
 
-  private addSkippedStage(
+  private async addSkippedStage(
     context: ExecutionContext,
     document: DocumentEntity,
     stages: IngestionStageResult[],
+    pipelineJob: PipelineJobEntity,
     stage: IngestionStage,
     reason: string,
-  ): Record<string, unknown> {
+  ): Promise<Record<string, unknown>> {
     const result: IngestionStageResult = {
       durationMs: 0,
       metadata: {
@@ -329,6 +378,7 @@ export class IngestionService {
 
     stages.push(result);
     this.recordStage(context, document, result);
+    await this.recordPipelineStage(pipelineJob, result);
 
     return result.metadata ?? {};
   }
@@ -398,6 +448,7 @@ export class IngestionService {
     stages: IngestionStageResult[],
     options: NormalizedIngestionOptions,
     graphCounts?: GraphCountRecord,
+    pipelineJobId?: string,
   ): IngestionResult {
     return {
       counts: {
@@ -407,6 +458,7 @@ export class IngestionService {
         graphRelations: graphCounts?.graphRelations,
       },
       documentId: status.document.id,
+      pipelineJobId,
       readyForRetrieval: this.isReadyForRetrieval(status, options),
       spaceId: status.document.spaceId,
       stages,
@@ -482,6 +534,19 @@ export class IngestionService {
     });
   }
 
+  private async recordPipelineStage(
+    pipelineJob: PipelineJobEntity,
+    stage: IngestionStageResult,
+  ): Promise<void> {
+    await this.pipelineService.recordStageEvent(pipelineJob, {
+      durationMs: stage.durationMs,
+      errorMessage: stage.errorMessage,
+      metadata: stage.metadata,
+      stage: stage.stage,
+      status: stage.status,
+    });
+  }
+
   private recordIngestion(
     context: ExecutionContext,
     document: DocumentEntity | null,
@@ -506,6 +571,17 @@ export class IngestionService {
       await this.documentRepository.update(documentId, {
         status: 'FAILED',
       });
+    } catch {
+      return;
+    }
+  }
+
+  private async finishPipelineJobSafely(
+    pipelineJob: PipelineJobEntity,
+    status: PipelineJobStatus,
+  ): Promise<void> {
+    try {
+      await this.pipelineService.finishJob(pipelineJob.id, status);
     } catch {
       return;
     }
