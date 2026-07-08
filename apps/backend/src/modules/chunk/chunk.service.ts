@@ -45,7 +45,7 @@ export class ChunkService {
     sequence: number,
     sectionTitle: string,
   ): ChunkMetadata {
-    return {
+    const metadata: ChunkMetadata = {
       documentId: documentMetadata.documentId,
       sequence,
       sectionTitle,
@@ -56,5 +56,15 @@ export class ChunkService {
       sourceHash: documentMetadata.sourceHash,
       contentHash: documentMetadata.contentHash,
     };
+
+    if (documentMetadata.departmentId) {
+      metadata.departmentId = documentMetadata.departmentId;
+    }
+
+    if (documentMetadata.allowedDepartmentIds?.length) {
+      metadata.allowedDepartmentIds = documentMetadata.allowedDepartmentIds;
+    }
+
+    return metadata;
   }
 }

@@ -1,6 +1,11 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { ExecutionContext } from '../../common';
-import { KnowledgeSpaceRepository, type SpaceMemberRole } from '../knowledge-space';
+import { AccessPolicyService } from '../access-policy';
+import {
+  KnowledgeSpaceRepository,
+  type KnowledgeSpaceEntity,
+  type SpaceMemberRole,
+} from '../knowledge-space';
 import type { CreateDocumentDto } from './dto/create-document.dto';
 import type { UpdateDocumentDto } from './dto/update-document.dto';
 import type { DocumentContentMetadata } from './entities/document-content.entity';
@@ -18,6 +23,7 @@ export interface DocumentMetadataResponse {
 @Injectable()
 export class DocumentService {
   constructor(
+    private readonly accessPolicyService: AccessPolicyService,
     private readonly documentRepository: DocumentRepository,
     private readonly knowledgeSpaceRepository: KnowledgeSpaceRepository,
   ) {}
@@ -42,27 +48,55 @@ export class DocumentService {
   }
 
   async listBySpace(context: ExecutionContext, spaceId: string): Promise<DocumentEntity[]> {
-    await this.ensureSpaceRole(context, spaceId, readRoles);
+    const access = await this.ensureSpaceRole(context, spaceId, readRoles);
+    const documents = await this.documentRepository.listBySpace(spaceId);
+    const contentByDocumentId = await this.findContentByDocumentIdMap(
+      documents.map((document) => document.id),
+    );
 
-    return this.documentRepository.listBySpace(spaceId);
+    return documents.filter(
+      (document) =>
+        this.accessPolicyService.canReadKnowledgeResource(
+          this.accessPolicyService.toSubject(context),
+          {
+            ...this.toPolicyResource(
+              access.space,
+              access.memberRole,
+              contentByDocumentId.get(document.id)?.metadata,
+            ),
+            spaceId: document.spaceId,
+          },
+        ).allowed,
+    );
   }
 
   async getById(context: ExecutionContext, id: string): Promise<DocumentEntity> {
     const document = await this.findActiveDocument(id);
-    await this.ensureSpaceRole(context, document.spaceId, readRoles);
+    const access = await this.ensureSpaceRole(context, document.spaceId, readRoles);
+    const content = await this.documentRepository.findContentByDocumentId(document.id);
+
+    this.accessPolicyService.assertCanReadKnowledgeResource(
+      this.accessPolicyService.toSubject(context),
+      this.toPolicyResource(access.space, access.memberRole, content?.metadata),
+    );
 
     return document;
   }
 
   async getMetadata(context: ExecutionContext, id: string): Promise<DocumentMetadataResponse> {
     const document = await this.findActiveDocument(id);
-    await this.ensureSpaceRole(context, document.spaceId, readRoles);
+    const access = await this.ensureSpaceRole(context, document.spaceId, readRoles);
 
     const content = await this.documentRepository.findContentByDocumentId(document.id);
 
     if (!content) {
       throw new NotFoundException('Document metadata not found');
     }
+
+    this.accessPolicyService.assertCanReadKnowledgeResource(
+      this.accessPolicyService.toSubject(context),
+      this.toPolicyResource(access.space, access.memberRole, content.metadata),
+    );
 
     return {
       documentId: document.id,
@@ -108,7 +142,7 @@ export class DocumentService {
     context: ExecutionContext,
     spaceId: string,
     allowedRoles: SpaceMemberRole[],
-  ): Promise<void> {
+  ): Promise<{ memberRole: SpaceMemberRole; space: KnowledgeSpaceEntity }> {
     const space = await this.knowledgeSpaceRepository.findAccessibleById(
       spaceId,
       context.userId,
@@ -124,5 +158,40 @@ export class DocumentService {
     if (!member || !allowedRoles.includes(member.role)) {
       throw new ForbiddenException('Insufficient knowledge space role');
     }
+
+    return {
+      memberRole: member.role,
+      space,
+    };
+  }
+
+  private async findContentByDocumentIdMap(
+    documentIds: string[],
+  ): Promise<Map<string, { metadata: DocumentContentMetadata }>> {
+    const contents = await this.documentRepository.findContentsByDocumentIds(documentIds);
+
+    return new Map(
+      contents.map((content) => [
+        content.documentId,
+        {
+          metadata: content.metadata,
+        },
+      ]),
+    );
+  }
+
+  private toPolicyResource(
+    space: KnowledgeSpaceEntity,
+    memberRole: SpaceMemberRole,
+    metadata: DocumentContentMetadata | undefined,
+  ) {
+    return {
+      allowedDepartmentIds: metadata?.allowedDepartmentIds,
+      departmentId: metadata?.departmentId,
+      securityLevel: metadata?.securityLevel,
+      spaceId: metadata?.spaceId ?? space.id,
+      spaceRole: memberRole,
+      tenantId: space.tenantId,
+    };
   }
 }

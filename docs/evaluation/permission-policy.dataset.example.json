@@ -1,0 +1,59 @@
+{
+  "name": "permission-policy-evaluation",
+  "description": "TASK-042 权限隔离示例数据集。请将 userId、tenantId、departmentId、spaceIds 和文档 ID 替换为本地真实值。",
+  "defaultContext": {
+    "userId": "replace-with-normal-user-id",
+    "roles": ["user"],
+    "permissions": ["knowledge.retrieve", "knowledge.read"],
+    "spaceIds": ["replace-with-space-id"],
+    "tenantId": "replace-with-tenant-id",
+    "departmentId": "replace-with-department-id",
+    "metadata": {
+      "source": "permission-policy-evaluation"
+    }
+  },
+  "cases": [
+    {
+      "id": "confidential-denied-for-normal-user",
+      "query": "查询一条只存在于 CONFIDENTIAL 文档中的关键词。",
+      "expectedCitationDocumentIds": [],
+      "retrieval": {
+        "limit": 5,
+        "vectorLimit": 10,
+        "keywordLimit": 10,
+        "maxContextTokens": 2000
+      }
+    },
+    {
+      "id": "confidential-allowed-for-admin",
+      "query": "查询一条只存在于 CONFIDENTIAL 文档中的关键词。",
+      "expectedCitationDocumentIds": ["replace-with-confidential-document-id"],
+      "context": {
+        "userId": "replace-with-admin-user-id",
+        "roles": ["admin"],
+        "permissions": ["knowledge.retrieve", "knowledge.read", "knowledge.confidential.read"],
+        "departmentId": "replace-with-admin-department-id"
+      },
+      "retrieval": {
+        "limit": 5,
+        "vectorLimit": 10,
+        "keywordLimit": 10,
+        "maxContextTokens": 2000
+      }
+    },
+    {
+      "id": "department-restricted-denied",
+      "query": "查询一条只存在于其他部门受限文档中的关键词。",
+      "expectedCitationDocumentIds": [],
+      "context": {
+        "departmentId": "replace-with-mismatched-department-id"
+      },
+      "retrieval": {
+        "limit": 5,
+        "vectorLimit": 10,
+        "keywordLimit": 10,
+        "maxContextTokens": 2000
+      }
+    }
+  ]
+}

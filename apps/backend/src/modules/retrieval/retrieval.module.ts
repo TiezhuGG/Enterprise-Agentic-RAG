@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { VectorModule } from '../../infrastructure/vector';
+import { AccessPolicyModule } from '../access-policy';
 import { ChunkModule } from '../chunk';
+import { DocumentModule } from '../document';
 import { EmbeddingModule } from '../embedding';
 import { KnowledgeGraphModule } from '../knowledge-graph';
 import { KnowledgeSpaceModule } from '../knowledge-space';
@@ -14,7 +16,9 @@ import { RetrievalService } from './retrieval.service';
 
 @Module({
   imports: [
+    AccessPolicyModule,
     ChunkModule,
+    DocumentModule,
     EmbeddingModule,
     KnowledgeGraphModule,
     KnowledgeSpaceModule,

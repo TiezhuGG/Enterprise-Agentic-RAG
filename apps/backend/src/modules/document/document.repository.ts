@@ -95,6 +95,14 @@ const toPrismaDocumentContentMetadata = (
     json.storageKey = metadata.storageKey;
   }
 
+  if (metadata.departmentId) {
+    json.departmentId = metadata.departmentId;
+  }
+
+  if (metadata.allowedDepartmentIds?.length) {
+    json.allowedDepartmentIds = metadata.allowedDepartmentIds;
+  }
+
   if (typeof metadata.size === 'number' && Number.isFinite(metadata.size)) {
     json.size = metadata.size;
   }
@@ -190,5 +198,21 @@ export class DocumentRepository {
     });
 
     return content ? toDocumentContentEntity(content) : null;
+  }
+
+  async findContentsByDocumentIds(documentIds: string[]): Promise<DocumentContentEntity[]> {
+    if (documentIds.length === 0) {
+      return [];
+    }
+
+    const contents = await this.prisma.documentContent.findMany({
+      where: {
+        documentId: {
+          in: [...new Set(documentIds)],
+        },
+      },
+    });
+
+    return contents.map(toDocumentContentEntity);
   }
 }

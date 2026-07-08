@@ -25,9 +25,13 @@ export interface GraphRelation {
 }
 
 export interface GraphContext {
+  allowedDepartmentIds?: string[];
   content: string;
+  departmentId?: string | null;
   documentId: string;
+  securityLevel?: string;
   score: number;
+  spaceId?: string;
   source: string;
   target: string;
   type: string;

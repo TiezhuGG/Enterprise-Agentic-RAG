@@ -14,6 +14,8 @@ export interface DocumentContentCleanerMetadata extends Record<string, unknown> 
 }
 
 export interface DocumentContentMetadata extends Record<string, unknown> {
+  allowedDepartmentIds?: string[];
+  departmentId?: string;
   documentId: string;
   spaceId: string;
   documentType: DocumentType;
@@ -50,6 +52,14 @@ const toNumberValue = (value: unknown, fallback = 0): number =>
   typeof value === 'number' && Number.isFinite(value) ? value : fallback;
 
 const toBooleanValue = (value: unknown): boolean => value === true;
+
+const toStringArrayValue = (value: unknown): string[] =>
+  Array.isArray(value)
+    ? value
+        .filter((item): item is string => typeof item === 'string')
+        .map((item) => item.trim())
+        .filter(Boolean)
+    : [];
 
 const toDocumentType = (value: unknown): DocumentType => {
   const candidate = toStringValue(value);
@@ -106,6 +116,8 @@ export const normalizeDocumentContentMetadata = (
 
   const mimeType = toStringValue(candidate.mimeType);
   const storageKey = toStringValue(candidate.storageKey);
+  const departmentId = toStringValue(candidate.departmentId);
+  const allowedDepartmentIds = toStringArrayValue(candidate.allowedDepartmentIds);
   const size = candidate.size;
 
   if (mimeType) {
@@ -118,6 +130,14 @@ export const normalizeDocumentContentMetadata = (
 
   if (typeof size === 'number' && Number.isFinite(size)) {
     result.size = size;
+  }
+
+  if (departmentId) {
+    result.departmentId = departmentId;
+  }
+
+  if (allowedDepartmentIds.length > 0) {
+    result.allowedDepartmentIds = allowedDepartmentIds;
   }
 
   return result;

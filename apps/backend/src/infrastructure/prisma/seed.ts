@@ -34,6 +34,11 @@ const permissions = [
     name: 'Retrieve knowledge',
     description: 'Run knowledge retrieval over accessible spaces.',
   },
+  {
+    code: 'knowledge.confidential.read',
+    name: 'Read confidential knowledge',
+    description: 'Read confidential knowledge resources when policy allows it.',
+  },
 ] as const;
 
 const roles = [
@@ -42,7 +47,14 @@ const roles = [
     name: 'Administrator',
     description: 'Full platform administration access.',
     isSystem: true,
-    permissions: ['user.read', 'user.write', 'role.manage', 'knowledge.read', 'knowledge.retrieve'],
+    permissions: [
+      'user.read',
+      'user.write',
+      'role.manage',
+      'knowledge.read',
+      'knowledge.retrieve',
+      'knowledge.confidential.read',
+    ],
   },
   {
     code: 'user',

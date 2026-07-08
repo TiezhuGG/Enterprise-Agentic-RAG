@@ -63,18 +63,37 @@ const toChunkEntity = (chunk: ChunkModel): ChunkEntity => ({
 
 const toChunkMetadata = (metadata: unknown): ChunkMetadata => {
   const candidate = metadata as Partial<ChunkMetadata> | null;
-
-  return {
+  const allowedDepartmentIds = Array.isArray(candidate?.allowedDepartmentIds)
+    ? candidate.allowedDepartmentIds
+        .filter((departmentId): departmentId is string => typeof departmentId === 'string')
+        .map((departmentId) => departmentId.trim())
+        .filter(Boolean)
+    : [];
+  const departmentId =
+    typeof candidate?.departmentId === 'string' && candidate.departmentId.trim()
+      ? candidate.departmentId.trim()
+      : undefined;
+  const chunkMetadata: ChunkMetadata = {
+    contentHash: String(candidate?.contentHash ?? ''),
     documentId: String(candidate?.documentId ?? ''),
-    sequence: Number(candidate?.sequence ?? 0),
-    sectionTitle: String(candidate?.sectionTitle ?? ''),
-    spaceId: String(candidate?.spaceId ?? ''),
     documentType: String(candidate?.documentType ?? ''),
     language: String(candidate?.language ?? 'unknown'),
     securityLevel: String(candidate?.securityLevel ?? 'INTERNAL'),
+    sectionTitle: String(candidate?.sectionTitle ?? ''),
+    sequence: Number(candidate?.sequence ?? 0),
     sourceHash: String(candidate?.sourceHash ?? ''),
-    contentHash: String(candidate?.contentHash ?? ''),
+    spaceId: String(candidate?.spaceId ?? ''),
   };
+
+  if (departmentId) {
+    chunkMetadata.departmentId = departmentId;
+  }
+
+  if (allowedDepartmentIds.length > 0) {
+    chunkMetadata.allowedDepartmentIds = allowedDepartmentIds;
+  }
+
+  return chunkMetadata;
 };
 
 @Injectable()

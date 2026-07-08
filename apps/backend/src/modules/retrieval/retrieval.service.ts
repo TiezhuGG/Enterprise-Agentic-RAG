@@ -5,6 +5,9 @@ import { RrfFusion } from './fusion/rrf.fusion';
 import { GraphRetriever } from './retrievers/graph.retriever';
 import { KeywordRetriever } from './retrievers/keyword.retriever';
 import { VectorRetriever } from './retrievers/vector.retriever';
+import { AccessPolicyService, type KnowledgeResourceMetadata } from '../access-policy';
+import { DocumentRepository } from '../document';
+import type { KnowledgeSpaceEntity, SpaceMemberRole } from '../knowledge-space';
 import { KnowledgeSpaceService } from '../knowledge-space';
 import { RerankerService } from '../reranker';
 import {
@@ -14,14 +17,23 @@ import {
   defaultRetrieverCandidateLimit,
   type KnowledgeRequestContext,
   type RetrievalRequest,
+  type RetrieverResult,
 } from './retrieval.types';
 
 const unique = (values: string[]): string[] => [...new Set(values.filter(Boolean))];
 
+interface TenantScopedRetrievalContext {
+  context: KnowledgeRequestContext;
+  spaceRolesById: Record<string, SpaceMemberRole | undefined>;
+  spaceTenantIdsById: Record<string, string | null | undefined>;
+}
+
 @Injectable()
 export class RetrievalService {
   constructor(
+    private readonly accessPolicyService: AccessPolicyService,
     private readonly contextBuilder: ContextBuilder,
+    private readonly documentRepository: DocumentRepository,
     private readonly graphRetriever: GraphRetriever,
     private readonly knowledgeSpaceService: KnowledgeSpaceService,
     private readonly keywordRetriever: KeywordRetriever,
@@ -45,7 +57,8 @@ export class RetrievalService {
         throw new BadRequestException('Retrieval query is required');
       }
 
-      scopedContext = await this.createTenantScopedContext(context);
+      const scoped = await this.createTenantScopedContext(context);
+      scopedContext = scoped.context;
       const accessContext = this.contextBuilder.build(scopedContext);
 
       if (!accessContext.canRetrieve) {
@@ -70,10 +83,23 @@ export class RetrievalService {
           ? Promise.resolve([])
           : this.graphRetriever.retrieve(query, accessContext, keywordLimit),
       ]);
-      const rrfResults = this.rrfFusion.fuse(
-        [vectorResults, keywordResults, graphResults],
-        resultLimit,
+      const documentMetadataById = await this.loadDocumentMetadataById([
+        ...vectorResults,
+        ...keywordResults,
+        ...graphResults,
+      ]);
+      const filteredResultSets = [vectorResults, keywordResults, graphResults].map((results) =>
+        this.accessPolicyService.filterRetrievalResults(
+          this.accessPolicyService.toSubject(scopedContext),
+          results,
+          {
+            documentMetadataById,
+            spaceRolesById: scoped.spaceRolesById,
+            spaceTenantIdsById: scoped.spaceTenantIdsById,
+          },
+        ),
       );
+      const rrfResults = this.rrfFusion.fuse(filteredResultSets, resultLimit);
       const rerankedResults = await this.rerankerService.rerank(query, rrfResults);
       const contextChunks = this.contextBuilder.buildContextChunks(
         rerankedResults,
@@ -116,18 +142,55 @@ export class RetrievalService {
 
   private async createTenantScopedContext(
     context: KnowledgeRequestContext,
-  ): Promise<KnowledgeRequestContext> {
-    const accessibleSpaceIds = await this.knowledgeSpaceService.listAccessibleSpaceIds(context);
+  ): Promise<TenantScopedRetrievalContext> {
+    const spaces = await this.knowledgeSpaceService.list(context);
     const requestedSpaceIds = unique(context.spaceIds);
     const requestedSpaceIdSet = new Set(requestedSpaceIds);
-    const spaceIds =
+    const selectedSpaces =
       requestedSpaceIds.length === 0
-        ? accessibleSpaceIds
-        : accessibleSpaceIds.filter((spaceId) => requestedSpaceIdSet.has(spaceId));
+        ? spaces
+        : spaces.filter((space) => requestedSpaceIdSet.has(space.id));
 
     return {
-      ...context,
-      spaceIds,
+      context: {
+        ...context,
+        spaceIds: selectedSpaces.map((space) => space.id),
+      },
+      spaceRolesById: this.toSpaceRolesById(selectedSpaces, context.userId),
+      spaceTenantIdsById: Object.fromEntries(
+        selectedSpaces.map((space) => [space.id, space.tenantId]),
+      ),
     };
+  }
+
+  private async loadDocumentMetadataById(
+    results: RetrieverResult[],
+  ): Promise<Record<string, KnowledgeResourceMetadata | undefined>> {
+    const documentIds = unique(results.map((result) => result.documentId));
+    const contents = await this.documentRepository.findContentsByDocumentIds(documentIds);
+
+    return Object.fromEntries(
+      contents.map((content) => [
+        content.documentId,
+        {
+          allowedDepartmentIds: content.metadata.allowedDepartmentIds,
+          departmentId: content.metadata.departmentId,
+          securityLevel: content.metadata.securityLevel,
+          spaceId: content.metadata.spaceId,
+        },
+      ]),
+    );
+  }
+
+  private toSpaceRolesById(
+    spaces: KnowledgeSpaceEntity[],
+    userId: string,
+  ): Record<string, SpaceMemberRole | undefined> {
+    return Object.fromEntries(
+      spaces.map((space) => [
+        space.id,
+        space.members.find((member) => member.userId === userId)?.role,
+      ]),
+    );
   }
 }

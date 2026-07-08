@@ -10,6 +10,7 @@ import type {
 interface GraphContextRow {
   documentId: string;
   source: string;
+  spaceId: string;
   sourceType: string;
   target: string;
   targetType: string;
@@ -45,6 +46,7 @@ const toGraphContextRow = (row: unknown[]): GraphContextRow => ({
   targetType: toString(row[3]),
   type: toString(row[4]),
   documentId: toString(row[5]),
+  spaceId: toString(row[6]),
 });
 
 @Injectable()
@@ -114,7 +116,7 @@ export class KnowledgeGraphRepository {
       MATCH (source:Entity)-[edge:RELATION]-(target:Entity)
       WHERE source.spaceId IN $spaceIds
         AND toLower(source.name) IN $entityNames
-      RETURN source.name, source.type, target.name, target.type, edge.type, edge.documentId
+      RETURN source.name, source.type, target.name, target.type, edge.type, edge.documentId, source.spaceId
       LIMIT $limit
       `,
       {
@@ -131,6 +133,7 @@ export class KnowledgeGraphRepository {
         content: `${row.source}(${row.sourceType}) -[${row.type}]- ${row.target}(${row.targetType})`,
         documentId: row.documentId,
         score: 1 / (index + 1),
+        spaceId: row.spaceId,
         source: row.source,
         target: row.target,
         type: row.type,

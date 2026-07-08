@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '../../config';
 import { GraphModule } from '../../infrastructure/graph';
+import { AccessPolicyModule } from '../access-policy';
 import { ChunkModule } from '../chunk';
 import { LLM_PROVIDER } from '../chat/providers/llm.provider';
 import { OpenAiCompatibleLlmProvider } from '../chat/providers/openai-compatible.provider';
 import { DocumentModule } from '../document';
+import { KnowledgeSpaceModule } from '../knowledge-space';
 import { EntityExtractor } from './extractors/entity.extractor';
 import { RelationExtractor } from './extractors/relation.extractor';
 import { GraphRetrievalService } from './graph-retrieval.service';
@@ -13,7 +15,14 @@ import { KnowledgeGraphService } from './knowledge-graph.service';
 import { GRAPH_PROVIDER, LlmGraphProvider } from './providers/llm-graph.provider';
 
 @Module({
-  imports: [ChunkModule, ConfigModule, DocumentModule, GraphModule],
+  imports: [
+    AccessPolicyModule,
+    ChunkModule,
+    ConfigModule,
+    DocumentModule,
+    GraphModule,
+    KnowledgeSpaceModule,
+  ],
   providers: [
     EntityExtractor,
     GraphRetrievalService,

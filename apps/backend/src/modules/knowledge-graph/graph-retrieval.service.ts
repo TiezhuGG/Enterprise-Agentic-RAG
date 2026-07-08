@@ -1,17 +1,64 @@
 import { Injectable } from '@nestjs/common';
+import type { ExecutionContext } from '../../common';
 import { ObservabilityService } from '../../infrastructure/observability';
+import { AccessPolicyService, type KnowledgeResourceMetadata } from '../access-policy';
+import { DocumentRepository } from '../document';
+import {
+  KnowledgeSpaceService,
+  type KnowledgeSpaceEntity,
+  type SpaceMemberRole,
+} from '../knowledge-space';
 import type { RetrievalAccessContext } from '../retrieval';
 import { EntityExtractor } from './extractors/entity.extractor';
 import { KnowledgeGraphRepository } from './knowledge-graph.repository';
 import type { GraphContext } from './knowledge-graph.types';
 
+const retrievalPermissions = new Set(['knowledge.retrieve', 'knowledge.read']);
+
+interface ScopedGraphAccess {
+  accessContext: RetrievalAccessContext;
+  spaceRolesById: Record<string, SpaceMemberRole | undefined>;
+  spaceTenantIdsById: Record<string, string | null | undefined>;
+}
+
 @Injectable()
 export class GraphRetrievalService {
   constructor(
+    private readonly accessPolicyService: AccessPolicyService,
+    private readonly documentRepository: DocumentRepository,
     private readonly entityExtractor: EntityExtractor,
     private readonly knowledgeGraphRepository: KnowledgeGraphRepository,
+    private readonly knowledgeSpaceService: KnowledgeSpaceService,
     private readonly observabilityService: ObservabilityService,
   ) {}
+
+  async retrieveForContext(
+    context: ExecutionContext,
+    query: string,
+    limit: number,
+  ): Promise<GraphContext[]> {
+    const scoped = await this.createScopedGraphAccess(context);
+
+    if (!scoped.accessContext.canRetrieve) {
+      return [];
+    }
+
+    const graphContexts = await this.retrieve(query, scoped.accessContext, limit);
+    const documentMetadataById = await this.loadDocumentMetadataById(graphContexts);
+    const filteredGraphContexts = this.accessPolicyService.filterGraphContexts(
+      this.accessPolicyService.toSubject(context),
+      graphContexts,
+      {
+        documentMetadataById,
+        spaceRolesById: scoped.spaceRolesById,
+        spaceTenantIdsById: scoped.spaceTenantIdsById,
+      },
+    );
+
+    return filteredGraphContexts.map((graphContext) =>
+      this.applyDocumentMetadata(graphContext, documentMetadataById[graphContext.documentId]),
+    );
+  }
 
   async retrieve(
     query: string,
@@ -60,5 +107,80 @@ export class GraphRetrievalService {
       });
       throw error;
     }
+  }
+
+  private async createScopedGraphAccess(context: ExecutionContext): Promise<ScopedGraphAccess> {
+    const spaces = await this.knowledgeSpaceService.list(context);
+    const requestedSpaceIds = [...new Set(context.spaceIds.filter(Boolean))];
+    const requestedSpaceIdSet = new Set(requestedSpaceIds);
+    const selectedSpaces =
+      requestedSpaceIds.length === 0
+        ? spaces
+        : spaces.filter((space) => requestedSpaceIdSet.has(space.id));
+    const permissions = [...new Set(context.permissions.filter(Boolean))];
+    const roles = [...new Set(context.roles.filter(Boolean))];
+    const spaceIds = selectedSpaces.map((space) => space.id);
+
+    return {
+      accessContext: {
+        canRetrieve:
+          roles.length > 0 &&
+          permissions.some((permission) => retrievalPermissions.has(permission)) &&
+          spaceIds.length > 0,
+        metadata: context.metadata,
+        permissions,
+        roles,
+        spaceIds,
+        userId: context.userId,
+      },
+      spaceRolesById: this.toSpaceRolesById(selectedSpaces, context.userId),
+      spaceTenantIdsById: Object.fromEntries(
+        selectedSpaces.map((space) => [space.id, space.tenantId]),
+      ),
+    };
+  }
+
+  private async loadDocumentMetadataById(
+    graphContexts: GraphContext[],
+  ): Promise<Record<string, KnowledgeResourceMetadata | undefined>> {
+    const documentIds = [...new Set(graphContexts.map((graphContext) => graphContext.documentId))];
+    const contents = await this.documentRepository.findContentsByDocumentIds(documentIds);
+
+    return Object.fromEntries(
+      contents.map((content) => [
+        content.documentId,
+        {
+          allowedDepartmentIds: content.metadata.allowedDepartmentIds,
+          departmentId: content.metadata.departmentId,
+          securityLevel: content.metadata.securityLevel,
+          spaceId: content.metadata.spaceId,
+        },
+      ]),
+    );
+  }
+
+  private applyDocumentMetadata(
+    graphContext: GraphContext,
+    metadata: KnowledgeResourceMetadata | undefined,
+  ): GraphContext {
+    return {
+      ...graphContext,
+      allowedDepartmentIds: metadata?.allowedDepartmentIds ?? graphContext.allowedDepartmentIds,
+      departmentId: metadata?.departmentId ?? graphContext.departmentId,
+      securityLevel: metadata?.securityLevel ?? graphContext.securityLevel ?? 'INTERNAL',
+      spaceId: graphContext.spaceId ?? metadata?.spaceId,
+    };
+  }
+
+  private toSpaceRolesById(
+    spaces: KnowledgeSpaceEntity[],
+    userId: string,
+  ): Record<string, SpaceMemberRole | undefined> {
+    return Object.fromEntries(
+      spaces.map((space) => [
+        space.id,
+        space.members.find((member) => member.userId === userId)?.role,
+      ]),
+    );
   }
 }
