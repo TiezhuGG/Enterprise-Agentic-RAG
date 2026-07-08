@@ -3,6 +3,7 @@ import { VectorModule } from '../../infrastructure/vector';
 import { ChunkModule } from '../chunk';
 import { EmbeddingModule } from '../embedding';
 import { KnowledgeGraphModule } from '../knowledge-graph';
+import { KnowledgeSpaceModule } from '../knowledge-space';
 import { RerankerModule } from '../reranker';
 import { ContextBuilder } from './context/context.builder';
 import { RrfFusion } from './fusion/rrf.fusion';
@@ -12,7 +13,14 @@ import { VectorRetriever } from './retrievers/vector.retriever';
 import { RetrievalService } from './retrieval.service';
 
 @Module({
-  imports: [ChunkModule, EmbeddingModule, KnowledgeGraphModule, RerankerModule, VectorModule],
+  imports: [
+    ChunkModule,
+    EmbeddingModule,
+    KnowledgeGraphModule,
+    KnowledgeSpaceModule,
+    RerankerModule,
+    VectorModule,
+  ],
   providers: [
     ContextBuilder,
     GraphRetriever,

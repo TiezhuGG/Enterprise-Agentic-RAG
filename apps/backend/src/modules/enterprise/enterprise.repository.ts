@@ -76,6 +76,31 @@ export class EnterpriseRepository {
     });
   }
 
+  async backfillUserKnowledgeSpacesTenant(userId: string, tenantId: string): Promise<number> {
+    const result = await this.prisma.knowledgeSpace.updateMany({
+      where: {
+        tenantId: null,
+        OR: [
+          {
+            ownerId: userId,
+          },
+          {
+            members: {
+              some: {
+                userId,
+              },
+            },
+          },
+        ],
+      },
+      data: {
+        tenantId,
+      },
+    });
+
+    return result.count;
+  }
+
   async findTenantById(tenantId: string): Promise<TenantEntity | null> {
     const tenant = await this.prisma.tenant.findUnique({
       where: { id: tenantId },

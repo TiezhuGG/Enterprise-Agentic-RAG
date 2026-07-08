@@ -5,6 +5,7 @@ import { RrfFusion } from './fusion/rrf.fusion';
 import { GraphRetriever } from './retrievers/graph.retriever';
 import { KeywordRetriever } from './retrievers/keyword.retriever';
 import { VectorRetriever } from './retrievers/vector.retriever';
+import { KnowledgeSpaceService } from '../knowledge-space';
 import { RerankerService } from '../reranker';
 import {
   MAX_CONTEXT_TOKENS,
@@ -15,11 +16,14 @@ import {
   type RetrievalRequest,
 } from './retrieval.types';
 
+const unique = (values: string[]): string[] => [...new Set(values.filter(Boolean))];
+
 @Injectable()
 export class RetrievalService {
   constructor(
     private readonly contextBuilder: ContextBuilder,
     private readonly graphRetriever: GraphRetriever,
+    private readonly knowledgeSpaceService: KnowledgeSpaceService,
     private readonly keywordRetriever: KeywordRetriever,
     private readonly observabilityService: ObservabilityService,
     private readonly rerankerService: RerankerService,
@@ -32,6 +36,7 @@ export class RetrievalService {
     request: RetrievalRequest,
   ): Promise<ContextChunk[]> {
     const startedAt = Date.now();
+    let scopedContext = context;
 
     try {
       const query = request.query.trim();
@@ -40,11 +45,12 @@ export class RetrievalService {
         throw new BadRequestException('Retrieval query is required');
       }
 
-      const accessContext = this.contextBuilder.build(context);
+      scopedContext = await this.createTenantScopedContext(context);
+      const accessContext = this.contextBuilder.build(scopedContext);
 
       if (!accessContext.canRetrieve) {
         this.observabilityService.recordRetrieval({
-          context,
+          context: scopedContext,
           durationMs: Date.now() - startedAt,
           resultCount: 0,
           source: 'hybrid',
@@ -75,7 +81,7 @@ export class RetrievalService {
       );
 
       this.observabilityService.recordRetrieval({
-        context,
+        context: scopedContext,
         durationMs: Date.now() - startedAt,
         resultCount: contextChunks.length,
         source: 'hybrid',
@@ -85,7 +91,7 @@ export class RetrievalService {
       return contextChunks;
     } catch (error) {
       this.observabilityService.recordRetrieval({
-        context,
+        context: scopedContext,
         durationMs: Date.now() - startedAt,
         error,
         resultCount: 0,
@@ -106,5 +112,22 @@ export class RetrievalService {
     }
 
     return value;
+  }
+
+  private async createTenantScopedContext(
+    context: KnowledgeRequestContext,
+  ): Promise<KnowledgeRequestContext> {
+    const accessibleSpaceIds = await this.knowledgeSpaceService.listAccessibleSpaceIds(context);
+    const requestedSpaceIds = unique(context.spaceIds);
+    const requestedSpaceIdSet = new Set(requestedSpaceIds);
+    const spaceIds =
+      requestedSpaceIds.length === 0
+        ? accessibleSpaceIds
+        : accessibleSpaceIds.filter((spaceId) => requestedSpaceIdSet.has(spaceId));
+
+    return {
+      ...context,
+      spaceIds,
+    };
   }
 }

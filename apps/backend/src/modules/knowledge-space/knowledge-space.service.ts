@@ -25,11 +25,15 @@ export class KnowledgeSpaceService {
   }
 
   list(context: ExecutionContext): Promise<KnowledgeSpaceEntity[]> {
-    return this.knowledgeSpaceRepository.listForUser(context.userId);
+    return this.knowledgeSpaceRepository.listForUser(context.userId, context.tenantId);
   }
 
   async getById(context: ExecutionContext, id: string): Promise<KnowledgeSpaceEntity> {
-    const space = await this.knowledgeSpaceRepository.findAccessibleById(id, context.userId);
+    const space = await this.knowledgeSpaceRepository.findAccessibleById(
+      id,
+      context.userId,
+      context.tenantId,
+    );
 
     if (!space) {
       throw new NotFoundException('Knowledge space not found');
@@ -56,12 +60,20 @@ export class KnowledgeSpaceService {
     });
   }
 
+  listAccessibleSpaceIds(context: ExecutionContext): Promise<string[]> {
+    return this.knowledgeSpaceRepository.listAccessibleSpaceIds(context.userId, context.tenantId);
+  }
+
   private async ensureMemberRole(
     context: ExecutionContext,
     spaceId: string,
     allowedRoles: SpaceMemberRole[],
   ): Promise<void> {
-    const space = await this.knowledgeSpaceRepository.findAccessibleById(spaceId, context.userId);
+    const space = await this.knowledgeSpaceRepository.findAccessibleById(
+      spaceId,
+      context.userId,
+      context.tenantId,
+    );
 
     if (!space) {
       throw new NotFoundException('Knowledge space not found');

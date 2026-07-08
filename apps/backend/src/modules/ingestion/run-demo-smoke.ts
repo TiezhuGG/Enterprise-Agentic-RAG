@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../../app.module';
 import type { ExecutionContext } from '../../common';
 import { AgentService } from '../agent';
+import { UserRepository } from '../user';
 
 interface DemoSmokeArgs {
   userId: string;
@@ -26,7 +27,8 @@ async function main() {
 
   try {
     const agentService = app.get(AgentService);
-    const response = await agentService.execute(createContext(args), {
+    const userRepository = app.get(UserRepository);
+    const response = await agentService.execute(await createContext(args, userRepository), {
       conversationId: args.conversationId,
       question: args.question,
     });
@@ -71,16 +73,32 @@ function parseArgs(argv: string[]): DemoSmokeArgs {
   };
 }
 
-function createContext(args: DemoSmokeArgs): ExecutionContext {
+async function createContext(
+  args: DemoSmokeArgs,
+  userRepository: UserRepository,
+): Promise<ExecutionContext> {
+  const user = await userRepository.findById(args.userId);
+
+  if (!user) {
+    throw new Error(`User not found: ${args.userId}`);
+  }
+
   return {
+    departmentId: user.departmentId ?? undefined,
     metadata: {
       source: 'demo-smoke',
     },
-    permissions: [],
-    roles: [],
-    spaceIds: args.spaceIds,
+    organizationId: user.organizationId ?? undefined,
+    permissions: unique(user.roles.flatMap((role) => role.permissions)),
+    roles: user.roles.map((role) => role.code),
+    spaceIds: args.spaceIds.length > 0 ? args.spaceIds : user.spaceIds,
+    tenantId: user.tenantId ?? undefined,
     userId: args.userId,
   };
+}
+
+function unique(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))];
 }
 
 void main().catch((error: unknown) => {

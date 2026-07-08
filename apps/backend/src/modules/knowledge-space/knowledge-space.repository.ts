@@ -79,12 +79,13 @@ export class KnowledgeSpaceRepository {
     return toKnowledgeSpaceEntity(space);
   }
 
-  async listForUser(userId: string): Promise<KnowledgeSpaceEntity[]> {
+  async listForUser(userId: string, tenantId?: string): Promise<KnowledgeSpaceEntity[]> {
     const spaces = await this.prisma.knowledgeSpace.findMany({
       where: {
         status: {
           not: 'DELETED',
         },
+        tenantId: this.toTenantFilter(tenantId),
         members: {
           some: {
             userId,
@@ -102,13 +103,42 @@ export class KnowledgeSpaceRepository {
     return spaces.map(toKnowledgeSpaceEntity);
   }
 
-  async findAccessibleById(spaceId: string, userId: string): Promise<KnowledgeSpaceEntity | null> {
+  async listAccessibleSpaceIds(userId: string, tenantId?: string): Promise<string[]> {
+    const spaces = await this.prisma.knowledgeSpace.findMany({
+      where: {
+        status: {
+          not: 'DELETED',
+        },
+        tenantId: this.toTenantFilter(tenantId),
+        members: {
+          some: {
+            userId,
+          },
+        },
+      },
+      select: {
+        id: true,
+      },
+      orderBy: {
+        updatedAt: 'desc',
+      },
+    });
+
+    return spaces.map((space) => space.id);
+  }
+
+  async findAccessibleById(
+    spaceId: string,
+    userId: string,
+    tenantId?: string,
+  ): Promise<KnowledgeSpaceEntity | null> {
     const space = await this.prisma.knowledgeSpace.findFirst({
       where: {
         id: spaceId,
         status: {
           not: 'DELETED',
         },
+        tenantId: this.toTenantFilter(tenantId),
         members: {
           some: {
             userId,
@@ -148,5 +178,9 @@ export class KnowledgeSpaceRepository {
     });
 
     return toKnowledgeSpaceEntity(space);
+  }
+
+  private toTenantFilter(tenantId: string | undefined): string | null {
+    return tenantId ?? null;
   }
 }

@@ -114,6 +114,8 @@ async function seed() {
       organizationId: organization.id,
       tenantId: tenant.id,
     });
+
+    await enterpriseRepository.backfillUserKnowledgeSpacesTenant(admin.id, tenant.id);
   } finally {
     await app.close();
   }

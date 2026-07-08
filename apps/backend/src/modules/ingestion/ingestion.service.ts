@@ -68,6 +68,7 @@ export class IngestionService {
       const access = await this.ingestionRepository.findDocumentAccessById(
         documentId,
         context.userId,
+        context.tenantId,
       );
 
       if (!access) {
@@ -228,6 +229,7 @@ export class IngestionService {
     const access = await this.ingestionRepository.findDocumentAccessById(
       documentId,
       context.userId,
+      context.tenantId,
     );
 
     if (!access) {
@@ -244,13 +246,18 @@ export class IngestionService {
     spaceId: string,
     input: IngestSpaceDto = {},
   ): Promise<SpaceIngestionResult> {
-    const memberRole = await this.ingestionRepository.findSpaceMemberRole(spaceId, context.userId);
+    const memberRole = await this.ingestionRepository.findSpaceMemberRole(
+      spaceId,
+      context.userId,
+      context.tenantId,
+    );
 
     this.ensureWriteRole(memberRole);
 
     const documentIds = input.documentIds?.length ? [...new Set(input.documentIds)] : undefined;
     const documents = await this.ingestionRepository.listActiveDocumentsBySpace(
       spaceId,
+      context.tenantId,
       documentIds,
     );
 

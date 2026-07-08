@@ -64,6 +64,9 @@ type UserModel = Omit<
   }>;
   spaces?: Array<{
     spaceId: string;
+    space: {
+      tenantId: string | null;
+    };
   }>;
   tenant?: EnterpriseSummaryModel | null;
 };
@@ -87,7 +90,10 @@ const toUserRecord = (user: UserModel): UserRecord => ({
       name: role.name,
       permissions: role.permissions?.map(({ permission }) => permission.code) ?? [],
     })) ?? [],
-  spaceIds: user.spaces?.map((space) => space.spaceId) ?? [],
+  spaceIds:
+    user.spaces
+      ?.filter((space) => space.space.tenantId === (user.tenantId ?? null))
+      .map((space) => space.spaceId) ?? [],
   tenant: user.tenant ?? null,
 });
 
@@ -114,6 +120,11 @@ export class UserRepository {
         },
         spaces: {
           select: {
+            space: {
+              select: {
+                tenantId: true,
+              },
+            },
             spaceId: true,
           },
         },
@@ -163,6 +174,11 @@ export class UserRepository {
         },
         spaces: {
           select: {
+            space: {
+              select: {
+                tenantId: true,
+              },
+            },
             spaceId: true,
           },
         },
@@ -229,6 +245,11 @@ export class UserRepository {
         },
         spaces: {
           select: {
+            space: {
+              select: {
+                tenantId: true,
+              },
+            },
             spaceId: true,
           },
         },

@@ -48,12 +48,16 @@ export class IngestionRepository {
   async findDocumentAccessById(
     documentId: string,
     userId: string,
+    tenantId?: string,
   ): Promise<DocumentAccessRecord | null> {
     const document = (await this.prisma.document.findFirst({
       where: {
         ...activeDocumentWhere,
         id: documentId,
-        space: activeSpaceWhere,
+        space: {
+          ...activeSpaceWhere,
+          tenantId: this.toTenantFilter(tenantId),
+        },
       },
       include: {
         space: {
@@ -81,12 +85,19 @@ export class IngestionRepository {
     };
   }
 
-  async findSpaceMemberRole(spaceId: string, userId: string): Promise<SpaceMemberRole | null> {
+  async findSpaceMemberRole(
+    spaceId: string,
+    userId: string,
+    tenantId?: string,
+  ): Promise<SpaceMemberRole | null> {
     const member = await this.prisma.spaceMember.findFirst({
       where: {
         spaceId,
         userId,
-        space: activeSpaceWhere,
+        space: {
+          ...activeSpaceWhere,
+          tenantId: this.toTenantFilter(tenantId),
+        },
       },
       select: {
         role: true,
@@ -98,6 +109,7 @@ export class IngestionRepository {
 
   async listActiveDocumentsBySpace(
     spaceId: string,
+    tenantId?: string,
     documentIds?: string[],
   ): Promise<DocumentEntity[]> {
     const documents = await this.prisma.document.findMany({
@@ -109,6 +121,10 @@ export class IngestionRepository {
             }
           : undefined,
         spaceId,
+        space: {
+          ...activeSpaceWhere,
+          tenantId: this.toTenantFilter(tenantId),
+        },
       },
       orderBy: {
         updatedAt: 'desc',
@@ -160,5 +176,9 @@ export class IngestionRepository {
       chunkCount,
       embeddingCount,
     };
+  }
+
+  private toTenantFilter(tenantId: string | undefined): string | null {
+    return tenantId ?? null;
   }
 }

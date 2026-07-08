@@ -161,7 +161,11 @@ export class UploadService {
   }
 
   private async ensureSpaceRole(context: ExecutionContext, spaceId: string): Promise<void> {
-    const space = await this.knowledgeSpaceRepository.findAccessibleById(spaceId, context.userId);
+    const space = await this.knowledgeSpaceRepository.findAccessibleById(
+      spaceId,
+      context.userId,
+      context.tenantId,
+    );
 
     if (!space) {
       throw new NotFoundException('Knowledge space not found');

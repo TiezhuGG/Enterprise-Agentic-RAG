@@ -1,6 +1,7 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../../app.module';
 import type { ExecutionContext } from '../../common';
+import { UserRepository } from '../user';
 import { IngestionService } from './ingestion.service';
 
 interface DemoIngestArgs {
@@ -28,11 +29,16 @@ async function main() {
 
   try {
     const ingestionService = app.get(IngestionService);
-    const result = await ingestionService.ingestDocument(createContext(args), args.documentId, {
-      force: args.force,
-      includeEmbedding: args.includeEmbedding,
-      includeGraph: args.includeGraph,
-    });
+    const userRepository = app.get(UserRepository);
+    const result = await ingestionService.ingestDocument(
+      await createContext(args, userRepository),
+      args.documentId,
+      {
+        force: args.force,
+        includeEmbedding: args.includeEmbedding,
+        includeGraph: args.includeGraph,
+      },
+    );
 
     console.log(JSON.stringify(result, null, 2));
   } finally {
@@ -64,16 +70,32 @@ function parseArgs(argv: string[]): DemoIngestArgs {
   };
 }
 
-function createContext(args: DemoIngestArgs): ExecutionContext {
+async function createContext(
+  args: DemoIngestArgs,
+  userRepository: UserRepository,
+): Promise<ExecutionContext> {
+  const user = await userRepository.findById(args.userId);
+
+  if (!user) {
+    throw new Error(`User not found: ${args.userId}`);
+  }
+
   return {
+    departmentId: user.departmentId ?? undefined,
     metadata: {
       source: 'demo-ingest',
     },
-    permissions: [],
-    roles: [],
-    spaceIds: args.spaceIds,
+    organizationId: user.organizationId ?? undefined,
+    permissions: unique(user.roles.flatMap((role) => role.permissions)),
+    roles: user.roles.map((role) => role.code),
+    spaceIds: args.spaceIds.length > 0 ? args.spaceIds : user.spaceIds,
+    tenantId: user.tenantId ?? undefined,
     userId: args.userId,
   };
+}
+
+function unique(values: string[]): string[] {
+  return [...new Set(values.filter(Boolean))];
 }
 
 void main().catch((error: unknown) => {
