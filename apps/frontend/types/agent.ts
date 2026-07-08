@@ -54,10 +54,19 @@ export interface RetrievalEventData {
   count: number;
 }
 
+export interface GraphEventData {
+  executionId: string;
+  count: number;
+}
+
 export interface TokenEventData {
   executionId: string;
   token: string;
 }
+
+export type CitationEventData = AgentCitation;
+
+export type DoneEventData = AgentResponse;
 
 export interface ErrorEventData {
   message: string;

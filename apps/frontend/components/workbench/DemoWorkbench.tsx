@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { AgentDebugWorkbench } from '@/components/agent-debug';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { useWorkbenchStore } from '@/store/workbench.store';
 import { AuthTokenPanel } from './AuthTokenPanel';
@@ -30,7 +31,7 @@ export function DemoWorkbench() {
           <h1>Demo Workbench</h1>
         </div>
 
-        <div className="workbench-tabs" role="tablist">
+        <div className="workbench-tabs workbench-tabs--three" role="tablist">
           <button
             aria-selected={activeTab === 'pipeline'}
             className={`workbench-tab ${activeTab === 'pipeline' ? 'workbench-tab--active' : ''}`}
@@ -39,6 +40,17 @@ export function DemoWorkbench() {
             type="button"
           >
             Pipeline
+          </button>
+          <button
+            aria-selected={activeTab === 'agent-debug'}
+            className={`workbench-tab ${
+              activeTab === 'agent-debug' ? 'workbench-tab--active' : ''
+            }`}
+            onClick={() => setActiveTab('agent-debug')}
+            role="tab"
+            type="button"
+          >
+            Agent Debug
           </button>
           <button
             aria-selected={activeTab === 'assistant'}
@@ -72,11 +84,15 @@ export function DemoWorkbench() {
               <DocumentMetadataPanel />
             </div>
           </div>
-        ) : (
+        ) : null}
+
+        {activeTab === 'agent-debug' ? <AgentDebugWorkbench /> : null}
+
+        {activeTab === 'assistant' ? (
           <div className="workbench-assistant">
             <ChatWindow />
           </div>
-        )}
+        ) : null}
       </section>
     </main>
   );

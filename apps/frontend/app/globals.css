@@ -623,6 +623,10 @@ textarea:disabled {
   padding: 3px;
 }
 
+.workbench-tabs--three {
+  grid-template-columns: 1fr 1.15fr 1fr;
+}
+
 .workbench-tab {
   background: transparent;
   border: 0;
@@ -1001,6 +1005,265 @@ textarea:disabled {
   min-height: calc(100vh - 36px);
 }
 
+.agent-debug-workbench {
+  display: grid;
+  gap: 16px;
+}
+
+.agent-debug-form {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 14px;
+  padding: 16px;
+}
+
+.agent-debug-form__top {
+  display: grid;
+  gap: 14px;
+  grid-template-columns: minmax(240px, 0.8fr) minmax(320px, 1.2fr);
+}
+
+.agent-debug-config {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.agent-debug-config label,
+.agent-debug-question {
+  display: grid;
+  gap: 6px;
+}
+
+.agent-debug-config span,
+.agent-debug-question span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.agent-debug-config input,
+.agent-debug-question textarea {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  min-width: 0;
+  padding: 9px 10px;
+}
+
+.agent-debug-question textarea {
+  line-height: 1.5;
+  resize: vertical;
+}
+
+.agent-debug-form__actions {
+  display: flex;
+  justify-content: flex-end;
+}
+
+.agent-debug-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(260px, 330px) minmax(360px, 1.2fr) minmax(280px, 360px);
+}
+
+.agent-debug-column {
+  align-content: start;
+  display: grid;
+  gap: 16px;
+  min-width: 0;
+}
+
+.agent-debug-summary__grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  margin: 0;
+}
+
+.agent-debug-summary__grid div {
+  background: var(--panel-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  padding: 10px;
+}
+
+.agent-debug-summary__grid dt,
+.agent-debug-event__top span,
+.agent-debug-trace__meta,
+.agent-debug-citation footer,
+.agent-debug-citation header span {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.agent-debug-summary__grid dd {
+  font-size: 14px;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.agent-debug-event-panel,
+.agent-debug-trace-panel,
+.agent-debug-citation-panel {
+  max-height: 56vh;
+  overflow: auto;
+}
+
+.agent-debug-events,
+.agent-debug-trace {
+  display: grid;
+  gap: 10px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.agent-debug-event {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 7px;
+  padding: 10px;
+}
+
+.agent-debug-event--error {
+  background: #fff7f5;
+  border-color: #f0b8af;
+}
+
+.agent-debug-event--done,
+.agent-debug-event--citation {
+  background: #f6fef9;
+  border-color: #c8ead7;
+}
+
+.agent-debug-event--thought,
+.agent-debug-event--retrieval,
+.agent-debug-event--graph {
+  background: #f5f8ff;
+  border-color: #ccd9f3;
+}
+
+.agent-debug-event__top,
+.agent-debug-trace__top,
+.agent-debug-citation header,
+.agent-debug-citation footer {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.agent-debug-event p,
+.agent-debug-token-stream p,
+.agent-debug-citation p {
+  line-height: 1.55;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.agent-debug-event summary {
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.agent-debug-event pre {
+  background: #101828;
+  border-radius: 8px;
+  color: #e4e7ec;
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 8px 0 0;
+  max-height: 180px;
+  overflow: auto;
+  padding: 10px;
+}
+
+.agent-debug-token-panel {
+  min-height: 300px;
+}
+
+.agent-debug-token-stream {
+  background: #fbfcfe;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-height: 220px;
+  padding: 14px;
+}
+
+.agent-debug-trace__item {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 12px minmax(0, 1fr);
+}
+
+.agent-debug-trace__marker {
+  border: 2px solid var(--border-strong);
+  border-radius: 999px;
+  height: 12px;
+  margin-top: 5px;
+  width: 12px;
+}
+
+.agent-debug-trace__item--success .agent-debug-trace__marker {
+  background: var(--success);
+  border-color: var(--success);
+}
+
+.agent-debug-trace__item--failed .agent-debug-trace__marker {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.agent-debug-trace__item--skipped .agent-debug-trace__marker {
+  background: #d0d5dd;
+  border-color: #d0d5dd;
+}
+
+.agent-debug-trace__item > div {
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  gap: 5px;
+  padding-bottom: 10px;
+}
+
+.agent-debug-trace__item:last-child > div {
+  border-bottom: 0;
+  padding-bottom: 0;
+}
+
+.agent-debug-citations {
+  display: grid;
+  gap: 10px;
+}
+
+.agent-debug-citation {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.agent-debug-citation header strong,
+.agent-debug-citation footer span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.agent-debug-citation footer {
+  min-width: 0;
+}
+
 @media (max-width: 1180px) {
   .workbench-shell {
     grid-template-columns: 1fr;
@@ -1015,7 +1278,15 @@ textarea:disabled {
     grid-template-columns: minmax(260px, 1fr) minmax(320px, 1fr);
   }
 
+  .agent-debug-grid {
+    grid-template-columns: minmax(260px, 1fr) minmax(320px, 1fr);
+  }
+
   .workbench-column:last-child {
+    grid-column: 1 / -1;
+  }
+
+  .agent-debug-column:last-child {
     grid-column: 1 / -1;
   }
 
@@ -1032,7 +1303,11 @@ textarea:disabled {
 
   .workbench-grid,
   .workbench-inline-form,
-  .ingestion-summary {
+  .ingestion-summary,
+  .agent-debug-form__top,
+  .agent-debug-config,
+  .agent-debug-grid,
+  .agent-debug-summary__grid {
     grid-template-columns: 1fr;
   }
 
@@ -1040,8 +1315,16 @@ textarea:disabled {
     grid-column: auto;
   }
 
+  .agent-debug-column:last-child {
+    grid-column: auto;
+  }
+
   .pipeline-event__top,
-  .pipeline-event__meta {
+  .pipeline-event__meta,
+  .agent-debug-event__top,
+  .agent-debug-trace__top,
+  .agent-debug-citation header,
+  .agent-debug-citation footer {
     align-items: flex-start;
     flex-direction: column;
     gap: 4px;

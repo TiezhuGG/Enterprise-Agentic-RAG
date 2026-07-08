@@ -19,7 +19,7 @@ import type {
   UploadState,
 } from '@/types/workbench';
 
-export type WorkbenchTab = 'pipeline' | 'assistant';
+export type WorkbenchTab = 'pipeline' | 'agent-debug' | 'assistant';
 
 interface WorkbenchStore {
   activeTab: WorkbenchTab;
