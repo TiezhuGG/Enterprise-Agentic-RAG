@@ -1,8 +1,8 @@
 import { Inject, Injectable } from '@nestjs/common';
-import type { ChatCitation } from '../../chat/chat.types';
 import { LLM_PROVIDER, type LlmProvider } from '../../chat/providers/llm.provider';
 import { PromptBuilder } from '../../chat/prompt/prompt.builder';
 import type { ContextChunk } from '../../retrieval';
+import type { AgentCitation } from '../graph/agent.state';
 import type { AgentNode } from '../agent.types';
 import type { AgentState } from '../graph/agent.state';
 
@@ -31,6 +31,31 @@ export class AnswerNode implements AgentNode {
     };
   }
 
+  async runStream(
+    state: AgentState,
+    onToken: (token: string) => Promise<void> | void,
+  ): Promise<AgentState> {
+    const contextChunks = this.mergeContext(state);
+    const messages = this.promptBuilder.build(
+      state.question,
+      contextChunks,
+      state.historyMessages,
+      state.memoryContext ?? undefined,
+    );
+    const answerTokens: string[] = [];
+
+    for await (const token of this.llmProvider.stream(messages)) {
+      answerTokens.push(token);
+      await onToken(token);
+    }
+
+    return {
+      ...state,
+      answer: answerTokens.join(''),
+      citations: this.toCitations(contextChunks),
+    };
+  }
+
   private mergeContext(state: AgentState): ContextChunk[] {
     return [
       ...state.retrievalContext,
@@ -51,9 +76,10 @@ export class AnswerNode implements AgentNode {
     ];
   }
 
-  private toCitations(contextChunks: ContextChunk[]): ChatCitation[] {
+  private toCitations(contextChunks: ContextChunk[]): AgentCitation[] {
     return contextChunks.map((chunk) => ({
       chunkId: chunk.chunkId,
+      content: chunk.content,
       documentId: chunk.documentId,
       metadata: chunk.metadata,
       score: chunk.score,
