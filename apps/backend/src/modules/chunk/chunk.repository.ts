@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma';
-import type { DocumentContentEntity } from '../document';
+import { normalizeDocumentContentMetadata, type DocumentContentEntity } from '../document';
 import type { ChunkEntity, ChunkMetadata } from './chunk.entity';
 
 export interface CreateChunkInput {
@@ -37,12 +37,15 @@ type ChunkModel = Omit<ChunkEntity, 'metadata'> & {
   metadata: unknown;
 };
 
-type DocumentContentModel = DocumentContentEntity;
+type DocumentContentModel = Omit<DocumentContentEntity, 'metadata'> & {
+  metadata: unknown;
+};
 
 const toDocumentContentEntity = (content: DocumentContentModel): DocumentContentEntity => ({
   id: content.id,
   documentId: content.documentId,
   content: content.content,
+  metadata: normalizeDocumentContentMetadata(content.metadata, content.documentId),
   createdAt: content.createdAt,
   updatedAt: content.updatedAt,
 });
@@ -65,6 +68,12 @@ const toChunkMetadata = (metadata: unknown): ChunkMetadata => {
     documentId: String(candidate?.documentId ?? ''),
     sequence: Number(candidate?.sequence ?? 0),
     sectionTitle: String(candidate?.sectionTitle ?? ''),
+    spaceId: String(candidate?.spaceId ?? ''),
+    documentType: String(candidate?.documentType ?? ''),
+    language: String(candidate?.language ?? 'unknown'),
+    securityLevel: String(candidate?.securityLevel ?? 'INTERNAL'),
+    sourceHash: String(candidate?.sourceHash ?? ''),
+    contentHash: String(candidate?.contentHash ?? ''),
   };
 };
 

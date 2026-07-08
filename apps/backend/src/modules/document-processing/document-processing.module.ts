@@ -4,6 +4,8 @@ import { DocumentModule } from '../document';
 import { CleanerPipeline } from './cleaners/cleaner.pipeline';
 import { MarkdownCleaner } from './cleaners/markdown.cleaner';
 import { DocumentProcessingService } from './document-processing.service';
+import { DocumentMetadataBuilder } from './metadata/document-metadata.builder';
+import { LanguageDetector } from './metadata/language.detector';
 import { ParserFactory } from './parser.factory';
 import { DocxParser } from './parsers/docx.parser';
 import { MarkdownParser } from './parsers/markdown.parser';
@@ -21,6 +23,8 @@ import { TxtParser } from './parsers/txt.parser';
     MarkdownParser,
     CleanerPipeline,
     MarkdownCleaner,
+    DocumentMetadataBuilder,
+    LanguageDetector,
   ],
   exports: [DocumentProcessingService],
 })

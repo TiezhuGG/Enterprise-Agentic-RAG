@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma';
-import type { DocumentContentEntity } from './entities/document-content.entity';
+import type { Prisma } from '../../infrastructure/prisma/generated/client';
+import {
+  normalizeDocumentContentMetadata,
+  type DocumentContentEntity,
+  type DocumentContentMetadata,
+} from './entities/document-content.entity';
 import type { DocumentEntity, DocumentStatus, DocumentType } from './entities/document.entity';
 
 export interface CreateDocumentInput {
@@ -25,7 +30,9 @@ export interface UpdateDocumentInput {
 }
 
 type DocumentModel = DocumentEntity;
-type DocumentContentModel = DocumentContentEntity;
+type DocumentContentModel = Omit<DocumentContentEntity, 'metadata'> & {
+  metadata: unknown;
+};
 
 const activeDocumentWhere = {
   status: {
@@ -52,9 +59,48 @@ const toDocumentContentEntity = (content: DocumentContentModel): DocumentContent
   id: content.id,
   documentId: content.documentId,
   content: content.content,
+  metadata: normalizeDocumentContentMetadata(content.metadata, content.documentId),
   createdAt: content.createdAt,
   updatedAt: content.updatedAt,
 });
+
+const toPrismaDocumentContentMetadata = (
+  metadata: DocumentContentMetadata,
+): Prisma.InputJsonObject => {
+  const json: Record<string, Prisma.InputJsonValue | null> = {
+    cleaner: {
+      addedTitleHeading: metadata.cleaner.addedTitleHeading,
+      inputLength: metadata.cleaner.inputLength,
+      outputLength: metadata.cleaner.outputLength,
+      removedCharacterCount: metadata.cleaner.removedCharacterCount,
+    },
+    contentHash: metadata.contentHash,
+    contentLength: metadata.contentLength,
+    documentId: metadata.documentId,
+    documentType: metadata.documentType,
+    language: metadata.language,
+    lineCount: metadata.lineCount,
+    parser: metadata.parser,
+    processedAt: metadata.processedAt,
+    securityLevel: metadata.securityLevel,
+    sourceHash: metadata.sourceHash,
+    spaceId: metadata.spaceId,
+  };
+
+  if (metadata.mimeType) {
+    json.mimeType = metadata.mimeType;
+  }
+
+  if (metadata.storageKey) {
+    json.storageKey = metadata.storageKey;
+  }
+
+  if (typeof metadata.size === 'number' && Number.isFinite(metadata.size)) {
+    json.size = metadata.size;
+  }
+
+  return json as Prisma.InputJsonObject;
+};
 
 @Injectable()
 export class DocumentRepository {
@@ -113,17 +159,23 @@ export class DocumentRepository {
     return toDocumentEntity(document);
   }
 
-  async upsertContent(documentId: string, content: string): Promise<DocumentContentEntity> {
+  async upsertContent(
+    documentId: string,
+    content: string,
+    metadata: DocumentContentMetadata,
+  ): Promise<DocumentContentEntity> {
     const documentContent = await this.prisma.documentContent.upsert({
       where: {
         documentId,
       },
       update: {
         content,
+        metadata: toPrismaDocumentContentMetadata(metadata),
       },
       create: {
         documentId,
         content,
+        metadata: toPrismaDocumentContentMetadata(metadata),
       },
     });
 

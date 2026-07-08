@@ -4,7 +4,7 @@ import { CurrentUser, JwtAuthGuard, type AuthenticatedUser } from '../auth';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import type { DocumentEntity } from './entities/document.entity';
-import { DocumentService } from './document.service';
+import { DocumentService, type DocumentMetadataResponse } from './document.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -33,6 +33,14 @@ export class DocumentController {
     @Param('spaceId') spaceId: string,
   ): Promise<DocumentEntity[]> {
     return this.documentService.listBySpace(this.createExecutionContext(user), spaceId);
+  }
+
+  @Get('documents/:id/metadata')
+  getMetadata(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<DocumentMetadataResponse> {
+    return this.documentService.getMetadata(this.createExecutionContext(user), id);
   }
 
   @Get('documents/:id')

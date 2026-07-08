@@ -3,11 +3,17 @@ import type { ExecutionContext } from '../../common';
 import { KnowledgeSpaceRepository, type SpaceMemberRole } from '../knowledge-space';
 import type { CreateDocumentDto } from './dto/create-document.dto';
 import type { UpdateDocumentDto } from './dto/update-document.dto';
+import type { DocumentContentMetadata } from './entities/document-content.entity';
 import type { DocumentEntity } from './entities/document.entity';
 import { DocumentRepository } from './document.repository';
 
 const readRoles: SpaceMemberRole[] = ['OWNER', 'EDITOR', 'VIEWER'];
 const writeRoles: SpaceMemberRole[] = ['OWNER', 'EDITOR'];
+
+export interface DocumentMetadataResponse {
+  documentId: string;
+  metadata: DocumentContentMetadata;
+}
 
 @Injectable()
 export class DocumentService {
@@ -46,6 +52,22 @@ export class DocumentService {
     await this.ensureSpaceRole(context, document.spaceId, readRoles);
 
     return document;
+  }
+
+  async getMetadata(context: ExecutionContext, id: string): Promise<DocumentMetadataResponse> {
+    const document = await this.findActiveDocument(id);
+    await this.ensureSpaceRole(context, document.spaceId, readRoles);
+
+    const content = await this.documentRepository.findContentByDocumentId(document.id);
+
+    if (!content) {
+      throw new NotFoundException('Document metadata not found');
+    }
+
+    return {
+      documentId: document.id,
+      metadata: content.metadata,
+    };
   }
 
   async update(

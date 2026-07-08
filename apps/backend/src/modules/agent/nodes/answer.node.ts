@@ -113,6 +113,12 @@ export class AnswerNode implements AgentNode {
         documentId: graphContext.documentId,
         metadata: {
           documentId: graphContext.documentId,
+          spaceId: state.executionContext.spaceIds[0] ?? '',
+          documentType: 'GRAPH',
+          language: 'unknown',
+          securityLevel: 'INTERNAL',
+          sourceHash: '',
+          contentHash: '',
           graphSource: graphContext.source,
           graphTarget: graphContext.target,
           graphType: graphContext.type,

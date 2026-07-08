@@ -3,6 +3,7 @@ import { ObservabilityService } from '../../infrastructure/observability';
 import { StorageService } from '../../infrastructure/storage';
 import { DocumentRepository, type DocumentContentEntity, type DocumentEntity } from '../document';
 import { CleanerPipeline } from './cleaners/cleaner.pipeline';
+import { DocumentMetadataBuilder } from './metadata/document-metadata.builder';
 import { ParserFactory } from './parser.factory';
 
 @Injectable()
@@ -10,6 +11,7 @@ export class DocumentProcessingService {
   constructor(
     private readonly cleanerPipeline: CleanerPipeline,
     private readonly documentRepository: DocumentRepository,
+    private readonly documentMetadataBuilder: DocumentMetadataBuilder,
     private readonly observabilityService: ObservabilityService,
     private readonly parserFactory: ParserFactory,
     private readonly storageService: StorageService,
@@ -36,9 +38,16 @@ export class DocumentProcessingService {
         title: document.title,
         type: document.type,
       });
+      const metadata = this.documentMetadataBuilder.build(
+        document,
+        object,
+        cleanedMarkdown.content,
+        cleanedMarkdown.metadata,
+      );
       const content = await this.documentRepository.upsertContent(
         document.id,
         cleanedMarkdown.content,
+        metadata,
       );
 
       await this.documentRepository.update(document.id, {

@@ -24,6 +24,12 @@ export class GraphRetriever {
       score: graphContext.score,
       metadata: {
         documentId: graphContext.documentId,
+        spaceId: context.spaceIds[0] ?? '',
+        documentType: 'GRAPH',
+        language: 'unknown',
+        securityLevel: 'INTERNAL',
+        sourceHash: '',
+        contentHash: '',
         graphSource: graphContext.source,
         graphTarget: graphContext.target,
         graphType: graphContext.type,

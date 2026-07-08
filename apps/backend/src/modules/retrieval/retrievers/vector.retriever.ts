@@ -39,6 +39,12 @@ export class VectorRetriever {
         documentId: String(result.metadata.documentId ?? result.documentId),
         sequence: Number(result.metadata.sequence ?? 0),
         sectionTitle: String(result.metadata.sectionTitle ?? ''),
+        spaceId: String(result.metadata.spaceId ?? ''),
+        documentType: String(result.metadata.documentType ?? ''),
+        language: String(result.metadata.language ?? 'unknown'),
+        securityLevel: String(result.metadata.securityLevel ?? 'INTERNAL'),
+        sourceHash: String(result.metadata.sourceHash ?? ''),
+        contentHash: String(result.metadata.contentHash ?? ''),
       },
       source: 'vector',
     }));

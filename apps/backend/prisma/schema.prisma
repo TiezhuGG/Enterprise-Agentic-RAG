@@ -191,6 +191,7 @@ model DocumentContent {
   id         String   @id @default(cuid())
   documentId String   @unique @map("document_id")
   content    String
+  metadata   Json     @default("{}")
   createdAt  DateTime @default(now()) @map("created_at")
   updatedAt  DateTime @updatedAt @map("updated_at")
   document   Document @relation(fields: [documentId], references: [id], onDelete: Cascade)
