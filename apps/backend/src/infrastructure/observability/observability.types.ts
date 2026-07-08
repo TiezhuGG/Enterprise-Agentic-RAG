@@ -98,6 +98,7 @@ export interface UploadObservation {
 }
 
 export interface DocumentProcessingObservation {
+  cleaning?: Record<string, unknown>;
   documentId: string;
   durationMs: number;
   status: ObservabilityStatus;

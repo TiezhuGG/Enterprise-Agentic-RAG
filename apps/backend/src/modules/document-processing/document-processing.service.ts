@@ -2,11 +2,13 @@ import { Injectable, NotFoundException, BadRequestException } from '@nestjs/comm
 import { ObservabilityService } from '../../infrastructure/observability';
 import { StorageService } from '../../infrastructure/storage';
 import { DocumentRepository, type DocumentContentEntity, type DocumentEntity } from '../document';
+import { CleanerPipeline } from './cleaners/cleaner.pipeline';
 import { ParserFactory } from './parser.factory';
 
 @Injectable()
 export class DocumentProcessingService {
   constructor(
+    private readonly cleanerPipeline: CleanerPipeline,
     private readonly documentRepository: DocumentRepository,
     private readonly observabilityService: ObservabilityService,
     private readonly parserFactory: ParserFactory,
@@ -28,13 +30,22 @@ export class DocumentProcessingService {
 
       const object = await this.storageService.getObject(document.storageKey);
       const parser = this.parserFactory.getParser(document.type);
-      const markdown = await parser.parse(object.buffer);
-      const content = await this.documentRepository.upsertContent(document.id, markdown);
+      const rawMarkdown = await parser.parse(object.buffer);
+      const cleanedMarkdown = this.cleanerPipeline.clean(rawMarkdown, {
+        documentId: document.id,
+        title: document.title,
+        type: document.type,
+      });
+      const content = await this.documentRepository.upsertContent(
+        document.id,
+        cleanedMarkdown.content,
+      );
 
       await this.documentRepository.update(document.id, {
         status: 'READY',
       });
       this.observabilityService.recordDocumentProcessing({
+        cleaning: cleanedMarkdown.metadata,
         documentId: document.id,
         durationMs: Date.now() - startedAt,
         status: 'success',

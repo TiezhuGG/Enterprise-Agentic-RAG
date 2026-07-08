@@ -364,6 +364,7 @@ export class ObservabilityService {
       event: 'document.processing',
       level: input.status === 'failed' ? 'error' : 'info',
       metadata: {
+        cleaning: input.cleaning,
         documentId: input.documentId,
       },
       status: input.status,

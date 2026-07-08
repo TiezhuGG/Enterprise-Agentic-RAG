@@ -1,6 +1,8 @@
 import { Module } from '@nestjs/common';
 import { StorageModule } from '../../infrastructure/storage';
 import { DocumentModule } from '../document';
+import { CleanerPipeline } from './cleaners/cleaner.pipeline';
+import { MarkdownCleaner } from './cleaners/markdown.cleaner';
 import { DocumentProcessingService } from './document-processing.service';
 import { ParserFactory } from './parser.factory';
 import { DocxParser } from './parsers/docx.parser';
@@ -17,6 +19,8 @@ import { TxtParser } from './parsers/txt.parser';
     DocxParser,
     TxtParser,
     MarkdownParser,
+    CleanerPipeline,
+    MarkdownCleaner,
   ],
   exports: [DocumentProcessingService],
 })
