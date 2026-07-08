@@ -326,14 +326,14 @@ model Chunk {
 }
 
 model ChunkEmbedding {
-  id        String   @id @default(cuid())
-  chunkId   String   @unique @map("chunk_id")
+  id        String                @id @default(cuid())
+  chunkId   String                @unique @map("chunk_id")
   model     String
   dimension Int
-  vector    Float[]
-  createdAt DateTime @default(now()) @map("created_at")
-  updatedAt DateTime @updatedAt @map("updated_at")
-  chunk     Chunk    @relation(fields: [chunkId], references: [id], onDelete: Cascade)
+  vector    Unsupported("vector(768)")
+  createdAt DateTime              @default(now()) @map("created_at")
+  updatedAt DateTime              @updatedAt @map("updated_at")
+  chunk     Chunk                 @relation(fields: [chunkId], references: [id], onDelete: Cascade)
 
   @@index([model])
   @@map("chunk_embeddings")
