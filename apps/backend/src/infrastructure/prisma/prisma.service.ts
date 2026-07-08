@@ -32,6 +32,18 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.rolePermission;
   }
 
+  get tenant() {
+    return this.client.tenant;
+  }
+
+  get organization() {
+    return this.client.organization;
+  }
+
+  get department() {
+    return this.client.department;
+  }
+
   get knowledgeSpace() {
     return this.client.knowledgeSpace;
   }

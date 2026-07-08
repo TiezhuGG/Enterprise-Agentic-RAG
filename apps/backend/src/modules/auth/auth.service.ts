@@ -2,11 +2,37 @@ import { UnauthorizedException, Injectable } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { compare } from 'bcryptjs';
 import { ConfigService } from '../../config';
-import { UserRepository } from '../user';
+import { UserRepository, type UserRecord } from '../user';
 import type { AuthenticatedUser, JwtPayload, LoginResponse } from './auth.types';
 import type { LoginDto } from './dto/login.dto';
 
 const unique = (values: string[]): string[] => [...new Set(values)];
+
+const toEnterpriseMetadata = (user: UserRecord) => ({
+  enterprise: {
+    department: user?.department
+      ? {
+          code: user.department.code,
+          id: user.department.id,
+          name: user.department.name,
+        }
+      : null,
+    organization: user?.organization
+      ? {
+          code: user.organization.code,
+          id: user.organization.id,
+          name: user.organization.name,
+        }
+      : null,
+    tenant: user?.tenant
+      ? {
+          code: user.tenant.code,
+          id: user.tenant.id,
+          name: user.tenant.name,
+        }
+      : null,
+  },
+});
 
 @Injectable()
 export class AuthService {
@@ -36,7 +62,10 @@ export class AuthService {
       roles: user.roles.map((role) => role.code),
       permissions: unique(user.roles.flatMap((role) => role.permissions)),
       spaceIds: user.spaceIds,
-      metadata: {},
+      tenantId: user.tenantId ?? undefined,
+      organizationId: user.organizationId ?? undefined,
+      departmentId: user.departmentId ?? undefined,
+      metadata: toEnterpriseMetadata(user),
     };
     const payload: JwtPayload = {
       sub: authUser.id,
@@ -44,6 +73,9 @@ export class AuthService {
       roles: authUser.roles,
       permissions: authUser.permissions,
       spaceIds: authUser.spaceIds,
+      tenantId: authUser.tenantId,
+      organizationId: authUser.organizationId,
+      departmentId: authUser.departmentId,
       metadata: authUser.metadata,
     };
     const { expiresIn } = this.configService.getJwtConfig();

@@ -7,6 +7,7 @@ type RequestContextUser = {
   permissions: string[];
   spaceIds: string[];
   tenantId?: string;
+  organizationId?: string;
   departmentId?: string;
   metadata?: Record<string, unknown>;
 };
@@ -24,6 +25,7 @@ export class RequestContextService {
       permissions: user.permissions,
       spaceIds: user.spaceIds,
       tenantId: user.tenantId,
+      organizationId: user.organizationId,
       departmentId: user.departmentId,
       metadata: user.metadata ?? {},
     };

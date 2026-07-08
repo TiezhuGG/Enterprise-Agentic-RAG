@@ -2,10 +2,19 @@ import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma';
 
 export interface CreateUserInput {
+  departmentId?: string;
   email: string;
   name?: string;
+  organizationId?: string;
   passwordHash?: string;
   isActive?: boolean;
+  tenantId?: string;
+}
+
+export interface UserEnterpriseSummary {
+  code: string;
+  id: string;
+  name: string;
 }
 
 export interface UserRecord {
@@ -14,17 +23,34 @@ export interface UserRecord {
   name: string | null;
   passwordHash: string | null;
   isActive: boolean;
+  tenantId: string | null;
+  organizationId: string | null;
+  departmentId: string | null;
   createdAt: Date;
   updatedAt: Date;
+  department: UserEnterpriseSummary | null;
+  organization: UserEnterpriseSummary | null;
   roles: Array<{
     code: string;
     name: string;
     permissions: string[];
   }>;
   spaceIds: string[];
+  tenant: UserEnterpriseSummary | null;
 }
 
-type UserModel = Omit<UserRecord, 'roles' | 'spaceIds'> & {
+type EnterpriseSummaryModel = {
+  code: string;
+  id: string;
+  name: string;
+};
+
+type UserModel = Omit<
+  UserRecord,
+  'department' | 'organization' | 'roles' | 'spaceIds' | 'tenant'
+> & {
+  department?: EnterpriseSummaryModel | null;
+  organization?: EnterpriseSummaryModel | null;
   roles?: Array<{
     role: {
       code: string;
@@ -39,6 +65,7 @@ type UserModel = Omit<UserRecord, 'roles' | 'spaceIds'> & {
   spaces?: Array<{
     spaceId: string;
   }>;
+  tenant?: EnterpriseSummaryModel | null;
 };
 
 const toUserRecord = (user: UserModel): UserRecord => ({
@@ -47,8 +74,13 @@ const toUserRecord = (user: UserModel): UserRecord => ({
   name: user.name,
   passwordHash: user.passwordHash,
   isActive: user.isActive,
+  tenantId: user.tenantId,
+  organizationId: user.organizationId,
+  departmentId: user.departmentId,
   createdAt: user.createdAt,
   updatedAt: user.updatedAt,
+  department: user.department ?? null,
+  organization: user.organization ?? null,
   roles:
     user.roles?.map(({ role }) => ({
       code: role.code,
@@ -56,6 +88,7 @@ const toUserRecord = (user: UserModel): UserRecord => ({
       permissions: role.permissions?.map(({ permission }) => permission.code) ?? [],
     })) ?? [],
   spaceIds: user.spaces?.map((space) => space.spaceId) ?? [],
+  tenant: user.tenant ?? null,
 });
 
 @Injectable()
@@ -82,6 +115,27 @@ export class UserRepository {
         spaces: {
           select: {
             spaceId: true,
+          },
+        },
+        tenant: {
+          select: {
+            code: true,
+            id: true,
+            name: true,
+          },
+        },
+        organization: {
+          select: {
+            code: true,
+            id: true,
+            name: true,
+          },
+        },
+        department: {
+          select: {
+            code: true,
+            id: true,
+            name: true,
           },
         },
       },
@@ -112,6 +166,27 @@ export class UserRepository {
             spaceId: true,
           },
         },
+        tenant: {
+          select: {
+            code: true,
+            id: true,
+            name: true,
+          },
+        },
+        organization: {
+          select: {
+            code: true,
+            id: true,
+            name: true,
+          },
+        },
+        department: {
+          select: {
+            code: true,
+            id: true,
+            name: true,
+          },
+        },
       },
     });
 
@@ -122,15 +197,21 @@ export class UserRepository {
     const user = await this.prisma.user.upsert({
       where: { email: input.email },
       update: {
+        departmentId: input.departmentId,
         name: input.name,
+        organizationId: input.organizationId,
         passwordHash: input.passwordHash,
         isActive: input.isActive,
+        tenantId: input.tenantId,
       },
       create: {
+        departmentId: input.departmentId,
         email: input.email,
         name: input.name,
+        organizationId: input.organizationId,
         passwordHash: input.passwordHash,
         isActive: input.isActive ?? true,
+        tenantId: input.tenantId,
       },
       include: {
         roles: {
@@ -149,6 +230,27 @@ export class UserRepository {
         spaces: {
           select: {
             spaceId: true,
+          },
+        },
+        tenant: {
+          select: {
+            code: true,
+            id: true,
+            name: true,
+          },
+        },
+        organization: {
+          select: {
+            code: true,
+            id: true,
+            name: true,
+          },
+        },
+        department: {
+          select: {
+            code: true,
+            id: true,
+            name: true,
           },
         },
       },

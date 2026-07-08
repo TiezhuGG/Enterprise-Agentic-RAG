@@ -10,6 +10,7 @@ import { ConversationModule } from './modules/conversation';
 import { DocumentModule } from './modules/document';
 import { DocumentProcessingModule } from './modules/document-processing';
 import { EmbeddingModule } from './modules/embedding';
+import { EnterpriseModule } from './modules/enterprise';
 import { EvaluationModule } from './modules/evaluation';
 import { ExecutionModule } from './modules/execution';
 import { IngestionModule } from './modules/ingestion';
@@ -41,6 +42,7 @@ import { UserModule } from './modules/user';
     DocumentProcessingModule,
     ChunkModule,
     EmbeddingModule,
+    EnterpriseModule,
     IngestionModule,
     EvaluationModule,
     ExecutionModule,

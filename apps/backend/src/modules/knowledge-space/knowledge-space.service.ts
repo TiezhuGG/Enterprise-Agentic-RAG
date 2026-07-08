@@ -20,6 +20,7 @@ export class KnowledgeSpaceService {
       description: input.description,
       visibility: input.visibility,
       ownerId: context.userId,
+      tenantId: context.tenantId,
     });
   }
 

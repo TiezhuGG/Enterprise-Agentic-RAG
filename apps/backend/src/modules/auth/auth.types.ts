@@ -5,6 +5,7 @@ export interface JwtPayload {
   permissions: string[];
   spaceIds?: string[];
   tenantId?: string;
+  organizationId?: string;
   departmentId?: string;
   metadata?: Record<string, unknown>;
 }
@@ -16,6 +17,7 @@ export interface AuthenticatedUser {
   permissions: string[];
   spaceIds: string[];
   tenantId?: string;
+  organizationId?: string;
   departmentId?: string;
   metadata: Record<string, unknown>;
 }

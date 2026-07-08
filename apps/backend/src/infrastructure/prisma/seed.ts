@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { hash } from 'bcryptjs';
 import { AppModule } from '../../app.module';
 import { AuthRepository } from '../../modules/auth';
+import { EnterpriseRepository } from '../../modules/enterprise';
 import { UserRepository } from '../../modules/user';
 
 export const seedAdminPassword = 'Admin123!';
@@ -59,6 +60,7 @@ async function seed() {
 
   try {
     const authRepository = app.get(AuthRepository);
+    const enterpriseRepository = app.get(EnterpriseRepository);
     const userRepository = app.get(UserRepository);
 
     for (const permission of permissions) {
@@ -81,6 +83,37 @@ async function seed() {
     });
 
     await userRepository.assignRole(admin.id, 'admin');
+
+    const tenant = await enterpriseRepository.upsertTenant({
+      code: 'default',
+      name: 'Default Tenant',
+      metadata: {
+        seeded: true,
+      },
+    });
+    const organization = await enterpriseRepository.upsertOrganization({
+      code: 'default-org',
+      name: 'Default Organization',
+      tenantId: tenant.id,
+      metadata: {
+        seeded: true,
+      },
+    });
+    const department = await enterpriseRepository.upsertDepartment({
+      code: 'ai-lab',
+      name: 'AI Lab',
+      organizationId: organization.id,
+      tenantId: tenant.id,
+      metadata: {
+        seeded: true,
+      },
+    });
+
+    await enterpriseRepository.assignUserEnterprise(admin.id, {
+      departmentId: department.id,
+      organizationId: organization.id,
+      tenantId: tenant.id,
+    });
   } finally {
     await app.close();
   }

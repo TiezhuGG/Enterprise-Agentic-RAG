@@ -13,6 +13,7 @@ export interface CreateKnowledgeSpaceInput {
   description?: string;
   visibility?: KnowledgeSpaceVisibility;
   ownerId: string;
+  tenantId?: string;
 }
 
 export interface UpdateKnowledgeSpaceInput {
@@ -45,6 +46,7 @@ const toKnowledgeSpaceEntity = (space: KnowledgeSpaceModel): KnowledgeSpaceEntit
   visibility: space.visibility,
   status: space.status,
   ownerId: space.ownerId,
+  tenantId: space.tenantId,
   createdAt: space.createdAt,
   updatedAt: space.updatedAt,
   members: space.members?.map(toSpaceMemberEntity) ?? [],
@@ -61,6 +63,7 @@ export class KnowledgeSpaceRepository {
         description: input.description,
         visibility: input.visibility ?? 'PRIVATE',
         ownerId: input.ownerId,
+        tenantId: input.tenantId,
         members: {
           create: {
             userId: input.ownerId,

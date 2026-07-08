@@ -2,6 +2,9 @@ export interface AuthenticatedUser {
   email: string;
   id: string;
   metadata: Record<string, unknown>;
+  tenantId?: string;
+  organizationId?: string;
+  departmentId?: string;
   permissions: string[];
   roles: string[];
   spaceIds: string[];

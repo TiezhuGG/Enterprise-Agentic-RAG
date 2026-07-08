@@ -20,6 +20,7 @@ export interface KnowledgeSpaceEntity {
   visibility: KnowledgeSpaceVisibility;
   status: KnowledgeSpaceStatus;
   ownerId: string;
+  tenantId: string | null;
   createdAt: Date;
   updatedAt: Date;
   members: SpaceMemberEntity[];

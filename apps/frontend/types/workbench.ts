@@ -14,6 +14,7 @@ export interface KnowledgeSpace {
   visibility: 'PRIVATE' | 'INTERNAL' | 'PUBLIC';
   status: 'ACTIVE' | 'ARCHIVED' | 'DELETED';
   ownerId: string;
+  tenantId: string | null;
   createdAt: string;
   updatedAt: string;
   members: SpaceMember[];
