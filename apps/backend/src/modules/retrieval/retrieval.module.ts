@@ -21,6 +21,6 @@ import { RetrievalService } from './retrieval.service';
     RrfFusion,
     VectorRetriever,
   ],
-  exports: [RetrievalService],
+  exports: [ContextBuilder, RetrievalService],
 })
 export class RetrievalModule {}

@@ -11,6 +11,30 @@ const requiredString = (name: string) =>
 
 const requiredUrl = (name: string) => requiredString(name).url(`${name} must be a valid URL`);
 
+const booleanFlag = (name: string) =>
+  z.preprocess(
+    (value) => {
+      if (typeof value === 'boolean') {
+        return value;
+      }
+
+      if (typeof value === 'string') {
+        const normalizedValue = value.trim().toLowerCase();
+
+        if (normalizedValue === 'true') {
+          return true;
+        }
+
+        if (normalizedValue === 'false') {
+          return false;
+        }
+      }
+
+      return value;
+    },
+    z.boolean({ error: `${name} must be true or false` }),
+  );
+
 export const envSchema = z.object({
   APP_ENV: z.enum(appEnvironments, {
     error: 'APP_ENV must be one of local, development, test, staging, production',
@@ -74,6 +98,14 @@ export const envSchema = z.object({
     })
     .int('LLM_MAX_TOKENS must be an integer')
     .min(1, 'LLM_MAX_TOKENS must be greater than 0'),
+  AGENT_MAX_ITERATIONS: z.coerce
+    .number({
+      error: 'AGENT_MAX_ITERATIONS is required',
+    })
+    .int('AGENT_MAX_ITERATIONS must be an integer')
+    .min(1, 'AGENT_MAX_ITERATIONS must be greater than 0'),
+  AGENT_ENABLE_GRAPH: booleanFlag('AGENT_ENABLE_GRAPH'),
+  AGENT_ENABLE_MEMORY: booleanFlag('AGENT_ENABLE_MEMORY'),
 });
 
 export type EnvSchema = z.infer<typeof envSchema>;

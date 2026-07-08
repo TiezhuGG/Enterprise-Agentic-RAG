@@ -96,5 +96,10 @@ export const createConfiguration = (): AppConfiguration => {
       temperature: env.LLM_TEMPERATURE,
       maxTokens: env.LLM_MAX_TOKENS,
     },
+    agent: {
+      maxIterations: env.AGENT_MAX_ITERATIONS,
+      enableGraph: env.AGENT_ENABLE_GRAPH,
+      enableMemory: env.AGENT_ENABLE_MEMORY,
+    },
   };
 };

@@ -61,6 +61,12 @@ export interface LlmConfig {
   maxTokens: number;
 }
 
+export interface AgentConfig {
+  maxIterations: number;
+  enableGraph: boolean;
+  enableMemory: boolean;
+}
+
 export interface AppConfiguration {
   app: AppConfig;
   database: DatabaseConfig;
@@ -72,4 +78,5 @@ export interface AppConfiguration {
   embedding: EmbeddingConfig;
   reranker: RerankerConfig;
   llm: LlmConfig;
+  agent: AgentConfig;
 }

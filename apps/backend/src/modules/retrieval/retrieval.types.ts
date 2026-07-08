@@ -15,6 +15,7 @@ export interface RetrievalRequest {
   vectorLimit?: number;
   keywordLimit?: number;
   maxContextTokens?: number;
+  enableGraph?: boolean;
 }
 
 export interface RetrievalAccessContext {

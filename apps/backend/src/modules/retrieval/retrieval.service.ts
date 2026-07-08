@@ -48,7 +48,9 @@ export class RetrievalService {
     const [vectorResults, keywordResults, graphResults] = await Promise.all([
       this.vectorRetriever.retrieve(query, accessContext, vectorLimit),
       this.keywordRetriever.retrieve(query, accessContext, keywordLimit),
-      this.graphRetriever.retrieve(query, accessContext, keywordLimit),
+      request.enableGraph === false
+        ? Promise.resolve([])
+        : this.graphRetriever.retrieve(query, accessContext, keywordLimit),
     ]);
     const rrfResults = this.rrfFusion.fuse(
       [vectorResults, keywordResults, graphResults],

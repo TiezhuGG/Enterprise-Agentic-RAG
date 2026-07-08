@@ -3,6 +3,7 @@ import { CONFIGURATION } from './configuration';
 import type {
   AppConfig,
   AppConfiguration,
+  AgentConfig,
   DatabaseConfig,
   EmbeddingConfig,
   GraphConfig,
@@ -66,5 +67,9 @@ export class ConfigService {
 
   getLlmConfig(): Readonly<LlmConfig> {
     return this.config.llm;
+  }
+
+  getAgentConfig(): Readonly<AgentConfig> {
+    return this.config.agent;
   }
 }

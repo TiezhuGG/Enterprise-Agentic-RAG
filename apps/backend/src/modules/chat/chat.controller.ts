@@ -1,8 +1,8 @@
 import { Body, Controller, Param, Post, Res, UseGuards } from '@nestjs/common';
 import { RequestContextService, type ExecutionContext } from '../../common';
+import { AgentService } from '../agent/agent.service';
 import { CurrentUser, JwtAuthGuard, type AuthenticatedUser } from '../auth';
 import { ChatRequestDto, type ChatResponse } from './chat.types';
-import { ChatService } from './chat.service';
 
 interface SseResponse {
   end(): void;
@@ -15,7 +15,7 @@ interface SseResponse {
 @UseGuards(JwtAuthGuard)
 export class ChatController {
   constructor(
-    private readonly chatService: ChatService,
+    private readonly agentService: AgentService,
     private readonly requestContextService: RequestContextService,
   ) {}
 
@@ -25,7 +25,11 @@ export class ChatController {
     @Param('conversationId') conversationId: string,
     @Body() chatRequestDto: ChatRequestDto,
   ): Promise<ChatResponse> {
-    return this.chatService.chat(this.createExecutionContext(user), conversationId, chatRequestDto);
+    return this.agentService.chat(
+      this.createExecutionContext(user),
+      conversationId,
+      chatRequestDto,
+    );
   }
 
   @Post(':conversationId/stream')
@@ -41,7 +45,7 @@ export class ChatController {
     response.flushHeaders?.();
 
     try {
-      for await (const token of this.chatService.stream(
+      for await (const token of this.agentService.stream(
         this.createExecutionContext(user),
         conversationId,
         chatRequestDto,

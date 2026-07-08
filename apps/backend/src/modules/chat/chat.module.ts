@@ -1,34 +1,14 @@
 import { Module } from '@nestjs/common';
 import { RequestContextModule } from '../../common';
-import { ConfigModule } from '../../config';
+import { AgentModule } from '../agent';
 import { AuthModule } from '../auth';
-import { ConversationModule } from '../conversation';
-import { MemoryModule } from '../memory';
-import { RetrievalModule } from '../retrieval';
 import { ChatController } from './chat.controller';
 import { ChatService } from './chat.service';
-import { LLM_PROVIDER } from './providers/llm.provider';
-import { OpenAiCompatibleLlmProvider } from './providers/openai-compatible.provider';
-import { PromptBuilder } from './prompt/prompt.builder';
 
 @Module({
-  imports: [
-    AuthModule,
-    ConfigModule,
-    ConversationModule,
-    MemoryModule,
-    RequestContextModule,
-    RetrievalModule,
-  ],
+  imports: [AgentModule, AuthModule, RequestContextModule],
   controllers: [ChatController],
-  providers: [
-    ChatService,
-    PromptBuilder,
-    {
-      provide: LLM_PROVIDER,
-      useClass: OpenAiCompatibleLlmProvider,
-    },
-  ],
+  providers: [ChatService],
   exports: [ChatService],
 })
 export class ChatModule {}

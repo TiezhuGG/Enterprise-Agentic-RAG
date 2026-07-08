@@ -45,6 +45,7 @@ export class ChatRequestDto {
 export interface ChatResponse {
   answer: string;
   citations: ChatCitation[];
+  verified?: boolean;
 }
 
 export interface ChatCitation {
