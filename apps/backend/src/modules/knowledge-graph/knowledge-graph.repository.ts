@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { GraphService } from '../../infrastructure/graph';
-import type { GraphContext, GraphEntity, GraphRelation } from './knowledge-graph.types';
+import type {
+  GraphContext,
+  GraphDocumentCounts,
+  GraphEntity,
+  GraphRelation,
+} from './knowledge-graph.types';
 
 interface GraphContextRow {
   documentId: string;
@@ -12,6 +17,26 @@ interface GraphContextRow {
 }
 
 const toString = (value: unknown): string => String(value ?? '');
+
+const toNumber = (value: unknown): number => {
+  if (typeof value === 'number') {
+    return value;
+  }
+
+  if (typeof value === 'object' && value !== null) {
+    const candidate = value as { high?: unknown; low?: unknown };
+    const low = Number(candidate.low ?? 0);
+    const high = Number(candidate.high ?? 0);
+
+    if (Number.isFinite(low) && Number.isFinite(high)) {
+      return high * 2 ** 32 + low;
+    }
+  }
+
+  const numericValue = Number(value);
+
+  return Number.isFinite(numericValue) ? numericValue : 0;
+};
 
 const toGraphContextRow = (row: unknown[]): GraphContextRow => ({
   source: toString(row[0]),
@@ -111,5 +136,26 @@ export class KnowledgeGraphRepository {
         type: row.type,
       };
     });
+  }
+
+  async countDocumentGraph(documentId: string): Promise<GraphDocumentCounts> {
+    const rows = await this.graphService.run(
+      `
+      OPTIONAL MATCH (entity:Entity {documentId: $documentId})
+      WITH count(DISTINCT entity) AS entityCount
+      OPTIONAL MATCH (:Entity {documentId: $documentId})-[relation:RELATION {documentId: $documentId}]->(:Entity {documentId: $documentId})
+      RETURN entityCount, count(DISTINCT relation)
+      `,
+      {
+        documentId,
+      },
+    );
+    const row = rows[0]?.row ?? [];
+
+    return {
+      documentId,
+      entityCount: toNumber(row[0]),
+      relationCount: toNumber(row[1]),
+    };
   }
 }

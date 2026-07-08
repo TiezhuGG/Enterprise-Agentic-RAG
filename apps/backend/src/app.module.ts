@@ -10,6 +10,7 @@ import { DocumentModule } from './modules/document';
 import { DocumentProcessingModule } from './modules/document-processing';
 import { EmbeddingModule } from './modules/embedding';
 import { EvaluationModule } from './modules/evaluation';
+import { IngestionModule } from './modules/ingestion';
 import { KnowledgeSpaceModule } from './modules/knowledge-space';
 import { KnowledgeGraphModule } from './modules/knowledge-graph';
 import { MemoryModule } from './modules/memory';
@@ -36,6 +37,7 @@ import { UserModule } from './modules/user';
     DocumentProcessingModule,
     ChunkModule,
     EmbeddingModule,
+    IngestionModule,
     EvaluationModule,
     RerankerModule,
     RetrievalModule,

@@ -103,3 +103,23 @@ export interface DocumentProcessingObservation {
   status: ObservabilityStatus;
   error?: unknown;
 }
+
+export interface IngestionObservation {
+  context: Pick<ExecutionContext, 'metadata' | 'userId'>;
+  documentId?: string;
+  durationMs: number;
+  spaceId?: string;
+  stageCount: number;
+  status: ObservabilityStatus;
+  error?: unknown;
+}
+
+export interface IngestionStageObservation {
+  context: Pick<ExecutionContext, 'metadata' | 'userId'>;
+  documentId: string;
+  durationMs: number;
+  spaceId: string;
+  stage: string;
+  status: ObservabilityStatus;
+  error?: unknown;
+}

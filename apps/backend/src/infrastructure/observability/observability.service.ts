@@ -9,6 +9,8 @@ import type {
   DurationSnapshot,
   HealthResponse,
   HttpRequestObservation,
+  IngestionObservation,
+  IngestionStageObservation,
   LlmObservation,
   MetricLabels,
   ObservabilityLogInput,
@@ -31,6 +33,8 @@ const requiredCounterNames = [
   'llm_stream_tokens_total',
   'upload_requests_total',
   'document_processing_total',
+  'ingestion_requests_total',
+  'ingestion_stage_total',
   'errors_total',
 ];
 
@@ -363,6 +367,74 @@ export class ObservabilityService {
         documentId: input.documentId,
       },
       status: input.status,
+    });
+  }
+
+  recordIngestion(input: IngestionObservation): void {
+    this.incrementCounter('ingestion_requests_total', {
+      status: input.status,
+    });
+    this.observeDuration('ingestion_duration_ms', input.durationMs, {
+      status: input.status,
+    });
+
+    if (input.status === 'failed') {
+      this.recordError('ingestion.document', input.error, {
+        executionId: this.getExecutionId(input.context),
+        requestId: this.getRequestId(input.context),
+        userId: input.context.userId,
+      });
+    }
+
+    this.log({
+      durationMs: input.durationMs,
+      error: input.error,
+      event: 'ingestion.document',
+      executionId: this.getExecutionId(input.context),
+      level: input.status === 'failed' ? 'error' : 'info',
+      metadata: {
+        documentId: input.documentId,
+        spaceId: input.spaceId,
+        stageCount: input.stageCount,
+      },
+      requestId: this.getRequestId(input.context),
+      status: input.status,
+      userId: input.context.userId,
+    });
+  }
+
+  recordIngestionStage(input: IngestionStageObservation): void {
+    this.incrementCounter('ingestion_stage_total', {
+      stage: input.stage,
+      status: input.status,
+    });
+    this.observeDuration('ingestion_stage_duration_ms', input.durationMs, {
+      stage: input.stage,
+      status: input.status,
+    });
+
+    if (input.status === 'failed') {
+      this.recordError('ingestion.stage', input.error, {
+        executionId: this.getExecutionId(input.context),
+        requestId: this.getRequestId(input.context),
+        userId: input.context.userId,
+      });
+    }
+
+    this.log({
+      durationMs: input.durationMs,
+      error: input.error,
+      event: 'ingestion.stage',
+      executionId: this.getExecutionId(input.context),
+      level: input.status === 'failed' ? 'error' : 'info',
+      metadata: {
+        documentId: input.documentId,
+        spaceId: input.spaceId,
+        stage: input.stage,
+      },
+      requestId: this.getRequestId(input.context),
+      status: input.status,
+      userId: input.context.userId,
     });
   }
 

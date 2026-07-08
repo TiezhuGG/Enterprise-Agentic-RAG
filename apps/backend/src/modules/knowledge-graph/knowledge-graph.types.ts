@@ -39,6 +39,12 @@ export interface GraphExtractionResult {
   relationCount: number;
 }
 
+export interface GraphDocumentCounts {
+  documentId: string;
+  entityCount: number;
+  relationCount: number;
+}
+
 export interface GraphProvider {
   extractEntities(content: string): Promise<ExtractedEntity[]>;
   extractRelations(content: string, entities: ExtractedEntity[]): Promise<ExtractedRelation[]>;

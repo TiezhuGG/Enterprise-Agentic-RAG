@@ -7,6 +7,7 @@ import { RelationExtractor } from './extractors/relation.extractor';
 import { KnowledgeGraphRepository } from './knowledge-graph.repository';
 import type {
   ExtractedEntity,
+  GraphDocumentCounts,
   GraphEntity,
   GraphExtractionResult,
   GraphRelation,
@@ -87,6 +88,16 @@ export class KnowledgeGraphService {
       entityCount: entities.length,
       relationCount: relations.length,
     };
+  }
+
+  async getDocumentGraphCounts(documentId: string): Promise<GraphDocumentCounts> {
+    const document = await this.documentRepository.findActiveById(documentId);
+
+    if (!document) {
+      throw new NotFoundException('Document not found');
+    }
+
+    return this.knowledgeGraphRepository.countDocumentGraph(document.id);
   }
 
   private createEntityId(spaceId: string, documentId: string, name: string): string {
