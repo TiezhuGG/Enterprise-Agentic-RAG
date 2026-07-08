@@ -4,9 +4,10 @@ import { ConfigService } from '../../config';
 import { ObservabilityService } from '../../infrastructure/observability';
 import type { ChatHistoryMessage, ChatRequestDto } from '../chat/chat.types';
 import { ConversationService, type MessageEntity } from '../conversation';
+import { ExecutionService } from '../execution';
 import { MultimodalService } from '../multimodal';
 import type { AgentChatRequestDto, AgentEvent, AgentResponse, AgentRunResult } from './agent.types';
-import { AgentGraph } from './graph/agent.graph';
+import { AgentGraph, type AgentGraphTraceEvent } from './graph/agent.graph';
 import type { AgentState } from './graph/agent.state';
 import { createInitialAgentState } from './graph/agent.state';
 import { MemoryTool } from './tools/memory.tool';
@@ -52,6 +53,7 @@ export class AgentService {
     private readonly agentGraph: AgentGraph,
     private readonly configService: ConfigService,
     private readonly conversationService: ConversationService,
+    private readonly executionService: ExecutionService,
     private readonly memoryTool: MemoryTool,
     private readonly multimodalService: MultimodalService,
     private readonly observabilityService: ObservabilityService,
@@ -147,6 +149,7 @@ export class AgentService {
     const requestId = this.observabilityService.ensureRequestId(context);
     const executionId = this.observabilityService.ensureExecutionId(context);
     const question = request.question.trim();
+    let executionRunStarted = false;
 
     if (!question) {
       throw new BadRequestException('Question is required');
@@ -159,6 +162,22 @@ export class AgentService {
         request.attachmentIds,
         request.conversationId,
       );
+
+      await this.executionService.startRun({
+        conversationId: request.conversationId,
+        executionId,
+        metadata: {
+          attachmentCount: request.attachmentIds?.length ?? 0,
+          keywordLimit: request.keywordLimit,
+          limit: request.limit,
+          maxContextTokens: request.maxContextTokens,
+          vectorLimit: request.vectorLimit,
+        },
+        requestId,
+        source,
+        userId: context.userId,
+      });
+      executionRunStarted = true;
 
       await this.conversationService.createMessage(context, request.conversationId, {
         content: question,
@@ -181,7 +200,11 @@ export class AgentService {
           question,
           request,
         }),
-        { onEvent },
+        {
+          onEvent,
+          onTraceEvent: (event) =>
+            this.recordExecutionTraceEvent(context, requestId, executionId, event),
+        },
       );
       const answer = finalState.answer ?? '';
 
@@ -218,9 +241,26 @@ export class AgentService {
         usedRetrieval: finalState.needsRetrieval,
         userId: context.userId,
       });
+      await this.executionService.finishRun({
+        durationMs: Date.now() - startedAt,
+        executionId,
+        metadata: {
+          iteration: finalState.iteration,
+          maxIterations: finalState.maxIterations,
+          usedGraph: finalState.needsGraph,
+          usedMemory: this.hasMemoryContext(finalState),
+          usedRetrieval: finalState.needsRetrieval,
+          verified: finalState.verified,
+        },
+        status: 'SUCCEEDED',
+      });
 
       return finalState;
     } catch (error) {
+      if (executionRunStarted) {
+        await this.safeRecordExecutionFailure(context, requestId, executionId, startedAt, error);
+      }
+
       this.observabilityService.recordAgentWorkflow({
         durationMs: Date.now() - startedAt,
         error,
@@ -248,6 +288,64 @@ export class AgentService {
         verified: finalState.verified,
       },
     };
+  }
+
+  private async recordExecutionTraceEvent(
+    context: ExecutionContext,
+    requestId: string,
+    executionId: string,
+    event: AgentGraphTraceEvent,
+  ): Promise<void> {
+    try {
+      await this.executionService.recordEvent({
+        durationMs: event.durationMs,
+        errorMessage: event.errorMessage,
+        executionId,
+        metadata: event.metadata,
+        node: event.node,
+        requestId,
+        stage: event.stage,
+        status: event.status,
+        type: event.type,
+        userId: context.userId,
+      });
+    } catch {
+      return;
+    }
+  }
+
+  private async safeRecordExecutionFailure(
+    context: ExecutionContext,
+    requestId: string,
+    executionId: string,
+    startedAt: number,
+    error: unknown,
+  ): Promise<void> {
+    try {
+      await this.executionService.recordEvent({
+        errorMessage: this.toErrorMessage(error),
+        executionId,
+        metadata: {
+          errorType: error instanceof Error ? error.constructor.name : 'UnknownError',
+        },
+        requestId,
+        stage: 'workflow',
+        status: 'FAILED',
+        type: 'error',
+        userId: context.userId,
+      });
+      await this.executionService.finishRun({
+        durationMs: Date.now() - startedAt,
+        errorMessage: this.toErrorMessage(error),
+        executionId,
+        metadata: {
+          errorType: error instanceof Error ? error.constructor.name : 'UnknownError',
+        },
+        status: 'FAILED',
+      });
+    } catch {
+      return;
+    }
   }
 
   private hasMemoryContext(finalState: AgentState): boolean {

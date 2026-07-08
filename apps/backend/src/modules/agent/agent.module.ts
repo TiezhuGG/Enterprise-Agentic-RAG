@@ -3,6 +3,7 @@ import { RequestContextModule } from '../../common';
 import { ConfigModule } from '../../config';
 import { AuthModule } from '../auth';
 import { ConversationModule } from '../conversation';
+import { ExecutionModule } from '../execution';
 import { KnowledgeGraphModule } from '../knowledge-graph';
 import { MemoryModule } from '../memory';
 import { MultimodalModule } from '../multimodal';
@@ -29,6 +30,7 @@ import { ToolRegistry } from './tools/tool.registry';
     AuthModule,
     ConfigModule,
     ConversationModule,
+    ExecutionModule,
     KnowledgeGraphModule,
     MemoryModule,
     MultimodalModule,

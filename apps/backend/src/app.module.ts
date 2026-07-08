@@ -10,6 +10,7 @@ import { DocumentModule } from './modules/document';
 import { DocumentProcessingModule } from './modules/document-processing';
 import { EmbeddingModule } from './modules/embedding';
 import { EvaluationModule } from './modules/evaluation';
+import { ExecutionModule } from './modules/execution';
 import { IngestionModule } from './modules/ingestion';
 import { KnowledgeSpaceModule } from './modules/knowledge-space';
 import { KnowledgeGraphModule } from './modules/knowledge-graph';
@@ -40,6 +41,7 @@ import { UserModule } from './modules/user';
     EmbeddingModule,
     IngestionModule,
     EvaluationModule,
+    ExecutionModule,
     PipelineModule,
     RerankerModule,
     RetrievalModule,

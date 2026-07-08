@@ -76,6 +76,14 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.multimodalAttachment;
   }
 
+  get executionRun() {
+    return this.client.executionRun;
+  }
+
+  get executionTraceEvent() {
+    return this.client.executionTraceEvent;
+  }
+
   async queryRaw<T = unknown>(
     query: TemplateStringsArray | Prisma.Sql,
     ...values: unknown[]

@@ -20,8 +20,19 @@ const AgentRuntimeState = Annotation.Root({
 
 type AgentRuntimeStateValue = typeof AgentRuntimeState.State;
 
+export interface AgentGraphTraceEvent {
+  durationMs?: number;
+  errorMessage?: string;
+  metadata?: Record<string, unknown>;
+  node?: string;
+  stage: string;
+  status: 'FAILED' | 'SKIPPED' | 'SUCCEEDED';
+  type: 'answer' | 'graph' | 'iteration' | 'memory' | 'planner' | 'retrieval' | 'verification';
+}
+
 export interface AgentGraphRunOptions {
   onEvent?: (event: AgentEvent) => Promise<void> | void;
+  onTraceEvent?: (event: AgentGraphTraceEvent) => Promise<void> | void;
 }
 
 @Injectable()
@@ -73,6 +84,14 @@ export class AgentGraph {
           requestId,
           status: 'success',
         });
+        await options.onTraceEvent?.({
+          durationMs,
+          metadata: this.getTraceMetadata(nodeName, nextState),
+          node: nodeName,
+          stage: nodeName,
+          status: 'SUCCEEDED',
+          type: this.toTraceEventType(nodeName),
+        });
 
         return {
           state: {
@@ -98,12 +117,26 @@ export class AgentGraph {
           requestId,
           status: 'failed',
         });
+        await options.onTraceEvent?.({
+          durationMs,
+          errorMessage: this.toErrorMessage(error),
+          metadata: {
+            errorType: error instanceof Error ? error.constructor.name : 'UnknownError',
+          },
+          node: nodeName,
+          stage: nodeName,
+          status: 'FAILED',
+          type: this.toTraceEventType(nodeName),
+        });
 
         throw error;
       }
     };
 
-    const skip = (nodeName: string, currentState: AgentState): AgentRuntimeStateValue => {
+    const skip = async (
+      nodeName: string,
+      currentState: AgentState,
+    ): Promise<AgentRuntimeStateValue> => {
       const timestamp = new Date().toISOString();
 
       this.observabilityService.recordAgentNode({
@@ -112,6 +145,16 @@ export class AgentGraph {
         node: nodeName,
         requestId: this.observabilityService.getRequestId(currentState.executionContext),
         status: 'skipped',
+      });
+      await options.onTraceEvent?.({
+        durationMs: 0,
+        metadata: {
+          status: 'skipped',
+        },
+        node: nodeName,
+        stage: nodeName,
+        status: 'SKIPPED',
+        type: this.toTraceEventType(nodeName),
       });
 
       return {
@@ -257,5 +300,69 @@ export class AgentGraph {
     const result = await runtimeGraph.invoke({ state: initialRuntimeState });
 
     return result.state;
+  }
+
+  private toTraceEventType(nodeName: string): AgentGraphTraceEvent['type'] {
+    if (nodeName === 'skip_graph') {
+      return 'graph';
+    }
+
+    if (nodeName === 'skip_retrieval') {
+      return 'retrieval';
+    }
+
+    return nodeName as AgentGraphTraceEvent['type'];
+  }
+
+  private getTraceMetadata(nodeName: string, state: AgentState): Record<string, unknown> {
+    switch (nodeName) {
+      case 'memory':
+        return {
+          hasSummary: Boolean(state.memoryContext?.summary),
+          memoryLongTermCount: state.memoryContext?.longTermMemories.length ?? 0,
+          memoryShortTermCount: state.memoryContext?.shortTermMessages.length ?? 0,
+        };
+      case 'planner':
+        return {
+          hasQueryRewrite: Boolean(state.queryRewrite),
+          needsGraph: state.needsGraph,
+          needsRetrieval: state.needsRetrieval,
+        };
+      case 'retrieval':
+        return {
+          count: state.retrievalContext.length,
+          retrievalCount: state.retrievalContext.length,
+        };
+      case 'graph':
+        return {
+          count: state.graphContext.length,
+          graphCount: state.graphContext.length,
+        };
+      case 'answer':
+        return {
+          citationCount: state.citations.length,
+        };
+      case 'verification':
+        return {
+          iteration: state.iteration,
+          maxIterations: state.maxIterations,
+          needsMoreContext: state.needsMoreContext,
+          reason: state.verificationResult?.reason,
+          verified: state.verified,
+        };
+      case 'iteration':
+        return {
+          iteration: state.iteration,
+          maxIterations: state.maxIterations,
+          needsGraph: state.needsGraph,
+          needsRetrieval: state.needsRetrieval,
+        };
+      default:
+        return {};
+    }
+  }
+
+  private toErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : 'Agent node execution failed';
   }
 }

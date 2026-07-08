@@ -80,6 +80,19 @@ enum PipelineEventStatus {
   SKIPPED
 }
 
+enum ExecutionRunStatus {
+  RUNNING
+  SUCCEEDED
+  FAILED
+}
+
+enum ExecutionTraceEventStatus {
+  STARTED
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
 model User {
   id                    String                 @id @default(cuid())
   email                 String                 @unique
@@ -90,6 +103,8 @@ model User {
   updatedAt             DateTime               @updatedAt @map("updated_at")
   conversations         Conversation[]
   createdDocuments      Document[]             @relation("DocumentCreator")
+  executionRuns         ExecutionRun[]
+  executionTraceEvents  ExecutionTraceEvent[]
   multimodalAttachments MultimodalAttachment[]
   ownedSpaces           KnowledgeSpace[]       @relation("KnowledgeSpaceOwner")
   roles                 UserRole[]
@@ -297,6 +312,7 @@ model Conversation {
   userId                String                 @map("user_id")
   createdAt             DateTime               @default(now()) @map("created_at")
   updatedAt             DateTime               @updatedAt @map("updated_at")
+  executionRuns         ExecutionRun[]
   messages              Message[]
   multimodalAttachments MultimodalAttachment[]
   user                  User                   @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -339,4 +355,54 @@ model MultimodalAttachment {
   @@index([conversationId])
   @@index([status])
   @@map("multimodal_attachments")
+}
+
+model ExecutionRun {
+  id             String                @id @default(cuid())
+  executionId    String                @unique @map("execution_id")
+  requestId      String                @map("request_id")
+  userId         String                @map("user_id")
+  conversationId String?               @map("conversation_id")
+  source         String
+  status         ExecutionRunStatus    @default(RUNNING)
+  startedAt      DateTime              @default(now()) @map("started_at")
+  completedAt    DateTime?             @map("completed_at")
+  durationMs     Int?                  @map("duration_ms")
+  metadata       Json                  @default("{}")
+  createdAt      DateTime              @default(now()) @map("created_at")
+  updatedAt      DateTime              @updatedAt @map("updated_at")
+  conversation   Conversation?         @relation(fields: [conversationId], references: [id], onDelete: SetNull)
+  events         ExecutionTraceEvent[]
+  user           User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([conversationId, createdAt])
+  @@index([requestId])
+  @@index([status])
+  @@map("execution_runs")
+}
+
+model ExecutionTraceEvent {
+  id           String                    @id @default(cuid())
+  executionId  String                    @map("execution_id")
+  requestId    String                    @map("request_id")
+  userId       String                    @map("user_id")
+  type         String
+  stage        String
+  node         String?
+  status       ExecutionTraceEventStatus
+  durationMs   Int?                      @map("duration_ms")
+  sequence     Int
+  metadata     Json                      @default("{}")
+  errorMessage String?                   @map("error_message")
+  timestamp    DateTime                  @default(now())
+  run          ExecutionRun              @relation(fields: [executionId], references: [executionId], onDelete: Cascade)
+  user         User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([executionId, sequence])
+  @@index([executionId, sequence])
+  @@index([userId, timestamp])
+  @@index([requestId])
+  @@index([type, status])
+  @@map("execution_trace_events")
 }
