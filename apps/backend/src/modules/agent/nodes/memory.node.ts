@@ -3,12 +3,13 @@ import { ConfigService } from '../../../config';
 import type { AgentNode } from '../agent.types';
 import type { AgentState } from '../graph/agent.state';
 import { MemoryTool } from '../tools/memory.tool';
+import { ToolRegistry } from '../tools/tool.registry';
 
 @Injectable()
 export class MemoryNode implements AgentNode {
   constructor(
     private readonly configService: ConfigService,
-    private readonly memoryTool: MemoryTool,
+    private readonly toolRegistry: ToolRegistry,
   ) {}
 
   async run(state: AgentState): Promise<AgentState> {
@@ -19,11 +20,12 @@ export class MemoryNode implements AgentNode {
       };
     }
 
-    const memoryContext = await this.memoryTool.load(
-      state.executionContext,
-      state.conversationId,
-      state.question,
-    );
+    const memoryTool = this.toolRegistry.get<MemoryTool>('memory');
+    const memoryContext = await memoryTool.invoke({
+      context: state.executionContext,
+      conversationId: state.conversationId,
+      question: state.question,
+    });
 
     return {
       ...state,

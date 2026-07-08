@@ -11,7 +11,12 @@ import {
   MinLength,
 } from 'class-validator';
 import type { ChatRequestDto, ChatResponse } from '../chat/chat.types';
-import type { AgentCitation, AgentState, AgentTraceEntry } from './graph/agent.state';
+import type {
+  AgentCitation,
+  AgentState,
+  AgentTraceEntry,
+  AgentVerificationResult,
+} from './graph/agent.state';
 
 export class AgentChatRequestDto {
   @IsString()
@@ -76,7 +81,10 @@ export interface AgentResponse {
   answer: string;
   citations: AgentCitation[];
   metadata: {
+    iteration: number;
+    maxIterations: number;
     verified: boolean;
+    verificationResult: AgentVerificationResult | null;
     usedGraph: boolean;
     usedMemory: boolean;
     trace: AgentTraceEntry[];
@@ -84,7 +92,15 @@ export interface AgentResponse {
 }
 
 export type AgentEventType =
-  'thought' | 'retrieval' | 'graph' | 'token' | 'citation' | 'done' | 'error';
+  | 'thought'
+  | 'iteration'
+  | 'retrieval'
+  | 'graph'
+  | 'token'
+  | 'verification'
+  | 'citation'
+  | 'done'
+  | 'error';
 
 export interface AgentEvent<TData = unknown> {
   type: AgentEventType;
@@ -94,6 +110,7 @@ export interface AgentEvent<TData = unknown> {
 export interface PlannerDecision {
   needsGraph: boolean;
   needsRetrieval: boolean;
+  queryRewrite?: string;
 }
 
 export interface AgentNode {

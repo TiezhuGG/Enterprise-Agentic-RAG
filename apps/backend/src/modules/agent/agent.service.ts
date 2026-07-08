@@ -190,9 +190,11 @@ export class AgentService {
         metadata: {
           citations: finalState.citations,
           executionId: finalState.executionId,
+          iteration: finalState.iteration,
           requestId,
           source,
           trace: finalState.trace,
+          verificationResult: finalState.verificationResult,
           verified: finalState.verified,
         },
         role: 'ASSISTANT',
@@ -237,9 +239,12 @@ export class AgentService {
       citations: finalState.citations,
       executionId: finalState.executionId,
       metadata: {
+        iteration: finalState.iteration,
+        maxIterations: finalState.maxIterations,
         trace: finalState.trace,
         usedGraph: finalState.needsGraph,
         usedMemory: this.hasMemoryContext(finalState),
+        verificationResult: finalState.verificationResult,
         verified: finalState.verified,
       },
     };

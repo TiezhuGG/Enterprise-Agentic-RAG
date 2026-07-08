@@ -1,5 +1,13 @@
 export type AgentEventType =
-  'thought' | 'retrieval' | 'graph' | 'token' | 'citation' | 'done' | 'error';
+  | 'thought'
+  | 'iteration'
+  | 'retrieval'
+  | 'graph'
+  | 'token'
+  | 'verification'
+  | 'citation'
+  | 'done'
+  | 'error';
 
 export interface AgentTraceEntry {
   node: string;
@@ -21,11 +29,21 @@ export interface AgentResponse {
   answer: string;
   citations: AgentCitation[];
   metadata: {
+    iteration?: number;
+    maxIterations?: number;
     verified: boolean;
+    verificationResult?: AgentVerificationResult | null;
     usedGraph: boolean;
     usedMemory: boolean;
     trace: AgentTraceEntry[];
   };
+}
+
+export interface AgentVerificationResult {
+  followUpQuery?: string;
+  grounded: boolean;
+  needsMoreContext: boolean;
+  reason: string;
 }
 
 export interface AgentChatRequest {
@@ -49,6 +67,15 @@ export interface ThoughtEventData {
   needsRetrieval: boolean;
 }
 
+export interface IterationEventData {
+  executionId: string;
+  followUpQuery?: string;
+  iteration: number;
+  maxIterations: number;
+  needsGraph: boolean;
+  needsRetrieval: boolean;
+}
+
 export interface RetrievalEventData {
   executionId: string;
   count: number;
@@ -62,6 +89,16 @@ export interface GraphEventData {
 export interface TokenEventData {
   executionId: string;
   token: string;
+}
+
+export interface VerificationEventData {
+  executionId: string;
+  followUpQuery?: string;
+  iteration: number;
+  maxIterations: number;
+  needsMoreContext: boolean;
+  reason?: string;
+  verified: boolean;
 }
 
 export type CitationEventData = AgentCitation;

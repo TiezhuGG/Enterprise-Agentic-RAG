@@ -14,9 +14,11 @@ import type {
   DoneEventData,
   ErrorEventData,
   GraphEventData,
+  IterationEventData,
   RetrievalEventData,
   ThoughtEventData,
   TokenEventData,
+  VerificationEventData,
 } from '@/types/agent';
 import type { Conversation } from '@/types/conversation';
 
@@ -100,6 +102,11 @@ const summarizeEvent = (event: AgentEvent): string => {
 
       return `retrieval=${String(data.needsRetrieval)} graph=${String(data.needsGraph)}`;
     }
+    case 'iteration': {
+      const data = event.data as IterationEventData;
+
+      return `iteration ${data.iteration}/${data.maxIterations}`;
+    }
     case 'retrieval': {
       const data = event.data as RetrievalEventData;
 
@@ -114,6 +121,11 @@ const summarizeEvent = (event: AgentEvent): string => {
       const data = event.data as TokenEventData;
 
       return truncate(data.token.replace(/\s+/g, ' ').trim() || '[whitespace]', 80);
+    }
+    case 'verification': {
+      const data = event.data as VerificationEventData;
+
+      return `verified=${String(data.verified)} moreContext=${String(data.needsMoreContext)} reason=${data.reason ?? '-'}`;
     }
     case 'citation': {
       const data = event.data as CitationEventData;
@@ -251,6 +263,14 @@ export const useAgentDebugStore = create<AgentDebugStore>((set, get) => ({
             });
             break;
           }
+          case 'iteration': {
+            const data = event.data as IterationEventData;
+
+            set({
+              executionId: data.executionId,
+            });
+            break;
+          }
           case 'retrieval': {
             const data = event.data as RetrievalEventData;
 
@@ -276,6 +296,14 @@ export const useAgentDebugStore = create<AgentDebugStore>((set, get) => ({
               answer: `${state.answer}${data.token}`,
               executionId: data.executionId,
             }));
+            break;
+          }
+          case 'verification': {
+            const data = event.data as VerificationEventData;
+
+            set({
+              executionId: data.executionId,
+            });
             break;
           }
           case 'citation': {

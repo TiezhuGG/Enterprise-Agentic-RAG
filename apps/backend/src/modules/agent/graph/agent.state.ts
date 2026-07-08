@@ -23,6 +23,13 @@ export interface AgentCitation {
   metadata: ContextChunk['metadata'];
 }
 
+export interface AgentVerificationResult {
+  followUpQuery?: string;
+  grounded: boolean;
+  needsMoreContext: boolean;
+  reason: string;
+}
+
 export interface AgentState {
   executionId: string;
   question: string;
@@ -35,6 +42,12 @@ export interface AgentState {
   answer: string | null;
   needsGraph: boolean;
   needsRetrieval: boolean;
+  iteration: number;
+  maxIterations: number;
+  needsMoreContext: boolean;
+  followUpQuery?: string;
+  queryRewrite?: string;
+  verificationResult: AgentVerificationResult | null;
   verified: boolean;
   historyMessages: ChatHistoryMessage[];
   trace: AgentTraceEntry[];
@@ -58,13 +71,17 @@ export const createInitialAgentState = (input: {
   executionContext: input.executionContext,
   graphContext: [],
   historyMessages: input.historyMessages,
+  iteration: 1,
+  maxIterations: 1,
   memoryContext: null,
   multimodalContext: input.multimodalContext ?? [],
+  needsMoreContext: false,
   needsGraph: false,
   needsRetrieval: true,
   question: input.question,
   request: input.request,
   retrievalContext: [],
   trace: [],
+  verificationResult: null,
   verified: false,
 });

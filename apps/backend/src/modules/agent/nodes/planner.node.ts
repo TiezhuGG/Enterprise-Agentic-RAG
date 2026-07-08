@@ -6,7 +6,7 @@ import type { AgentNode, PlannerDecision } from '../agent.types';
 import type { AgentState } from '../graph/agent.state';
 
 const complexQuestionPattern =
-  /关系|关联|路径|链路|影响|依赖|上下游|因果|比较|为什么|如何|怎么|跨|between|relation|relationship|impact|depend|compare|why|how/i;
+  /\u5173\u7cfb|\u5173\u8054|\u8def\u5f84|\u94fe\u8def|\u5f71\u54cd|\u4f9d\u8d56|\u4e0a\u4e0b\u6e38|\u56e0\u679c|\u6bd4\u8f83|\u4e3a\u4ec0\u4e48|\u5982\u4f55|\u600e\u4e48|between|relation|relationship|impact|depend|compare|why|how/i;
 
 @Injectable()
 export class PlannerNode implements AgentNode {
@@ -27,7 +27,7 @@ export class PlannerNode implements AgentNode {
         {
           role: 'system',
           content:
-            'You are the planner for an Enterprise RAG workflow. Return strict JSON only: {"needsRetrieval":true,"needsGraph":boolean}. Simple factual questions use retrieval only. Complex relationship, dependency, causal, cross-document, or multi-hop questions need graph.',
+            'You are the planner for an Enterprise RAG workflow. Return strict JSON only: {"needsRetrieval":true,"needsGraph":boolean,"queryRewrite":string|null}. Simple factual questions use retrieval only. Complex relationship, dependency, causal, cross-document, or multi-hop questions need graph. queryRewrite is optional and should preserve the user intent.',
         },
         {
           role: 'user',
@@ -59,6 +59,7 @@ export class PlannerNode implements AgentNode {
       ...state,
       needsGraph: agentConfig.enableGraph && decision.needsGraph,
       needsRetrieval: decision.needsRetrieval,
+      queryRewrite: this.normalizeQueryRewrite(decision.queryRewrite) ?? state.queryRewrite,
     };
   }
 
@@ -72,6 +73,10 @@ export class PlannerNode implements AgentNode {
         return {
           needsGraph: parsedDecision.needsGraph === true,
           needsRetrieval: parsedDecision.needsRetrieval !== false,
+          queryRewrite:
+            typeof parsedDecision.queryRewrite === 'string'
+              ? parsedDecision.queryRewrite
+              : undefined,
         };
       } catch {
         return this.fallbackDecision(question);
@@ -86,5 +91,15 @@ export class PlannerNode implements AgentNode {
       needsGraph: complexQuestionPattern.test(question),
       needsRetrieval: true,
     };
+  }
+
+  private normalizeQueryRewrite(queryRewrite: string | undefined): string | undefined {
+    const normalizedQuery = queryRewrite?.trim();
+
+    if (!normalizedQuery || normalizedQuery.toLowerCase() === 'null') {
+      return undefined;
+    }
+
+    return normalizedQuery;
   }
 }

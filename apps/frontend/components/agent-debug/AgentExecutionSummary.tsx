@@ -62,8 +62,20 @@ export function AgentExecutionSummary({
           <dd>{boolLabel(finalResponse?.metadata.verified)}</dd>
         </div>
         <div>
+          <dt>Iteration</dt>
+          <dd>
+            {finalResponse?.metadata.iteration
+              ? `${finalResponse.metadata.iteration}/${finalResponse.metadata.maxIterations ?? '-'}`
+              : '-'}
+          </dd>
+        </div>
+        <div>
           <dt>Memory</dt>
           <dd>{boolLabel(finalResponse?.metadata.usedMemory)}</dd>
+        </div>
+        <div>
+          <dt>Reason</dt>
+          <dd>{finalResponse?.metadata.verificationResult?.reason ?? '-'}</dd>
         </div>
       </dl>
     </section>

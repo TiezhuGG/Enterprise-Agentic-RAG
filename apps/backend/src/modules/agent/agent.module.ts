@@ -22,6 +22,7 @@ import { VerificationNode } from './nodes/verification.node';
 import { GraphTool } from './tools/graph.tool';
 import { MemoryTool } from './tools/memory.tool';
 import { RetrievalTool } from './tools/retrieval.tool';
+import { ToolRegistry } from './tools/tool.registry';
 
 @Module({
   imports: [
@@ -47,6 +48,7 @@ import { RetrievalTool } from './tools/retrieval.tool';
     PromptBuilder,
     RetrievalNode,
     RetrievalTool,
+    ToolRegistry,
     VerificationNode,
     {
       provide: LLM_PROVIDER,

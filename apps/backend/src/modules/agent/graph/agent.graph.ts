@@ -1,4 +1,5 @@
 import { InternalServerErrorException, Injectable } from '@nestjs/common';
+import { Annotation, END, START, StateGraph } from '@langchain/langgraph';
 import { ConfigService } from '../../../config';
 import { ObservabilityService } from '../../../infrastructure/observability';
 import { AnswerNode } from '../nodes/answer.node';
@@ -10,8 +11,14 @@ import { VerificationNode } from '../nodes/verification.node';
 import type { AgentState } from './agent.state';
 import type { AgentEvent } from '../agent.types';
 
-export const AGENT_START = '__start__';
-export const AGENT_END = '__end__';
+export const AGENT_START = START;
+export const AGENT_END = END;
+
+const AgentRuntimeState = Annotation.Root({
+  state: Annotation<AgentState>(),
+});
+
+type AgentRuntimeStateValue = typeof AgentRuntimeState.State;
 
 export interface AgentGraphRunOptions {
   onEvent?: (event: AgentEvent) => Promise<void> | void;
@@ -31,21 +38,32 @@ export class AgentGraph {
   ) {}
 
   async run(initialState: AgentState, options: AgentGraphRunOptions = {}): Promise<AgentState> {
-    let state = initialState;
-    let iterations = 0;
+    const agentConfig = this.configService.getAgentConfig();
+    const initialRuntimeState: AgentState = {
+      ...initialState,
+      maxIterations: agentConfig.maxIterations,
+    };
+    const maxNodeExecutions = agentConfig.maxIterations * 8 + 8;
+    let nodeExecutions = 0;
 
-    const visit = async (nodeName: string, handler: () => Promise<AgentState>) => {
-      iterations += 1;
+    const visit = async (
+      nodeName: string,
+      currentState: AgentState,
+      handler: (state: AgentState) => Promise<AgentState>,
+    ): Promise<AgentRuntimeStateValue> => {
+      nodeExecutions += 1;
       const startTime = new Date().toISOString();
       const startedAt = Date.now();
-      const requestId = this.observabilityService.getRequestId(state.executionContext);
+      const requestId = this.observabilityService.getRequestId(currentState.executionContext);
 
-      if (iterations > this.configService.getAgentConfig().maxIterations) {
-        throw new InternalServerErrorException(`Agent max iterations exceeded at ${nodeName}`);
+      if (nodeExecutions > maxNodeExecutions) {
+        throw new InternalServerErrorException(
+          `Agent node execution limit exceeded at ${nodeName}`,
+        );
       }
 
       try {
-        const nextState = await handler();
+        const nextState = await handler(currentState);
         const durationMs = Date.now() - startedAt;
 
         this.observabilityService.recordAgentNode({
@@ -57,120 +75,187 @@ export class AgentGraph {
         });
 
         return {
-          ...nextState,
-          trace: [
-            ...nextState.trace,
-            {
-              endTime: new Date().toISOString(),
-              node: nodeName,
-              startTime,
-              status: 'success' as const,
-            },
-          ],
+          state: {
+            ...nextState,
+            trace: [
+              ...nextState.trace,
+              {
+                endTime: new Date().toISOString(),
+                node: nodeName,
+                startTime,
+                status: 'success' as const,
+              },
+            ],
+          },
         };
       } catch (error) {
         const durationMs = Date.now() - startedAt;
 
         this.observabilityService.recordAgentNode({
           durationMs,
-          executionId: state.executionId,
+          executionId: currentState.executionId,
           node: nodeName,
           requestId,
           status: 'failed',
         });
-        state = {
-          ...state,
-          trace: [
-            ...state.trace,
-            {
-              endTime: new Date().toISOString(),
-              node: nodeName,
-              startTime,
-              status: 'failed',
-            },
-          ],
-        };
 
         throw error;
       }
     };
-    const skip = (nodeName: string) => {
+
+    const skip = (nodeName: string, currentState: AgentState): AgentRuntimeStateValue => {
       const timestamp = new Date().toISOString();
 
       this.observabilityService.recordAgentNode({
         durationMs: 0,
-        executionId: state.executionId,
+        executionId: currentState.executionId,
         node: nodeName,
-        requestId: this.observabilityService.getRequestId(state.executionContext),
+        requestId: this.observabilityService.getRequestId(currentState.executionContext),
         status: 'skipped',
       });
 
-      state = {
-        ...state,
-        trace: [
-          ...state.trace,
-          {
-            endTime: timestamp,
-            node: nodeName,
-            startTime: timestamp,
-            status: 'skipped',
-          },
-        ],
+      return {
+        state: {
+          ...currentState,
+          trace: [
+            ...currentState.trace,
+            {
+              endTime: timestamp,
+              node: nodeName,
+              startTime: timestamp,
+              status: 'skipped',
+            },
+          ],
+        },
       };
     };
 
-    state = await visit('memory', () => this.memoryNode.run(state));
-    state = await visit('planner', () => this.plannerNode.run(state));
-    await options.onEvent?.({
-      data: {
-        executionId: state.executionId,
-        needsGraph: state.needsGraph,
-        needsRetrieval: state.needsRetrieval,
-      },
-      type: 'thought',
-    });
+    const runtimeGraph = new StateGraph(AgentRuntimeState)
+      .addNode('memory', (input) =>
+        visit('memory', input.state, (state) => this.memoryNode.run(state)),
+      )
+      .addNode('planner', async (input) => {
+        const next = await visit('planner', input.state, (state) => this.plannerNode.run(state));
+        await options.onEvent?.({
+          data: {
+            executionId: next.state.executionId,
+            needsGraph: next.state.needsGraph,
+            needsRetrieval: next.state.needsRetrieval,
+          },
+          type: 'thought',
+        });
+        return next;
+      })
+      .addNode('skip_retrieval', (input) => skip('retrieval', input.state))
+      .addNode('retrieval', async (input) => {
+        const next = await visit('retrieval', input.state, (state) =>
+          this.retrievalNode.run(state),
+        );
+        await options.onEvent?.({
+          data: {
+            count: next.state.retrievalContext.length,
+            executionId: next.state.executionId,
+          },
+          type: 'retrieval',
+        });
+        return next;
+      })
+      .addNode('skip_graph', (input) => skip('graph', input.state))
+      .addNode('graph', async (input) => {
+        const next = await visit('graph', input.state, (state) => this.graphNode.run(state));
+        await options.onEvent?.({
+          data: {
+            count: next.state.graphContext.length,
+            executionId: next.state.executionId,
+          },
+          type: 'graph',
+        });
+        return next;
+      })
+      .addNode('answer', (input) =>
+        visit('answer', input.state, (state) =>
+          options.onEvent
+            ? this.answerNode.runStream(state, (token) =>
+                options.onEvent?.({
+                  data: {
+                    executionId: state.executionId,
+                    token,
+                  },
+                  type: 'token',
+                }),
+              )
+            : this.answerNode.run(state),
+        ),
+      )
+      .addNode('verification', async (input) => {
+        const next = await visit('verification', input.state, (state) =>
+          this.verificationNode.run(state),
+        );
+        await options.onEvent?.({
+          data: {
+            executionId: next.state.executionId,
+            followUpQuery: next.state.verificationResult?.followUpQuery,
+            iteration: next.state.iteration,
+            maxIterations: next.state.maxIterations,
+            needsMoreContext: next.state.needsMoreContext,
+            reason: next.state.verificationResult?.reason,
+            verified: next.state.verified,
+          },
+          type: 'verification',
+        });
+        return next;
+      })
+      .addNode('iteration', async (input) => {
+        const next = await visit('iteration', input.state, async (state) => ({
+          ...state,
+          answer: null,
+          citations: [],
+          followUpQuery: state.verificationResult?.followUpQuery ?? state.followUpQuery,
+          iteration: state.iteration + 1,
+          needsMoreContext: false,
+          needsRetrieval: true,
+          verificationResult: null,
+          verified: false,
+        }));
+        await options.onEvent?.({
+          data: {
+            executionId: next.state.executionId,
+            followUpQuery: next.state.followUpQuery,
+            iteration: next.state.iteration,
+            maxIterations: next.state.maxIterations,
+            needsGraph: next.state.needsGraph,
+            needsRetrieval: next.state.needsRetrieval,
+          },
+          type: 'iteration',
+        });
+        return next;
+      })
+      .addEdge(START, 'memory')
+      .addEdge('memory', 'planner')
+      .addConditionalEdges('planner', (input) =>
+        input.state.needsRetrieval ? 'retrieval' : 'skip_retrieval',
+      )
+      .addConditionalEdges('iteration', (input) =>
+        input.state.needsRetrieval ? 'retrieval' : 'skip_retrieval',
+      )
+      .addConditionalEdges('skip_retrieval', (input) =>
+        input.state.needsGraph ? 'graph' : 'skip_graph',
+      )
+      .addConditionalEdges('retrieval', (input) =>
+        input.state.needsGraph ? 'graph' : 'skip_graph',
+      )
+      .addEdge('skip_graph', 'answer')
+      .addEdge('graph', 'answer')
+      .addEdge('answer', 'verification')
+      .addConditionalEdges('verification', (input) =>
+        input.state.needsMoreContext && input.state.iteration < input.state.maxIterations
+          ? 'iteration'
+          : END,
+      )
+      .compile();
 
-    if (state.needsRetrieval) {
-      state = await visit('retrieval', () => this.retrievalNode.run(state));
-      await options.onEvent?.({
-        data: {
-          count: state.retrievalContext.length,
-          executionId: state.executionId,
-        },
-        type: 'retrieval',
-      });
-    } else {
-      skip('retrieval');
-    }
+    const result = await runtimeGraph.invoke({ state: initialRuntimeState });
 
-    if (state.needsGraph) {
-      state = await visit('graph', () => this.graphNode.run(state));
-      await options.onEvent?.({
-        data: {
-          count: state.graphContext.length,
-          executionId: state.executionId,
-        },
-        type: 'graph',
-      });
-    } else {
-      skip('graph');
-    }
-
-    state = await visit('answer', () =>
-      options.onEvent
-        ? this.answerNode.runStream(state, (token) =>
-            options.onEvent?.({
-              data: {
-                executionId: state.executionId,
-                token,
-              },
-              type: 'token',
-            }),
-          )
-        : this.answerNode.run(state),
-    );
-    state = await visit('verification', () => this.verificationNode.run(state));
-
-    return state;
+    return result.state;
   }
 }
