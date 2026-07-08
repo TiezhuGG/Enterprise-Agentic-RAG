@@ -15,6 +15,15 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         </span>
         {message.status === 'streaming' ? <span>Streaming</span> : null}
       </div>
+      {message.attachments?.length ? (
+        <div className="message-bubble__attachments">
+          {message.attachments.map((attachment) => (
+            <span key={attachment.id}>
+              {attachment.type ?? 'ATTACHMENT'} · {attachment.filename}
+            </span>
+          ))}
+        </div>
+      ) : null}
       <div className="message-bubble__content">{renderMarkdown(message.content)}</div>
     </article>
   );

@@ -35,6 +35,11 @@ export interface MinioConfig {
   bucket: string;
 }
 
+export interface MultimodalConfig {
+  allowedMimeTypes: string[];
+  maxFileSizeBytes: number;
+}
+
 export interface JwtConfig {
   secret: string;
   expiresIn: string;
@@ -74,6 +79,7 @@ export interface AppConfiguration {
   memory: MemoryConfig;
   graph: GraphConfig;
   minio: MinioConfig;
+  multimodal: MultimodalConfig;
   jwt: JwtConfig;
   embedding: EmbeddingConfig;
   reranker: RerankerConfig;

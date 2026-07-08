@@ -13,6 +13,7 @@ import { EvaluationModule } from './modules/evaluation';
 import { KnowledgeSpaceModule } from './modules/knowledge-space';
 import { KnowledgeGraphModule } from './modules/knowledge-graph';
 import { MemoryModule } from './modules/memory';
+import { MultimodalModule } from './modules/multimodal';
 import { RerankerModule } from './modules/reranker';
 import { RetrievalModule } from './modules/retrieval';
 import { UploadModule } from './modules/upload';
@@ -27,6 +28,7 @@ import { UserModule } from './modules/user';
     UserModule,
     ConversationModule,
     MemoryModule,
+    MultimodalModule,
     ChatModule,
     KnowledgeGraphModule,
     KnowledgeSpaceModule,

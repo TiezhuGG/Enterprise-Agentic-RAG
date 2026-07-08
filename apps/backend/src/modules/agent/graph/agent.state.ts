@@ -3,6 +3,7 @@ import type { ExecutionContext } from '../../../common';
 import type { ChatHistoryMessage, ChatRequestDto } from '../../chat/chat.types';
 import type { GraphContext } from '../../knowledge-graph';
 import type { MemoryContext } from '../../memory';
+import type { MultimodalContext } from '../../multimodal';
 import type { ContextChunk } from '../../retrieval';
 
 export type AgentTraceStatus = 'success' | 'failed' | 'skipped';
@@ -28,6 +29,7 @@ export interface AgentState {
   conversationId: string;
   executionContext: ExecutionContext;
   memoryContext: MemoryContext | null;
+  multimodalContext: MultimodalContext[];
   retrievalContext: ContextChunk[];
   graphContext: GraphContext[];
   answer: string | null;
@@ -47,6 +49,7 @@ export const createInitialAgentState = (input: {
   historyMessages: ChatHistoryMessage[];
   question: string;
   request: ChatRequestDto;
+  multimodalContext?: MultimodalContext[];
 }): AgentState => ({
   answer: null,
   citations: [],
@@ -56,6 +59,7 @@ export const createInitialAgentState = (input: {
   graphContext: [],
   historyMessages: input.historyMessages,
   memoryContext: null,
+  multimodalContext: input.multimodalContext ?? [],
   needsGraph: false,
   needsRetrieval: true,
   question: input.question,

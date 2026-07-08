@@ -64,6 +64,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.message;
   }
 
+  get multimodalAttachment() {
+    return this.client.multimodalAttachment;
+  }
+
   async queryRaw<T = unknown>(
     query: TemplateStringsArray | Prisma.Sql,
     ...values: unknown[]

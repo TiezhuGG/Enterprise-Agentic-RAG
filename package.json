@@ -8,7 +8,7 @@
     "pnpm": ">=9.0.0"
   },
   "scripts": {
-    "build": "pnpm -r build",
+    "build": "pnpm --workspace-concurrency=1 -r build",
     "dev": "pnpm --parallel --filter @enterprise-agentic-rag/backend --filter @enterprise-agentic-rag/frontend dev",
     "dev:backend": "pnpm --filter @enterprise-agentic-rag/backend dev",
     "dev:frontend": "pnpm --filter @enterprise-agentic-rag/frontend dev",
@@ -28,7 +28,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "prepare": "husky || exit 0",
-    "typecheck": "pnpm -r typecheck"
+    "typecheck": "pnpm --workspace-concurrency=1 -r typecheck"
   },
   "devDependencies": {
     "@commitlint/cli": "^19.8.1",

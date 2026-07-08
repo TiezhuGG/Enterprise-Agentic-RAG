@@ -11,6 +11,7 @@ import type {
   LlmConfig,
   MemoryConfig,
   MinioConfig,
+  MultimodalConfig,
   RedisConfig,
   RerankerConfig,
 } from './config.types';
@@ -51,6 +52,10 @@ export class ConfigService {
 
   getMinioConfig(): Readonly<MinioConfig> {
     return this.config.minio;
+  }
+
+  getMultimodalConfig(): Readonly<MultimodalConfig> {
+    return this.config.multimodal;
   }
 
   getJwtConfig(): Readonly<JwtConfig> {

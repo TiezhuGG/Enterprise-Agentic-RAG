@@ -9,6 +9,7 @@ import { MessageList } from './MessageList';
 
 export function ChatWindow() {
   const {
+    attachments,
     authToken,
     citations,
     conversationId,
@@ -18,12 +19,14 @@ export function ChatWindow() {
     error,
     initialize,
     messages,
+    removeAttachment,
     selectConversation,
     sendMessage,
     setAuthToken,
     streaming,
     streamingMessage,
     trace,
+    uploadAttachment,
   } = useChatStore();
   const [tokenDraft, setTokenDraft] = useState(authToken);
 
@@ -90,7 +93,13 @@ export function ChatWindow() {
       <section className="chat-workspace">
         <MessageList messages={messages} streamingMessage={streamingMessage} />
         {error ? <div className="chat-error">{error}</div> : null}
-        <ChatInput disabled={streaming} onSubmit={(message) => void sendMessage(message)} />
+        <ChatInput
+          attachments={attachments}
+          disabled={streaming}
+          onAttach={(file) => void uploadAttachment(file)}
+          onRemoveAttachment={removeAttachment}
+          onSubmit={(message) => void sendMessage(message)}
+        />
       </section>
 
       <section className="assistant-inspector" aria-label="Assistant details">

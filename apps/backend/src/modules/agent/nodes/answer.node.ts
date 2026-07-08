@@ -23,6 +23,7 @@ export class AnswerNode implements AgentNode {
       contextChunks,
       state.historyMessages,
       state.memoryContext ?? undefined,
+      state.multimodalContext,
     );
     const startedAt = Date.now();
     let answer: string;
@@ -65,6 +66,7 @@ export class AnswerNode implements AgentNode {
       contextChunks,
       state.historyMessages,
       state.memoryContext ?? undefined,
+      state.multimodalContext,
     );
     const answerTokens: string[] = [];
     const startedAt = Date.now();

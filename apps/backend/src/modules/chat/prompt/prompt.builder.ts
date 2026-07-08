@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import type { MemoryContext } from '../../memory';
+import type { MultimodalContext } from '../../multimodal';
 import type { ContextChunk } from '../../retrieval';
 import type { ChatHistoryMessage, ChatMessage } from '../chat.types';
 import { buildUserPrompt, systemPrompt } from './prompt.templates';
@@ -11,6 +12,7 @@ export class PromptBuilder {
     contextChunks: ContextChunk[],
     historyMessages: ChatHistoryMessage[] = [],
     memoryContext?: MemoryContext,
+    multimodalContext: MultimodalContext[] = [],
   ): ChatMessage[] {
     return [
       {
@@ -23,6 +25,7 @@ export class PromptBuilder {
           historyContext: this.formatHistory(historyMessages),
           knowledgeContext: this.formatContext(contextChunks),
           memoryContext: this.formatMemory(memoryContext),
+          multimodalContext: this.formatMultimodalContext(multimodalContext),
           question,
           summary: memoryContext?.summary ?? 'No summary memory.',
         }),
@@ -52,6 +55,24 @@ export class PromptBuilder {
     return historyMessages
       .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
       .join('\n');
+  }
+
+  private formatMultimodalContext(multimodalContext: MultimodalContext[]): string {
+    if (multimodalContext.length === 0) {
+      return 'No multimodal context.';
+    }
+
+    return multimodalContext
+      .map(
+        (context, index) => `[${index + 1}]
+attachmentId: ${context.attachmentId}
+type: ${context.type}
+filename: ${context.filename}
+mimeType: ${context.mimeType}
+content:
+${context.content}`,
+      )
+      .join('\n\n');
   }
 
   private formatContext(contextChunks: ContextChunk[]): string {

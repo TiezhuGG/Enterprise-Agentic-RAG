@@ -1,5 +1,15 @@
 import type { ExecutionContext } from '../../common';
-import { IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 import type { ChatRequestDto, ChatResponse } from '../chat/chat.types';
 import type { AgentCitation, AgentState, AgentTraceEntry } from './graph/agent.state';
 
@@ -37,6 +47,13 @@ export class AgentChatRequestDto {
   @Min(1)
   @Max(12000)
   maxContextTokens?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(5)
+  @IsString({ each: true })
+  @MaxLength(120, { each: true })
+  attachmentIds?: string[];
 }
 
 export interface AgentRunInput {

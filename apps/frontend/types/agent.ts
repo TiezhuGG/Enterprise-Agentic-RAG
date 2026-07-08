@@ -31,6 +31,7 @@ export interface AgentResponse {
 export interface AgentChatRequest {
   conversationId: string;
   question: string;
+  attachmentIds?: string[];
   limit?: number;
   vectorLimit?: number;
   keywordLimit?: number;

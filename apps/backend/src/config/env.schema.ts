@@ -69,6 +69,14 @@ export const envSchema = z.object({
   MINIO_ACCESS_KEY: requiredString('MINIO_ACCESS_KEY'),
   MINIO_SECRET_KEY: requiredString('MINIO_SECRET_KEY'),
   MINIO_BUCKET: requiredString('MINIO_BUCKET'),
+  MULTIMODAL_MAX_FILE_SIZE_MB: z.coerce
+    .number({
+      error: 'MULTIMODAL_MAX_FILE_SIZE_MB is required',
+    })
+    .int('MULTIMODAL_MAX_FILE_SIZE_MB must be an integer')
+    .min(1, 'MULTIMODAL_MAX_FILE_SIZE_MB must be greater than 0')
+    .max(100, 'MULTIMODAL_MAX_FILE_SIZE_MB must be less than or equal to 100'),
+  MULTIMODAL_ALLOWED_MIME_TYPES: requiredString('MULTIMODAL_ALLOWED_MIME_TYPES'),
   JWT_SECRET: requiredString('JWT_SECRET').min(32, 'JWT_SECRET must be at least 32 characters'),
   JWT_EXPIRES_IN: requiredString('JWT_EXPIRES_IN'),
   EMBEDDING_API_URL: requiredUrl('EMBEDDING_API_URL'),

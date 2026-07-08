@@ -74,6 +74,12 @@ export const createConfiguration = (): AppConfiguration => {
       secretKey: env.MINIO_SECRET_KEY,
       bucket: env.MINIO_BUCKET,
     },
+    multimodal: {
+      allowedMimeTypes: env.MULTIMODAL_ALLOWED_MIME_TYPES.split(',')
+        .map((mimeType) => mimeType.trim())
+        .filter(Boolean),
+      maxFileSizeBytes: env.MULTIMODAL_MAX_FILE_SIZE_MB * 1024 * 1024,
+    },
     jwt: {
       secret: env.JWT_SECRET,
       expiresIn: env.JWT_EXPIRES_IN,

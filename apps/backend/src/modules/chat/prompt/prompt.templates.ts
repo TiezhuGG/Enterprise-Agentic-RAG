@@ -4,6 +4,7 @@ export interface UserPromptInput {
   historyContext: string;
   knowledgeContext: string;
   memoryContext: string;
+  multimodalContext: string;
   question: string;
   summary: string;
 }
@@ -16,6 +17,9 @@ ${input.summary}
 
 History:
 ${input.historyContext}
+
+Multimodal Context:
+${input.multimodalContext}
 
 Knowledge Context:
 ${input.knowledgeContext}

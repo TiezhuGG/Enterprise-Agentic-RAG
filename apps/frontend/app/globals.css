@@ -312,6 +312,51 @@ textarea:disabled {
   padding: 10px;
 }
 
+.chat-input__attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  grid-column: 1 / -1;
+}
+
+.chat-input__attachment {
+  align-items: center;
+  background: var(--panel-muted);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: inline-grid;
+  gap: 6px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  max-width: min(100%, 340px);
+  padding: 7px 8px;
+}
+
+.chat-input__attachment span {
+  font-size: 13px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chat-input__attachment small {
+  color: var(--muted);
+  font-size: 11px;
+  white-space: nowrap;
+}
+
+.chat-input__attachment--error {
+  background: #fff1f0;
+  border-color: #f3b6b0;
+}
+
+.chat-input__attachment button {
+  background: transparent;
+  border: 0;
+  color: var(--muted);
+  min-width: 0;
+  padding: 0 2px;
+}
+
 .chat-input textarea {
   border: 0;
   min-height: 70px;
@@ -319,7 +364,12 @@ textarea:disabled {
   resize: vertical;
 }
 
-.chat-input button {
+.chat-input__actions {
+  display: inline-flex;
+  gap: 8px;
+}
+
+.chat-input__actions button {
   background: var(--accent);
   border: 0;
   border-radius: 6px;
@@ -328,9 +378,32 @@ textarea:disabled {
   padding: 10px 14px;
 }
 
-.chat-input button:hover:not(:disabled),
+.chat-input__actions .chat-input__attach {
+  background: #2f475f;
+}
+
+.chat-input__actions button:hover:not(:disabled),
 .conversation-sidebar__top button:hover {
   background: var(--accent-strong);
+}
+
+.message-bubble__attachments {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.message-bubble__attachments span {
+  background: rgba(15, 118, 110, 0.12);
+  border: 1px solid rgba(15, 118, 110, 0.18);
+  border-radius: 6px;
+  color: var(--accent-strong);
+  font-size: 12px;
+  max-width: 260px;
+  overflow: hidden;
+  padding: 5px 7px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .agent-panel {
@@ -491,7 +564,12 @@ textarea:disabled {
     grid-template-columns: 1fr;
   }
 
-  .chat-input button {
+  .chat-input__actions,
+  .chat-input__actions button {
     width: 100%;
+  }
+
+  .chat-input__actions {
+    display: grid;
   }
 }

@@ -4,6 +4,7 @@ import { ConfigService } from '../../config';
 import { ObservabilityService } from '../../infrastructure/observability';
 import type { ChatHistoryMessage, ChatRequestDto } from '../chat/chat.types';
 import { ConversationService, type MessageEntity } from '../conversation';
+import { MultimodalService } from '../multimodal';
 import type { AgentChatRequestDto, AgentEvent, AgentResponse, AgentRunResult } from './agent.types';
 import { AgentGraph } from './graph/agent.graph';
 import type { AgentState } from './graph/agent.state';
@@ -52,6 +53,7 @@ export class AgentService {
     private readonly configService: ConfigService,
     private readonly conversationService: ConversationService,
     private readonly memoryTool: MemoryTool,
+    private readonly multimodalService: MultimodalService,
     private readonly observabilityService: ObservabilityService,
   ) {}
 
@@ -152,10 +154,16 @@ export class AgentService {
 
     try {
       const historyMessages = await this.getHistoryMessages(context, request.conversationId);
+      const multimodalContext = await this.multimodalService.buildContext(
+        context,
+        request.attachmentIds,
+        request.conversationId,
+      );
 
       await this.conversationService.createMessage(context, request.conversationId, {
         content: question,
         metadata: {
+          attachmentIds: request.attachmentIds ?? [],
           executionId,
           requestId,
           source,
@@ -169,6 +177,7 @@ export class AgentService {
           executionContext: context,
           executionId,
           historyMessages,
+          multimodalContext,
           question,
           request,
         }),

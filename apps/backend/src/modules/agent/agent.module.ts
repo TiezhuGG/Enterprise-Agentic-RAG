@@ -5,6 +5,7 @@ import { AuthModule } from '../auth';
 import { ConversationModule } from '../conversation';
 import { KnowledgeGraphModule } from '../knowledge-graph';
 import { MemoryModule } from '../memory';
+import { MultimodalModule } from '../multimodal';
 import { RetrievalModule } from '../retrieval';
 import { LLM_PROVIDER } from '../chat/providers/llm.provider';
 import { OpenAiCompatibleLlmProvider } from '../chat/providers/openai-compatible.provider';
@@ -29,6 +30,7 @@ import { RetrievalTool } from './tools/retrieval.tool';
     ConversationModule,
     KnowledgeGraphModule,
     MemoryModule,
+    MultimodalModule,
     RequestContextModule,
     RetrievalModule,
   ],

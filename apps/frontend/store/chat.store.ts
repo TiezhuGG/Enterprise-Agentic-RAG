@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { getAuthToken, setAuthToken as persistAuthToken } from '@/services/api-client';
 import { agentService } from '@/services/agent.service';
 import { conversationService } from '@/services/conversation.service';
+import { multimodalService } from '@/services/multimodal.service';
 import type {
   AgentCitation,
   AgentEvent,
@@ -15,6 +16,7 @@ import type {
   TokenEventData,
 } from '@/types/agent';
 import type { Conversation, ConversationMessage } from '@/types/conversation';
+import type { MultimodalAttachment, MultimodalAttachmentType } from '@/types/multimodal';
 
 export type ChatMessageRole = 'user' | 'assistant' | 'system';
 
@@ -23,7 +25,24 @@ export interface ChatMessage {
   role: ChatMessageRole;
   content: string;
   createdAt: string;
+  attachments?: ChatMessageAttachment[];
   status?: 'streaming' | 'done' | 'error';
+}
+
+export interface ChatMessageAttachment {
+  id: string;
+  filename: string;
+  type?: MultimodalAttachmentType;
+}
+
+export interface ChatAttachment {
+  clientId: string;
+  id?: string;
+  filename: string;
+  size: number;
+  type?: MultimodalAttachmentType;
+  status: 'uploading' | 'ready' | 'error';
+  error?: string;
 }
 
 export interface AgentTraceItem {
@@ -35,6 +54,7 @@ export interface AgentTraceItem {
 
 interface ChatStore {
   authToken: string;
+  attachments: ChatAttachment[];
   conversationId: string | null;
   conversations: Conversation[];
   messages: ChatMessage[];
@@ -48,7 +68,9 @@ interface ChatStore {
   createConversation: () => Promise<void>;
   selectConversation: (conversationId: string) => Promise<void>;
   deleteConversation: (conversationId: string) => Promise<void>;
+  removeAttachment: (clientId: string) => void;
   sendMessage: (question: string) => Promise<void>;
+  uploadAttachment: (file: File) => Promise<void>;
 }
 
 type ChatStoreSet = (
@@ -111,7 +133,17 @@ const upsertTrace = (trace: AgentTraceItem[], item: AgentTraceItem): AgentTraceI
 const mapDoneTrace = (response: AgentResponse): AgentTraceItem[] =>
   response.metadata.trace.map(mapTraceEntry);
 
+const mapAttachment = (attachment: MultimodalAttachment): ChatAttachment => ({
+  clientId: attachment.id,
+  filename: attachment.filename,
+  id: attachment.id,
+  size: attachment.size,
+  status: 'ready',
+  type: attachment.type,
+});
+
 export const useChatStore = create<ChatStore>((set, get) => ({
+  attachments: [],
   authToken: '',
   citations: [],
   conversationId: null,
@@ -160,6 +192,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const conversation = await conversationService.create('New Chat');
 
       set((state) => ({
+        attachments: [],
         citations: [],
         conversationId: conversation.id,
         conversations: [conversation, ...state.conversations],
@@ -176,6 +209,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
   async selectConversation(conversationId: string) {
     set({
+      attachments: [],
       citations: [],
       conversationId,
       error: null,
@@ -208,6 +242,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       const nextConversation = conversations[0] ?? null;
 
       set({
+        attachments: [],
         conversationId: nextConversation?.id ?? null,
         conversations,
         messages: [],
@@ -220,6 +255,66 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       set({
         error: toErrorMessage(error),
       });
+    }
+  },
+
+  removeAttachment(clientId: string) {
+    set((state) => ({
+      attachments: state.attachments.filter((attachment) => attachment.clientId !== clientId),
+    }));
+  },
+
+  async uploadAttachment(file: File) {
+    if (get().streaming) {
+      return;
+    }
+
+    let conversationId = get().conversationId;
+
+    if (!conversationId) {
+      await get().createConversation();
+      conversationId = get().conversationId;
+    }
+
+    const clientId = createMessageId();
+    const pendingAttachment: ChatAttachment = {
+      clientId,
+      filename: file.name,
+      size: file.size,
+      status: 'uploading',
+    };
+
+    set((state) => ({
+      attachments: [...state.attachments, pendingAttachment],
+      error: null,
+    }));
+
+    try {
+      const attachment = await multimodalService.uploadAttachment(
+        file,
+        conversationId ?? undefined,
+      );
+
+      set((state) => ({
+        attachments: state.attachments.map((item) =>
+          item.clientId === clientId ? mapAttachment(attachment) : item,
+        ),
+      }));
+    } catch (error) {
+      const message = toErrorMessage(error);
+
+      set((state) => ({
+        attachments: state.attachments.map((item) =>
+          item.clientId === clientId
+            ? {
+                ...item,
+                error: message,
+                status: 'error',
+              }
+            : item,
+        ),
+        error: message,
+      }));
     }
   },
 
@@ -244,7 +339,29 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       return;
     }
 
+    const attachments = get().attachments;
+    const hasUploadingAttachment = attachments.some(
+      (attachment) => attachment.status === 'uploading',
+    );
+
+    if (hasUploadingAttachment) {
+      set({
+        error: 'Attachment upload is still in progress',
+      });
+      return;
+    }
+
+    const readyAttachments = attachments.filter(
+      (attachment): attachment is ChatAttachment & { id: string } =>
+        attachment.status === 'ready' && Boolean(attachment.id),
+    );
+
     const userMessage: ChatMessage = {
+      attachments: readyAttachments.map((attachment) => ({
+        filename: attachment.filename,
+        id: attachment.id,
+        type: attachment.type,
+      })),
       content: normalizedQuestion,
       createdAt: new Date().toISOString(),
       id: createMessageId(),
@@ -270,6 +387,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     try {
       for await (const event of agentService.streamChat({
+        attachmentIds: readyAttachments.map((attachment) => attachment.id),
         conversationId,
         question: normalizedQuestion,
       })) {
@@ -361,6 +479,7 @@ const handleAgentEvent = (event: AgentEvent, set: ChatStoreSet): void => {
       const data = event.data as AgentResponse;
 
       set((state) => ({
+        attachments: [],
         citations: data.citations,
         messages: state.streamingMessage
           ? [

@@ -1,13 +1,24 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { ChangeEvent, FormEvent, useRef, useState } from 'react';
+import type { ChatAttachment } from '@/store/chat.store';
 
 interface ChatInputProps {
+  attachments: ChatAttachment[];
   disabled?: boolean;
+  onAttach: (file: File) => void;
+  onRemoveAttachment: (clientId: string) => void;
   onSubmit: (message: string) => void;
 }
 
-export function ChatInput({ disabled = false, onSubmit }: ChatInputProps) {
+export function ChatInput({
+  attachments,
+  disabled = false,
+  onAttach,
+  onRemoveAttachment,
+  onSubmit,
+}: ChatInputProps) {
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [value, setValue] = useState('');
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -22,8 +33,42 @@ export function ChatInput({ disabled = false, onSubmit }: ChatInputProps) {
     setValue('');
   };
 
+  const handleFileChange = (event: ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(event.target.files ?? []);
+
+    files.forEach(onAttach);
+    event.target.value = '';
+  };
+
   return (
     <form className="chat-input" onSubmit={handleSubmit}>
+      {attachments.length > 0 ? (
+        <div className="chat-input__attachments">
+          {attachments.map((attachment) => (
+            <span
+              className={`chat-input__attachment chat-input__attachment--${attachment.status}`}
+              key={attachment.clientId}
+            >
+              <span>{attachment.filename}</span>
+              <small>
+                {attachment.status === 'uploading'
+                  ? 'Uploading'
+                  : attachment.status === 'ready'
+                    ? attachment.type
+                    : (attachment.error ?? 'Failed')}
+              </small>
+              <button
+                aria-label={`Remove ${attachment.filename}`}
+                disabled={disabled && attachment.status === 'uploading'}
+                onClick={() => onRemoveAttachment(attachment.clientId)}
+                type="button"
+              >
+                x
+              </button>
+            </span>
+          ))}
+        </div>
+      ) : null}
       <textarea
         aria-label="Question"
         disabled={disabled}
@@ -32,9 +77,27 @@ export function ChatInput({ disabled = false, onSubmit }: ChatInputProps) {
         rows={3}
         value={value}
       />
-      <button disabled={disabled || !value.trim()} type="submit">
-        Send
-      </button>
+      <div className="chat-input__actions">
+        <input
+          accept="image/*,audio/*"
+          disabled={disabled}
+          hidden
+          onChange={handleFileChange}
+          ref={fileInputRef}
+          type="file"
+        />
+        <button
+          className="chat-input__attach"
+          disabled={disabled}
+          onClick={() => fileInputRef.current?.click()}
+          type="button"
+        >
+          Attach
+        </button>
+        <button disabled={disabled || !value.trim()} type="submit">
+          Send
+        </button>
+      </div>
     </form>
   );
 }

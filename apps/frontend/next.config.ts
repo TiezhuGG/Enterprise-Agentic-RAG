@@ -12,6 +12,9 @@ const nextConfig: NextConfig = {
     APP_ENV: frontendEnv.runtime.appEnv,
     NEXT_PUBLIC_API_BASE_URL: frontendEnv.apiBaseUrl,
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   ...(standaloneOutputEnabled
     ? {
         output: 'standalone',
