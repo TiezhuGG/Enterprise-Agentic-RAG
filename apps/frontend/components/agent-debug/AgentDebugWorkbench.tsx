@@ -3,6 +3,8 @@
 import { useEffect } from 'react';
 import { DemoQuestionBank } from '@/components/demo';
 import { useAgentDebugStore } from '@/store/agent-debug.store';
+import { useObservabilityStore } from '@/store/observability.store';
+import { useWorkbenchStore } from '@/store/workbench.store';
 import { AgentCitationInspector } from './AgentCitationInspector';
 import { AgentEventTimeline } from './AgentEventTimeline';
 import { AgentExecutionSummary } from './AgentExecutionSummary';
@@ -33,10 +35,17 @@ export function AgentDebugWorkbench() {
     trace,
     updateRunConfig,
   } = useAgentDebugStore();
+  const selectExecution = useObservabilityStore((state) => state.selectExecution);
+  const setActiveTab = useWorkbenchStore((state) => state.setActiveTab);
 
   useEffect(() => {
     void initialize();
   }, [initialize]);
+
+  const openTimeline = (targetExecutionId: string) => {
+    setActiveTab('observability');
+    void selectExecution(targetExecutionId);
+  };
 
   return (
     <div className="agent-debug-workbench">
@@ -65,6 +74,7 @@ export function AgentDebugWorkbench() {
             plannerDecision={plannerDecision}
             retrievalCount={retrievalCount}
             running={running}
+            onOpenTimeline={openTimeline}
           />
           <AgentEventTimeline events={events} />
         </div>

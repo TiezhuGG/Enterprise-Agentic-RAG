@@ -10,6 +10,7 @@ interface AgentExecutionSummaryProps {
   plannerDecision: AgentDebugPlannerDecision | null;
   retrievalCount: number | null;
   running: boolean;
+  onOpenTimeline: (executionId: string) => void;
 }
 
 const boolLabel = (value: boolean | undefined): string => {
@@ -27,6 +28,7 @@ export function AgentExecutionSummary({
   plannerDecision,
   retrievalCount,
   running,
+  onOpenTimeline,
 }: AgentExecutionSummaryProps) {
   return (
     <section className="workbench-panel agent-debug-summary">
@@ -39,6 +41,16 @@ export function AgentExecutionSummary({
           {running ? 'running' : 'idle'}
         </span>
       </div>
+
+      {executionId ? (
+        <button
+          className="workbench-button workbench-button--secondary agent-debug-summary__timeline"
+          onClick={() => onOpenTimeline(executionId)}
+          type="button"
+        >
+          Open Timeline
+        </button>
+      ) : null}
 
       <dl className="agent-debug-summary__grid">
         <div>

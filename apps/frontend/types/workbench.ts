@@ -1,4 +1,5 @@
 export type SpaceMemberRole = 'OWNER' | 'EDITOR' | 'VIEWER';
+export type WorkbenchTab = 'pipeline' | 'observability' | 'agent-debug' | 'assistant';
 
 export interface SpaceMember {
   spaceId: string;

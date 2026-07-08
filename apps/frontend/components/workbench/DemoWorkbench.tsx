@@ -4,7 +4,9 @@ import { useEffect } from 'react';
 import { AgentDebugWorkbench } from '@/components/agent-debug';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { DemoGuidePanel, SystemReadinessPanel } from '@/components/demo';
+import { ObservabilityWorkbench } from '@/components/observability';
 import { useDemoStore } from '@/store/demo.store';
+import { useObservabilityStore } from '@/store/observability.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
 import { AuthPanel } from './AuthPanel';
 import { DocumentListPanel } from './DocumentListPanel';
@@ -19,13 +21,15 @@ export function DemoWorkbench() {
   const error = useWorkbenchStore((state) => state.error);
   const initializeDemo = useDemoStore((state) => state.initialize);
   const initialize = useWorkbenchStore((state) => state.initialize);
+  const initializeObservability = useObservabilityStore((state) => state.initialize);
   const loading = useWorkbenchStore((state) => state.loading);
   const setActiveTab = useWorkbenchStore((state) => state.setActiveTab);
 
   useEffect(() => {
     void initialize();
     void initializeDemo();
-  }, [initialize, initializeDemo]);
+    void initializeObservability();
+  }, [initialize, initializeDemo, initializeObservability]);
 
   return (
     <main className="workbench-shell">
@@ -35,7 +39,7 @@ export function DemoWorkbench() {
           <h1>Demo Workbench</h1>
         </div>
 
-        <div className="workbench-tabs workbench-tabs--three" role="tablist">
+        <div className="workbench-tabs workbench-tabs--four" role="tablist">
           <button
             aria-selected={activeTab === 'pipeline'}
             className={`workbench-tab ${activeTab === 'pipeline' ? 'workbench-tab--active' : ''}`}
@@ -44,6 +48,17 @@ export function DemoWorkbench() {
             type="button"
           >
             Pipeline
+          </button>
+          <button
+            aria-selected={activeTab === 'observability'}
+            className={`workbench-tab ${
+              activeTab === 'observability' ? 'workbench-tab--active' : ''
+            }`}
+            onClick={() => setActiveTab('observability')}
+            role="tab"
+            type="button"
+          >
+            Observability
           </button>
           <button
             aria-selected={activeTab === 'agent-debug'}
@@ -91,6 +106,8 @@ export function DemoWorkbench() {
             </div>
           </div>
         ) : null}
+
+        {activeTab === 'observability' ? <ObservabilityWorkbench /> : null}
 
         {activeTab === 'agent-debug' ? <AgentDebugWorkbench /> : null}
 

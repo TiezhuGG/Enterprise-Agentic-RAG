@@ -18,10 +18,9 @@ import type {
   PipelineEvent,
   PipelineJob,
   UploadState,
+  WorkbenchTab,
 } from '@/types/workbench';
 import type { AuthenticatedUser } from '@/types/auth';
-
-export type WorkbenchTab = 'pipeline' | 'agent-debug' | 'assistant';
 
 interface WorkbenchStore {
   activeTab: WorkbenchTab;
