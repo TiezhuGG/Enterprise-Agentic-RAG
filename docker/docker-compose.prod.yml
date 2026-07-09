@@ -89,9 +89,6 @@ services:
   neo4j:
     image: neo4j:5-community
     container_name: enterprise-agentic-rag-prod-neo4j
-    env_file:
-      - path: ../.env.production
-        required: false
     environment:
       NEO4J_AUTH: ${NEO4J_USERNAME:?NEO4J_USERNAME is required}/${NEO4J_PASSWORD:?NEO4J_PASSWORD is required}
     healthcheck:
