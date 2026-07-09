@@ -10,7 +10,10 @@ export type ReadinessCheckName =
   | 'search'
   | 'llm'
   | 'embedding'
-  | 'reranker';
+  | 'reranker'
+  | 'ocr'
+  | 'asr'
+  | 'video';
 
 export interface ReadinessCheck {
   durationMs?: number;

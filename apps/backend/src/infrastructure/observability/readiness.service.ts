@@ -45,6 +45,21 @@ export class ReadinessService {
 
         return Boolean(config.apiUrl && config.model);
       }),
+      this.runConfigCheck('ocr', () => {
+        const config = this.configService.getOcrConfig();
+
+        return config.provider === 'metadata' || Boolean(config.apiUrl && config.model);
+      }),
+      this.runConfigCheck('asr', () => {
+        const config = this.configService.getAsrConfig();
+
+        return config.provider === 'metadata' || Boolean(config.apiUrl && config.model);
+      }),
+      this.runConfigCheck('video', () => {
+        const config = this.configService.getVideoUnderstandingConfig();
+
+        return config.provider === 'metadata' || Boolean(config.apiUrl && config.model);
+      }),
     ]);
 
     return {

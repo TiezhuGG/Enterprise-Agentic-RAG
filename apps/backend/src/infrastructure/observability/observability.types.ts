@@ -12,7 +12,10 @@ export type ProviderHealthName =
   | 'search'
   | 'llm'
   | 'embedding'
-  | 'reranker';
+  | 'reranker'
+  | 'ocr'
+  | 'asr'
+  | 'video';
 
 export interface ObservabilityLogInput {
   level: ObservabilityLogLevel;

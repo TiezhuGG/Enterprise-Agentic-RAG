@@ -58,6 +58,7 @@ enum MessageRole {
 enum MultimodalAttachmentType {
   IMAGE
   AUDIO
+  VIDEO
 }
 
 enum MultimodalAttachmentStatus {
@@ -424,6 +425,7 @@ model MultimodalAttachment {
   size          Int
   storageKey    String                     @map("storage_key")
   extractedText String                     @map("extracted_text")
+  metadata      Json                       @default("{}")
   createdAt     DateTime                   @default(now()) @map("created_at")
   updatedAt     DateTime                   @updatedAt @map("updated_at")
   conversation  Conversation?              @relation(fields: [conversationId], references: [id], onDelete: SetNull)

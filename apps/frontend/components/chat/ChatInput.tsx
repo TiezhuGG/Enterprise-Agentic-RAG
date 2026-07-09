@@ -79,7 +79,7 @@ export function ChatInput({
       />
       <div className="chat-input__actions">
         <input
-          accept="image/*,audio/*"
+          accept="image/*,audio/*,video/*"
           disabled={disabled}
           hidden
           onChange={handleFileChange}

@@ -1,7 +1,9 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma';
+import type { Prisma } from '../../infrastructure/prisma/generated/client';
 import type {
   MultimodalAttachmentEntity,
+  MultimodalExtractionMetadata,
   MultimodalAttachmentStatus,
   MultimodalAttachmentType,
 } from './multimodal.types';
@@ -16,14 +18,46 @@ export interface CreateMultimodalAttachmentInput {
   size: number;
   storageKey: string;
   extractedText?: string;
+  metadata?: MultimodalExtractionMetadata;
 }
 
 export interface UpdateMultimodalAttachmentInput {
   status?: MultimodalAttachmentStatus;
   extractedText?: string;
+  metadata?: MultimodalExtractionMetadata;
 }
 
-type MultimodalAttachmentModel = MultimodalAttachmentEntity;
+type MultimodalAttachmentModel = Omit<MultimodalAttachmentEntity, 'metadata'> & {
+  metadata: unknown;
+};
+
+const defaultMetadata = (): MultimodalExtractionMetadata => ({
+  modality: 'image',
+  processedAt: new Date(0).toISOString(),
+  provider: 'unknown',
+});
+
+const normalizeMetadata = (metadata: unknown): MultimodalExtractionMetadata => {
+  if (!metadata || typeof metadata !== 'object' || Array.isArray(metadata)) {
+    return defaultMetadata();
+  }
+
+  const candidate = metadata as Record<string, unknown>;
+
+  return {
+    ...candidate,
+    modality:
+      candidate.modality === 'audio' || candidate.modality === 'video'
+        ? candidate.modality
+        : 'image',
+    processedAt:
+      typeof candidate.processedAt === 'string' ? candidate.processedAt : new Date(0).toISOString(),
+    provider: typeof candidate.provider === 'string' ? candidate.provider : 'unknown',
+  };
+};
+
+const toPrismaMetadata = (metadata: MultimodalExtractionMetadata): Prisma.InputJsonObject =>
+  ({ ...metadata }) as Prisma.InputJsonObject;
 
 const toAttachmentEntity = (attachment: MultimodalAttachmentModel): MultimodalAttachmentEntity => ({
   id: attachment.id,
@@ -36,6 +70,7 @@ const toAttachmentEntity = (attachment: MultimodalAttachmentModel): MultimodalAt
   size: attachment.size,
   storageKey: attachment.storageKey,
   extractedText: attachment.extractedText,
+  metadata: normalizeMetadata(attachment.metadata),
   createdAt: attachment.createdAt,
   updatedAt: attachment.updatedAt,
 });
@@ -56,6 +91,7 @@ export class MultimodalRepository {
         size: input.size,
         storageKey: input.storageKey,
         extractedText: input.extractedText ?? '',
+        metadata: input.metadata ? toPrismaMetadata(input.metadata) : {},
       },
     });
 
@@ -70,7 +106,11 @@ export class MultimodalRepository {
       where: {
         id,
       },
-      data: input,
+      data: {
+        status: input.status,
+        extractedText: input.extractedText,
+        ...(input.metadata ? { metadata: toPrismaMetadata(input.metadata) } : {}),
+      },
     });
 
     return toAttachmentEntity(attachment);

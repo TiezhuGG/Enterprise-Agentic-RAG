@@ -32,7 +32,14 @@ export class DocumentProcessingService {
 
       const object = await this.storageService.getObject(document.storageKey);
       const parser = this.parserFactory.getParser(document.type);
-      const rawMarkdown = await parser.parse(object.buffer);
+      const rawMarkdown = await parser.parse(object.buffer, {
+        documentId: document.id,
+        mimeType: document.mimeType ?? object.contentType,
+        size: document.size ?? object.size,
+        storageKey: document.storageKey,
+        title: document.title,
+        type: document.type,
+      });
       const cleanedMarkdown = this.cleanerPipeline.clean(rawMarkdown, {
         documentId: document.id,
         title: document.title,

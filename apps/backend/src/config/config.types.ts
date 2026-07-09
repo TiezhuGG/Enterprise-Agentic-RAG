@@ -48,6 +48,30 @@ export interface MultimodalConfig {
   maxFileSizeBytes: number;
 }
 
+export const multimodalProviderModes = ['metadata', 'openai-compatible'] as const;
+export type MultimodalProviderMode = (typeof multimodalProviderModes)[number];
+
+export interface OcrConfig {
+  provider: MultimodalProviderMode;
+  apiUrl: string;
+  apiKey: string;
+  model: string;
+}
+
+export interface AsrConfig {
+  provider: MultimodalProviderMode;
+  apiUrl: string;
+  apiKey: string;
+  model: string;
+}
+
+export interface VideoUnderstandingConfig {
+  provider: MultimodalProviderMode;
+  apiUrl: string;
+  apiKey: string;
+  model: string;
+}
+
 export interface JwtConfig {
   secret: string;
   expiresIn: string;
@@ -89,6 +113,9 @@ export interface AppConfiguration {
   graph: GraphConfig;
   minio: MinioConfig;
   multimodal: MultimodalConfig;
+  ocr: OcrConfig;
+  asr: AsrConfig;
+  videoUnderstanding: VideoUnderstandingConfig;
   jwt: JwtConfig;
   embedding: EmbeddingConfig;
   reranker: RerankerConfig;

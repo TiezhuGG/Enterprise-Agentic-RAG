@@ -73,6 +73,7 @@ export class MultimodalService {
       });
       const extractedAttachment = await this.multimodalRepository.update(attachment.id, {
         extractedText: result.extractedText,
+        metadata: result.metadata,
         status: 'EXTRACTED',
       });
 
@@ -159,7 +160,11 @@ export class MultimodalService {
       return 'AUDIO';
     }
 
-    throw new BadRequestException('Only image and audio attachments are supported');
+    if (file.mimetype.startsWith('video/')) {
+      return 'VIDEO';
+    }
+
+    throw new BadRequestException('Only image, audio, and video attachments are supported');
   }
 
   private ensureAttachmentUsable(

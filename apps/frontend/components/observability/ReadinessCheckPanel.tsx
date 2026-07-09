@@ -10,15 +10,18 @@ interface ReadinessCheckPanelProps {
 }
 
 const checkLabels: Record<ReadinessCheck['name'], string> = {
+  asr: 'ASR',
   database: 'Database',
   embedding: 'Embedding',
   graph: 'Graph',
   llm: 'LLM',
+  ocr: 'OCR',
   redis: 'Redis',
   reranker: 'Reranker',
   search: 'Search',
   storage: 'Storage',
   vector: 'Vector',
+  video: 'Video',
 };
 
 const formatDuration = (durationMs?: number): string => {

@@ -1,4 +1,4 @@
-export type MultimodalAttachmentType = 'IMAGE' | 'AUDIO';
+export type MultimodalAttachmentType = 'IMAGE' | 'AUDIO' | 'VIDEO';
 export type MultimodalAttachmentStatus = 'EXTRACTED' | 'FAILED';
 
 export interface MultimodalAttachment {

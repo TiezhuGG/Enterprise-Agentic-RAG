@@ -4,6 +4,7 @@ import type {
   AppConfig,
   AppConfiguration,
   AgentConfig,
+  AsrConfig,
   DatabaseConfig,
   EmbeddingConfig,
   GraphConfig,
@@ -12,9 +13,11 @@ import type {
   MemoryConfig,
   MinioConfig,
   MultimodalConfig,
+  OcrConfig,
   RedisConfig,
   RerankerConfig,
   SearchConfig,
+  VideoUnderstandingConfig,
 } from './config.types';
 
 @Injectable()
@@ -61,6 +64,18 @@ export class ConfigService {
 
   getMultimodalConfig(): Readonly<MultimodalConfig> {
     return this.config.multimodal;
+  }
+
+  getOcrConfig(): Readonly<OcrConfig> {
+    return this.config.ocr;
+  }
+
+  getAsrConfig(): Readonly<AsrConfig> {
+    return this.config.asr;
+  }
+
+  getVideoUnderstandingConfig(): Readonly<VideoUnderstandingConfig> {
+    return this.config.videoUnderstanding;
   }
 
   getJwtConfig(): Readonly<JwtConfig> {

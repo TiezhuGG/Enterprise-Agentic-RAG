@@ -33,7 +33,15 @@ interface NormalizedIngestionOptions {
   includeGraph: boolean;
 }
 
-const supportedDocumentTypes = new Set<DocumentType>(['PDF', 'WORD', 'TXT', 'MARKDOWN']);
+const supportedDocumentTypes = new Set<DocumentType>([
+  'PDF',
+  'WORD',
+  'TXT',
+  'MARKDOWN',
+  'IMAGE',
+  'AUDIO',
+  'VIDEO',
+]);
 const writeRoles: SpaceMemberRole[] = ['OWNER', 'EDITOR'];
 
 @Injectable()

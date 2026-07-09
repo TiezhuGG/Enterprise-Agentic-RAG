@@ -111,15 +111,24 @@ export class UploadService {
   }
 
   private resolveDocumentType(file: UploadedDocumentFile): DocumentType {
-    if (file.mimetype.startsWith('image/')) {
+    if (
+      file.mimetype.startsWith('image/') &&
+      (allowedUploadMimeTypes as readonly string[]).includes(file.mimetype)
+    ) {
       return 'IMAGE';
     }
 
-    if (file.mimetype.startsWith('audio/')) {
+    if (
+      file.mimetype.startsWith('audio/') &&
+      (allowedUploadMimeTypes as readonly string[]).includes(file.mimetype)
+    ) {
       return 'AUDIO';
     }
 
-    if (file.mimetype.startsWith('video/')) {
+    if (
+      file.mimetype.startsWith('video/') &&
+      (allowedUploadMimeTypes as readonly string[]).includes(file.mimetype)
+    ) {
       return 'VIDEO';
     }
 

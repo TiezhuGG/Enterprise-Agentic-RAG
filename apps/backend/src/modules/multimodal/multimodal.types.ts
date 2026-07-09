@@ -1,8 +1,24 @@
-export const multimodalAttachmentTypes = ['IMAGE', 'AUDIO'] as const;
+export const multimodalAttachmentTypes = ['IMAGE', 'AUDIO', 'VIDEO'] as const;
 export type MultimodalAttachmentType = (typeof multimodalAttachmentTypes)[number];
 
 export const multimodalAttachmentStatuses = ['CREATED', 'EXTRACTED', 'FAILED'] as const;
 export type MultimodalAttachmentStatus = (typeof multimodalAttachmentStatuses)[number];
+
+export type MultimodalModality = 'image' | 'audio' | 'video';
+
+export interface MultimodalExtractionMetadata {
+  provider: string;
+  modality: MultimodalModality;
+  processedAt: string;
+  filename?: string;
+  mimeType?: string;
+  model?: string;
+  language?: string;
+  confidence?: number;
+  size?: number;
+  timelineCount?: number;
+  [key: string]: unknown;
+}
 
 export interface UploadedMultimodalFile {
   originalname: string;
@@ -22,6 +38,7 @@ export interface MultimodalAttachmentEntity {
   size: number;
   storageKey: string;
   extractedText: string;
+  metadata: MultimodalExtractionMetadata;
   createdAt: Date;
   updatedAt: Date;
 }

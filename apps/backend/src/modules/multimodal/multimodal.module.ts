@@ -8,8 +8,14 @@ import { ConversationModule } from '../conversation';
 import { MultimodalController } from './multimodal.controller';
 import { MultimodalRepository } from './multimodal.repository';
 import { MultimodalService } from './multimodal.service';
-import { MetadataMultimodalProvider } from './providers/metadata-multimodal.provider';
+import { CompositeMultimodalProvider } from './providers/composite-multimodal.provider';
+import { MetadataAsrProvider } from './providers/metadata-asr.provider';
+import { MetadataOcrProvider } from './providers/metadata-ocr.provider';
+import { MetadataVideoUnderstandingProvider } from './providers/metadata-video-understanding.provider';
 import { MULTIMODAL_PROVIDER } from './providers/multimodal.provider';
+import { OpenAiCompatibleAsrProvider } from './providers/openai-compatible-asr.provider';
+import { OpenAiCompatibleOcrProvider } from './providers/openai-compatible-ocr.provider';
+import { OpenAiCompatibleVideoUnderstandingProvider } from './providers/openai-compatible-video-understanding.provider';
 
 @Module({
   imports: [
@@ -24,11 +30,18 @@ import { MULTIMODAL_PROVIDER } from './providers/multimodal.provider';
   providers: [
     MultimodalRepository,
     MultimodalService,
+    CompositeMultimodalProvider,
+    MetadataAsrProvider,
+    MetadataOcrProvider,
+    MetadataVideoUnderstandingProvider,
+    OpenAiCompatibleAsrProvider,
+    OpenAiCompatibleOcrProvider,
+    OpenAiCompatibleVideoUnderstandingProvider,
     {
       provide: MULTIMODAL_PROVIDER,
-      useClass: MetadataMultimodalProvider,
+      useClass: CompositeMultimodalProvider,
     },
   ],
-  exports: [MultimodalService],
+  exports: [MultimodalService, MULTIMODAL_PROVIDER],
 })
 export class MultimodalModule {}

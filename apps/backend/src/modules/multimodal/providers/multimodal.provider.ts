@@ -1,4 +1,4 @@
-import type { MultimodalAttachmentType } from '../multimodal.types';
+import type { MultimodalAttachmentType, MultimodalExtractionMetadata } from '../multimodal.types';
 
 export const MULTIMODAL_PROVIDER = Symbol('MULTIMODAL_PROVIDER');
 
@@ -12,6 +12,7 @@ export interface MultimodalExtractionInput {
 
 export interface MultimodalExtractionResult {
   extractedText: string;
+  metadata: MultimodalExtractionMetadata;
 }
 
 export interface MultimodalProvider {

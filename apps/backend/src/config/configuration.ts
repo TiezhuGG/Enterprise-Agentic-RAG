@@ -87,6 +87,24 @@ export const createConfiguration = (): AppConfiguration => {
         .filter(Boolean),
       maxFileSizeBytes: env.MULTIMODAL_MAX_FILE_SIZE_MB * 1024 * 1024,
     },
+    ocr: {
+      provider: env.OCR_PROVIDER,
+      apiUrl: env.OCR_API_URL,
+      apiKey: env.OCR_API_KEY,
+      model: env.OCR_MODEL,
+    },
+    asr: {
+      provider: env.ASR_PROVIDER,
+      apiUrl: env.ASR_API_URL,
+      apiKey: env.ASR_API_KEY,
+      model: env.ASR_MODEL,
+    },
+    videoUnderstanding: {
+      provider: env.VIDEO_PROVIDER,
+      apiUrl: env.VIDEO_API_URL,
+      apiKey: env.VIDEO_API_KEY,
+      model: env.VIDEO_MODEL,
+    },
     jwt: {
       secret: env.JWT_SECRET,
       expiresIn: env.JWT_EXPIRES_IN,
