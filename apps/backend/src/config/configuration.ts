@@ -48,6 +48,9 @@ export const createConfiguration = (): AppConfiguration => {
 
   return {
     app: {
+      corsOrigins: env.CORS_ORIGINS.split(',')
+        .map((origin) => origin.trim())
+        .filter(Boolean),
       env: env.APP_ENV,
       port: env.APP_PORT,
     },

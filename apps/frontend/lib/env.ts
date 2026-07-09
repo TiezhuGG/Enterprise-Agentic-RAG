@@ -16,9 +16,10 @@ type FrontendRawEnv = {
 };
 
 const readRuntimeEnv = (): FrontendRawEnv => {
-  const runtimeProcess = globalThis.process as { env?: FrontendRawEnv } | undefined;
-
-  return runtimeProcess?.env ?? {};
+  return {
+    APP_ENV: process.env.APP_ENV,
+    NEXT_PUBLIC_API_BASE_URL: process.env.NEXT_PUBLIC_API_BASE_URL,
+  };
 };
 
 const requireValue = (env: FrontendRawEnv, key: keyof FrontendRawEnv): string => {

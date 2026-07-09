@@ -3,6 +3,7 @@ export const appEnvironments = ['local', 'development', 'test', 'staging', 'prod
 export type AppEnvironment = (typeof appEnvironments)[number];
 
 export interface AppConfig {
+  corsOrigins: string[];
   env: AppEnvironment;
   port: number;
 }

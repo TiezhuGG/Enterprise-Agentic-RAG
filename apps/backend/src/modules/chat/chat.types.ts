@@ -1,4 +1,14 @@
-import { IsInt, IsOptional, IsString, Max, MaxLength, Min, MinLength } from 'class-validator';
+import {
+  ArrayMaxSize,
+  IsArray,
+  IsInt,
+  IsOptional,
+  IsString,
+  Max,
+  MaxLength,
+  Min,
+  MinLength,
+} from 'class-validator';
 import type { ContextChunk } from '../retrieval';
 
 export interface ChatMessage {
@@ -40,6 +50,13 @@ export class ChatRequestDto {
   @Min(1)
   @Max(12000)
   maxContextTokens?: number;
+
+  @IsOptional()
+  @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(120, { each: true })
+  spaceIds?: string[];
 }
 
 export interface ChatResponse {

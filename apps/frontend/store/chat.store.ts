@@ -17,6 +17,7 @@ import type {
 } from '@/types/agent';
 import type { Conversation, ConversationMessage } from '@/types/conversation';
 import type { MultimodalAttachment, MultimodalAttachmentType } from '@/types/multimodal';
+import { useWorkbenchStore } from './workbench.store';
 
 export type ChatMessageRole = 'user' | 'assistant' | 'system';
 
@@ -386,10 +387,13 @@ export const useChatStore = create<ChatStore>((set, get) => ({
     }));
 
     try {
+      const selectedSpaceId = useWorkbenchStore.getState().selectedSpaceId;
+
       for await (const event of agentService.streamChat({
         attachmentIds: readyAttachments.map((attachment) => attachment.id),
         conversationId,
         question: normalizedQuestion,
+        spaceIds: selectedSpaceId ? [selectedSpaceId] : undefined,
       })) {
         handleAgentEvent(event, set);
       }

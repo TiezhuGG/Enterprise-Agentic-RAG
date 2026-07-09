@@ -98,6 +98,7 @@ export const envSchema = z
       .int('APP_PORT must be an integer')
       .min(1, 'APP_PORT must be greater than 0')
       .max(65535, 'APP_PORT must be less than or equal to 65535'),
+    CORS_ORIGINS: z.string().trim().default('http://localhost:3001,http://127.0.0.1:3001'),
     DATABASE_URL: requiredUrl('DATABASE_URL'),
     REDIS_URL: requiredUrl('REDIS_URL'),
     ELASTICSEARCH_URL: requiredUrl('ELASTICSEARCH_URL'),

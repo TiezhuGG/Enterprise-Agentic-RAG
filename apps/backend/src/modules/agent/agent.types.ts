@@ -55,6 +55,13 @@ export class AgentChatRequestDto {
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(20)
+  @IsString({ each: true })
+  @MaxLength(120, { each: true })
+  spaceIds?: string[];
+
+  @IsOptional()
+  @IsArray()
   @ArrayMaxSize(5)
   @IsString({ each: true })
   @MaxLength(120, { each: true })

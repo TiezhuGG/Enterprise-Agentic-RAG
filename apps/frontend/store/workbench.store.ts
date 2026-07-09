@@ -385,14 +385,21 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     }
 
     try {
+      const selectedDocument = get().documents.find((document) => document.id === documentId);
+      const metadataRequest =
+        selectedDocument?.status === 'READY'
+          ? documentService.getMetadata(documentId)
+          : Promise.resolve(null);
       const [metadataResponse, ingestionStatus] = await Promise.allSettled([
-        documentService.getMetadata(documentId),
+        metadataRequest,
         ingestionService.getStatus(documentId),
       ]);
 
       set({
         documentMetadata:
-          metadataResponse.status === 'fulfilled' ? metadataResponse.value.metadata : null,
+          metadataResponse.status === 'fulfilled'
+            ? (metadataResponse.value?.metadata ?? null)
+            : null,
         ingestionStatus: ingestionStatus.status === 'fulfilled' ? ingestionStatus.value : null,
       });
 

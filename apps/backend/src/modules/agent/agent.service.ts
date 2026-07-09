@@ -12,6 +12,10 @@ import type { AgentState } from './graph/agent.state';
 import { createInitialAgentState } from './graph/agent.state';
 import { MemoryTool } from './tools/memory.tool';
 
+const uniqueNonEmpty = (values: string[] | undefined): string[] => [
+  ...new Set(values?.map((value) => value.trim()).filter(Boolean) ?? []),
+];
+
 class AgentEventQueue {
   private readonly events: AgentEvent[] = [];
   private readonly resolvers: Array<() => void> = [];
@@ -149,6 +153,7 @@ export class AgentService {
     const requestId = this.observabilityService.ensureRequestId(context);
     const executionId = this.observabilityService.ensureExecutionId(context);
     const question = request.question.trim();
+    const requestContext = this.createRequestContext(context, request);
     let executionRunStarted = false;
 
     if (!question) {
@@ -156,9 +161,9 @@ export class AgentService {
     }
 
     try {
-      const historyMessages = await this.getHistoryMessages(context, request.conversationId);
+      const historyMessages = await this.getHistoryMessages(requestContext, request.conversationId);
       const multimodalContext = await this.multimodalService.buildContext(
-        context,
+        requestContext,
         request.attachmentIds,
         request.conversationId,
       );
@@ -171,6 +176,7 @@ export class AgentService {
           keywordLimit: request.keywordLimit,
           limit: request.limit,
           maxContextTokens: request.maxContextTokens,
+          spaceIds: requestContext.spaceIds,
           vectorLimit: request.vectorLimit,
         },
         requestId,
@@ -179,12 +185,13 @@ export class AgentService {
       });
       executionRunStarted = true;
 
-      await this.conversationService.createMessage(context, request.conversationId, {
+      await this.conversationService.createMessage(requestContext, request.conversationId, {
         content: question,
         metadata: {
           attachmentIds: request.attachmentIds ?? [],
           executionId,
           requestId,
+          spaceIds: requestContext.spaceIds,
           source,
         },
         role: 'USER',
@@ -193,7 +200,7 @@ export class AgentService {
       const finalState = await this.agentGraph.run(
         createInitialAgentState({
           conversationId: request.conversationId,
-          executionContext: context,
+          executionContext: requestContext,
           executionId,
           historyMessages,
           multimodalContext,
@@ -203,12 +210,12 @@ export class AgentService {
         {
           onEvent,
           onTraceEvent: (event) =>
-            this.recordExecutionTraceEvent(context, requestId, executionId, event),
+            this.recordExecutionTraceEvent(requestContext, requestId, executionId, event),
         },
       );
       const answer = finalState.answer ?? '';
 
-      await this.conversationService.createMessage(context, request.conversationId, {
+      await this.conversationService.createMessage(requestContext, request.conversationId, {
         content: answer,
         metadata: {
           citations: finalState.citations,
@@ -224,10 +231,10 @@ export class AgentService {
       });
 
       if (this.configService.getAgentConfig().enableMemory) {
-        await this.memoryTool.saveTurn(context, {
+        await this.memoryTool.saveTurn(requestContext, {
           answer,
           conversationId: request.conversationId,
-          messages: await this.getHistoryMessages(context, request.conversationId),
+          messages: await this.getHistoryMessages(requestContext, request.conversationId),
           question,
         });
       }
@@ -239,7 +246,7 @@ export class AgentService {
         status: 'success',
         usedGraph: finalState.needsGraph,
         usedRetrieval: finalState.needsRetrieval,
-        userId: context.userId,
+        userId: requestContext.userId,
       });
       await this.executionService.finishRun({
         durationMs: Date.now() - startedAt,
@@ -258,7 +265,13 @@ export class AgentService {
       return finalState;
     } catch (error) {
       if (executionRunStarted) {
-        await this.safeRecordExecutionFailure(context, requestId, executionId, startedAt, error);
+        await this.safeRecordExecutionFailure(
+          requestContext,
+          requestId,
+          executionId,
+          startedAt,
+          error,
+        );
       }
 
       this.observabilityService.recordAgentWorkflow({
@@ -267,10 +280,26 @@ export class AgentService {
         executionId,
         requestId,
         status: 'failed',
-        userId: context.userId,
+        userId: requestContext.userId,
       });
       throw error;
     }
+  }
+
+  private createRequestContext(
+    context: ExecutionContext,
+    request: AgentChatRequestDto,
+  ): ExecutionContext {
+    const requestedSpaceIds = uniqueNonEmpty(request.spaceIds);
+
+    if (requestedSpaceIds.length === 0) {
+      return context;
+    }
+
+    return {
+      ...context,
+      spaceIds: requestedSpaceIds,
+    };
   }
 
   private toAgentResponse(finalState: AgentState): AgentResponse {

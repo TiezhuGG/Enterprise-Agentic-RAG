@@ -54,6 +54,7 @@ export interface AgentChatRequest {
   vectorLimit?: number;
   keywordLimit?: number;
   maxContextTokens?: number;
+  spaceIds?: string[];
 }
 
 export interface AgentEvent<TData = unknown> {

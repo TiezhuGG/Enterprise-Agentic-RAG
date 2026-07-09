@@ -4,6 +4,7 @@ import { create } from 'zustand';
 import { getAuthToken } from '@/services/api-client';
 import { agentService } from '@/services/agent.service';
 import { conversationService } from '@/services/conversation.service';
+import { useWorkbenchStore } from './workbench.store';
 import type {
   AgentCitation,
   AgentEvent,
@@ -239,9 +240,12 @@ export const useAgentDebugStore = create<AgentDebugStore>((set, get) => ({
     });
 
     try {
+      const selectedSpaceId = useWorkbenchStore.getState().selectedSpaceId;
+
       for await (const event of agentService.streamChat({
         conversationId,
         question,
+        spaceIds: selectedSpaceId ? [selectedSpaceId] : undefined,
         ...runConfig,
       })) {
         const timelineItem = createTimelineItem(event);
