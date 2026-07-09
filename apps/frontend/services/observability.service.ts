@@ -11,6 +11,7 @@ const metricNames: Record<keyof MetricsBreakdown, string> = {
   providerHealth: 'provider_health_total',
   reranker: 'reranker_requests_total',
   retrieval: 'retrieval_requests_total',
+  search: 'search_operations_total',
   storage: 'storage_operations_total',
   vector: 'vector_operations_total',
 };
@@ -25,6 +26,7 @@ export const parseMetricsBreakdown = (metricsText: string): MetricsBreakdown => 
   providerHealth: metricsText.includes(metricNames.providerHealth),
   reranker: metricsText.includes(metricNames.reranker),
   retrieval: metricsText.includes(metricNames.retrieval),
+  search: metricsText.includes(metricNames.search),
   storage: metricsText.includes(metricNames.storage),
   vector: metricsText.includes(metricNames.vector),
 });

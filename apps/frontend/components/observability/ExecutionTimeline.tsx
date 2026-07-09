@@ -4,6 +4,7 @@ import { useMemo } from 'react';
 import { DemoEmptyState } from '@/components/demo';
 import type { ExecutionTraceEvent } from '@/types/observability';
 import { formatSafeMetadata } from './ExecutionMetadataInspector';
+import { RetrievalBreakdownPanel } from './RetrievalBreakdownPanel';
 
 interface ExecutionTimelineProps {
   events: ExecutionTraceEvent[];
@@ -88,6 +89,9 @@ export function ExecutionTimeline({
                   <p className="workbench-error workbench-error--inline">
                     {event.errorMessage.slice(0, 180)}
                   </p>
+                ) : null}
+                {event.type === 'retrieval' || event.stage === 'retrieval' ? (
+                  <RetrievalBreakdownPanel event={event} />
                 ) : null}
                 {metadata ? (
                   <details className="execution-timeline__details">

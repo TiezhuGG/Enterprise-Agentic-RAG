@@ -1,6 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import type { ExecutionContext } from '../../../common';
-import { RetrievalService, type ContextChunk, type RetrievalRequest } from '../../retrieval';
+import {
+  RetrievalService,
+  type ContextChunk,
+  type RetrievalPipelineResult,
+  type RetrievalRequest,
+} from '../../retrieval';
 import type { AgentTool } from './tool.types';
 
 export interface RetrievalToolInput {
@@ -21,5 +26,12 @@ export class RetrievalTool implements AgentTool<RetrievalToolInput, ContextChunk
 
   retrieve(context: ExecutionContext, request: RetrievalRequest): Promise<ContextChunk[]> {
     return this.retrievalService.retrieve(context, request);
+  }
+
+  retrieveWithBreakdown(
+    context: ExecutionContext,
+    request: RetrievalRequest,
+  ): Promise<RetrievalPipelineResult> {
+    return this.retrievalService.retrieveWithBreakdown(context, request);
   }
 }

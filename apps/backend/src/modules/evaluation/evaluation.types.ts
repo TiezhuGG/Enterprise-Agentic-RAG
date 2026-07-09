@@ -1,6 +1,6 @@
 import type { ExecutionContext } from '../../common';
 import type { AgentCitation } from '../agent/graph/agent.state';
-import type { RetrievalRequest } from '../retrieval';
+import type { RetrievalPipelineBreakdown, RetrievalRequest } from '../retrieval';
 
 export interface EvaluationContextInput {
   userId: string;
@@ -47,6 +47,7 @@ export interface EvaluationCaseResult {
   citations: AgentCitation[];
   answerAvailable: boolean;
   metrics: EvaluationCaseMetrics;
+  retrievalBreakdown: RetrievalPipelineBreakdown | null;
 }
 
 export interface EvaluationSummary {

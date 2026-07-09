@@ -4,7 +4,7 @@ import type { ChatHistoryMessage, ChatRequestDto } from '../../chat/chat.types';
 import type { GraphContext } from '../../knowledge-graph';
 import type { MemoryContext } from '../../memory';
 import type { MultimodalContext } from '../../multimodal';
-import type { ContextChunk } from '../../retrieval';
+import type { ContextChunk, RetrievalPipelineBreakdown } from '../../retrieval';
 
 export type AgentTraceStatus = 'success' | 'failed' | 'skipped';
 
@@ -37,6 +37,7 @@ export interface AgentState {
   executionContext: ExecutionContext;
   memoryContext: MemoryContext | null;
   multimodalContext: MultimodalContext[];
+  retrievalBreakdown: RetrievalPipelineBreakdown | null;
   retrievalContext: ContextChunk[];
   graphContext: GraphContext[];
   answer: string | null;
@@ -80,6 +81,7 @@ export const createInitialAgentState = (input: {
   needsRetrieval: true,
   question: input.question,
   request: input.request,
+  retrievalBreakdown: null,
   retrievalContext: [],
   trace: [],
   verificationResult: null,

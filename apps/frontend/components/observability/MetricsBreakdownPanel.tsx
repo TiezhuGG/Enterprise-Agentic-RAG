@@ -18,6 +18,7 @@ const metricLabels: Array<{ key: keyof MetricsBreakdown; label: string }> = [
   { key: 'embedding', label: 'Embedding' },
   { key: 'reranker', label: 'Reranker' },
   { key: 'vector', label: 'Vector' },
+  { key: 'search', label: 'Search' },
   { key: 'storage', label: 'Storage' },
   { key: 'memory', label: 'Memory' },
   { key: 'providerHealth', label: 'Provider Health' },

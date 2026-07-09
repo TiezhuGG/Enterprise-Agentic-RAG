@@ -16,7 +16,12 @@ import {
   defaultRetrievalLimit,
   defaultRetrieverCandidateLimit,
   type KnowledgeRequestContext,
+  type RetrievalPipelineBreakdown,
+  type RetrievalPipelineResult,
+  type RetrievalPipelineStage,
+  type RetrievalStageBreakdown,
   type RetrievalRequest,
+  type RetrievalResult,
   type RetrieverResult,
 } from './retrieval.types';
 
@@ -26,6 +31,12 @@ interface TenantScopedRetrievalContext {
   context: KnowledgeRequestContext;
   spaceRolesById: Record<string, SpaceMemberRole | undefined>;
   spaceTenantIdsById: Record<string, string | null | undefined>;
+}
+
+interface RetrievalStageOutcome<T> {
+  breakdown: RetrievalStageBreakdown;
+  error?: unknown;
+  result: T;
 }
 
 @Injectable()
@@ -47,8 +58,16 @@ export class RetrievalService {
     context: KnowledgeRequestContext,
     request: RetrievalRequest,
   ): Promise<ContextChunk[]> {
+    return (await this.retrieveWithBreakdown(context, request)).chunks;
+  }
+
+  async retrieveWithBreakdown(
+    context: KnowledgeRequestContext,
+    request: RetrievalRequest,
+  ): Promise<RetrievalPipelineResult> {
     const startedAt = Date.now();
     let scopedContext = context;
+    let stages: RetrievalStageBreakdown[] = [];
 
     try {
       const query = request.query.trim();
@@ -62,6 +81,7 @@ export class RetrievalService {
       const accessContext = this.contextBuilder.build(scopedContext);
 
       if (!accessContext.canRetrieve) {
+        stages = this.createSkippedBreakdown('no-retrieval-access');
         this.observabilityService.recordRetrieval({
           context: scopedContext,
           durationMs: Date.now() - startedAt,
@@ -69,42 +89,91 @@ export class RetrievalService {
           source: 'hybrid',
           status: 'success',
         });
-        return [];
+        return {
+          breakdown: this.createBreakdown(
+            stages,
+            scopedContext.spaceIds.length,
+            Date.now() - startedAt,
+          ),
+          chunks: [],
+        };
       }
 
       const resultLimit = this.resolveLimit(request.limit, defaultRetrievalLimit);
       const vectorLimit = this.resolveLimit(request.vectorLimit, defaultRetrieverCandidateLimit);
       const keywordLimit = this.resolveLimit(request.keywordLimit, defaultRetrieverCandidateLimit);
       const contextTokenBudget = this.resolveLimit(request.maxContextTokens, MAX_CONTEXT_TOKENS);
-      const [vectorResults, keywordResults, graphResults] = await Promise.all([
-        this.vectorRetriever.retrieve(query, accessContext, vectorLimit),
-        this.keywordRetriever.retrieve(query, accessContext, keywordLimit),
-        request.enableGraph === false
-          ? Promise.resolve([])
-          : this.graphRetriever.retrieve(query, accessContext, keywordLimit),
-      ]);
-      const documentMetadataById = await this.loadDocumentMetadataById([
-        ...vectorResults,
-        ...keywordResults,
-        ...graphResults,
-      ]);
-      const filteredResultSets = [vectorResults, keywordResults, graphResults].map((results) =>
-        this.accessPolicyService.filterRetrievalResults(
-          this.accessPolicyService.toSubject(scopedContext),
-          results,
-          {
-            documentMetadataById,
-            spaceRolesById: scoped.spaceRolesById,
-            spaceTenantIdsById: scoped.spaceTenantIdsById,
-          },
+      const [vectorStage, keywordStage, graphStage] = await Promise.all([
+        this.runRetrieverStage('vector', vectorLimit, () =>
+          this.vectorRetriever.retrieve(query, accessContext, vectorLimit),
         ),
+        this.runRetrieverStage('keyword', keywordLimit, () =>
+          this.keywordRetriever.retrieve(query, accessContext, keywordLimit),
+        ),
+        request.enableGraph === false
+          ? Promise.resolve(this.skipRetrieverStage('graph', 'enableGraph=false', keywordLimit))
+          : this.runRetrieverStage('graph', keywordLimit, () =>
+              this.graphRetriever.retrieve(query, accessContext, keywordLimit),
+            ),
+      ]);
+
+      stages.push(vectorStage.breakdown, keywordStage.breakdown, graphStage.breakdown);
+      this.throwFirstStageError([vectorStage, keywordStage, graphStage]);
+
+      const vectorResults = vectorStage.result;
+      const keywordResults = keywordStage.result;
+      const graphResults = graphStage.result;
+      const permissionStage = await this.runPipelineStage(
+        'permission-filter',
+        vectorResults.length + keywordResults.length + graphResults.length,
+        async () => {
+          const documentMetadataById = await this.loadDocumentMetadataById([
+            ...vectorResults,
+            ...keywordResults,
+            ...graphResults,
+          ]);
+
+          return [vectorResults, keywordResults, graphResults].map((results) =>
+            this.accessPolicyService.filterRetrievalResults(
+              this.accessPolicyService.toSubject(scopedContext),
+              results,
+              {
+                documentMetadataById,
+                spaceRolesById: scoped.spaceRolesById,
+                spaceTenantIdsById: scoped.spaceTenantIdsById,
+              },
+            ),
+          );
+        },
       );
-      const rrfResults = this.rrfFusion.fuse(filteredResultSets, resultLimit);
-      const rerankedResults = await this.rerankerService.rerank(query, rrfResults);
-      const contextChunks = this.contextBuilder.buildContextChunks(
-        rerankedResults,
-        contextTokenBudget,
+
+      stages.push(permissionStage.breakdown);
+      this.throwFirstStageError([permissionStage]);
+      const filteredResultSets = permissionStage.result;
+      const filteredCount = this.countResults(filteredResultSets);
+      const rrfStage = await this.runPipelineStage('rrf', filteredCount, () =>
+        this.rrfFusion.fuse(filteredResultSets, resultLimit),
       );
+
+      stages.push(rrfStage.breakdown);
+      this.throwFirstStageError([rrfStage]);
+      const rrfResults = rrfStage.result;
+      const rerankerStage = await this.runPipelineStage('reranker', rrfResults.length, () =>
+        this.rerankerService.rerank(query, rrfResults),
+      );
+
+      stages.push(rerankerStage.breakdown);
+      this.throwFirstStageError([rerankerStage]);
+      const rerankedResults = rerankerStage.result;
+      const contextStage = await this.runPipelineStage(
+        'context-builder',
+        rerankedResults.length,
+        () => this.contextBuilder.buildContextChunks(rerankedResults, contextTokenBudget),
+      );
+
+      stages.push(contextStage.breakdown);
+      this.throwFirstStageError([contextStage]);
+      const contextChunks = contextStage.result;
 
       this.observabilityService.recordRetrieval({
         context: scopedContext,
@@ -114,7 +183,14 @@ export class RetrievalService {
         status: 'success',
       });
 
-      return contextChunks;
+      return {
+        breakdown: this.createBreakdown(
+          stages,
+          scopedContext.spaceIds.length,
+          Date.now() - startedAt,
+        ),
+        chunks: contextChunks,
+      };
     } catch (error) {
       this.observabilityService.recordRetrieval({
         context: scopedContext,
@@ -192,5 +268,126 @@ export class RetrievalService {
         space.members.find((member) => member.userId === userId)?.role,
       ]),
     );
+  }
+
+  private countResults(resultSets: RetrieverResult[][]): number {
+    return resultSets.reduce((count, results) => count + results.length, 0);
+  }
+
+  private createBreakdown(
+    stages: RetrievalStageBreakdown[],
+    scopedSpaceCount: number,
+    totalDurationMs: number,
+  ): RetrievalPipelineBreakdown {
+    return {
+      contextCount: this.findStageOutputCount(stages, 'context-builder'),
+      filteredCount: this.findStageOutputCount(stages, 'permission-filter'),
+      graphCount: this.findStageOutputCount(stages, 'graph'),
+      keywordCount: this.findStageOutputCount(stages, 'keyword'),
+      rerankedCount: this.findStageOutputCount(stages, 'reranker'),
+      rrfCount: this.findStageOutputCount(stages, 'rrf'),
+      scopedSpaceCount,
+      stages,
+      totalDurationMs,
+      vectorCount: this.findStageOutputCount(stages, 'vector'),
+    };
+  }
+
+  private createSkippedBreakdown(reason: string): RetrievalStageBreakdown[] {
+    return [
+      'vector',
+      'keyword',
+      'graph',
+      'permission-filter',
+      'rrf',
+      'reranker',
+      'context-builder',
+    ].map((stage) => ({
+      durationMs: 0,
+      outputCount: 0,
+      reason,
+      stage: stage as RetrievalPipelineStage,
+      status: 'skipped',
+    }));
+  }
+
+  private findStageOutputCount(
+    stages: RetrievalStageBreakdown[],
+    stage: RetrievalPipelineStage,
+  ): number {
+    return stages.find((item) => item.stage === stage)?.outputCount ?? 0;
+  }
+
+  private async runPipelineStage<
+    T extends RetrievalResult[] | RetrieverResult[][] | ContextChunk[],
+  >(
+    stage: RetrievalPipelineStage,
+    inputCount: number,
+    action: () => Promise<T> | T,
+  ): Promise<RetrievalStageOutcome<T>> {
+    const startedAt = Date.now();
+
+    try {
+      const result = await action();
+
+      return {
+        breakdown: {
+          durationMs: Date.now() - startedAt,
+          inputCount,
+          outputCount: Array.isArray(result[0])
+            ? this.countResults(result as RetrieverResult[][])
+            : result.length,
+          stage,
+          status: 'success',
+        },
+        result,
+      };
+    } catch (error) {
+      return {
+        breakdown: {
+          durationMs: Date.now() - startedAt,
+          inputCount,
+          outputCount: 0,
+          stage,
+          status: 'failed',
+        },
+        error,
+        result: [] as unknown as T,
+      };
+    }
+  }
+
+  private async runRetrieverStage(
+    stage: Extract<RetrievalPipelineStage, 'graph' | 'keyword' | 'vector'>,
+    limit: number,
+    action: () => Promise<RetrieverResult[]>,
+  ): Promise<RetrievalStageOutcome<RetrieverResult[]>> {
+    return this.runPipelineStage(stage, limit, action);
+  }
+
+  private skipRetrieverStage(
+    stage: Extract<RetrievalPipelineStage, 'graph' | 'keyword' | 'vector'>,
+    reason: string,
+    limit: number,
+  ): RetrievalStageOutcome<RetrieverResult[]> {
+    return {
+      breakdown: {
+        durationMs: 0,
+        inputCount: limit,
+        outputCount: 0,
+        reason,
+        stage,
+        status: 'skipped',
+      },
+      result: [],
+    };
+  }
+
+  private throwFirstStageError(stages: Array<RetrievalStageOutcome<unknown>>): void {
+    const failedStage = stages.find((stage) => stage.error);
+
+    if (failedStage) {
+      throw failedStage.error;
+    }
   }
 }

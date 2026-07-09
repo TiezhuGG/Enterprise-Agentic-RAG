@@ -77,8 +77,25 @@ export interface IterationEventData {
 }
 
 export interface RetrievalEventData {
+  contextBuilderDurationMs?: number;
+  contextCount?: number;
   executionId: string;
+  filteredCount?: number;
+  graphCount?: number;
+  graphDurationMs?: number;
+  graphStatus?: string;
+  keywordCount?: number;
+  keywordDurationMs?: number;
+  permissionFilterDurationMs?: number;
+  rerankedCount?: number;
+  rerankerDurationMs?: number;
+  retrievalDurationMs?: number;
+  rrfCount?: number;
+  rrfDurationMs?: number;
+  scopedSpaceCount?: number;
   count: number;
+  vectorCount?: number;
+  vectorDurationMs?: number;
 }
 
 export interface GraphEventData {

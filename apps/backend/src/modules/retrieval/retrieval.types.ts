@@ -53,3 +53,35 @@ export interface ContextChunk {
   score: number;
   metadata: ChunkMetadata;
 }
+
+export type RetrievalPipelineStage =
+  'vector' | 'keyword' | 'graph' | 'permission-filter' | 'rrf' | 'reranker' | 'context-builder';
+
+export type RetrievalPipelineStageStatus = 'success' | 'failed' | 'skipped';
+
+export interface RetrievalStageBreakdown {
+  durationMs: number;
+  inputCount?: number;
+  outputCount: number;
+  reason?: string;
+  stage: RetrievalPipelineStage;
+  status: RetrievalPipelineStageStatus;
+}
+
+export interface RetrievalPipelineBreakdown {
+  contextCount: number;
+  filteredCount: number;
+  graphCount: number;
+  keywordCount: number;
+  rerankedCount: number;
+  rrfCount: number;
+  scopedSpaceCount: number;
+  stages: RetrievalStageBreakdown[];
+  totalDurationMs: number;
+  vectorCount: number;
+}
+
+export interface RetrievalPipelineResult {
+  breakdown: RetrievalPipelineBreakdown;
+  chunks: ContextChunk[];
+}

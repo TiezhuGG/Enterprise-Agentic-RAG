@@ -16,6 +16,7 @@ const checkLabels: Record<ReadinessCheck['name'], string> = {
   llm: 'LLM',
   redis: 'Redis',
   reranker: 'Reranker',
+  search: 'Search',
   storage: 'Storage',
   vector: 'Vector',
 };

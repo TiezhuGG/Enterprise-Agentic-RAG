@@ -18,21 +18,19 @@ export class RetrievalNode implements AgentNode {
 
     const retrievalTool = this.toolRegistry.get<RetrievalTool>('retrieval');
     const query = state.followUpQuery ?? state.queryRewrite ?? state.question;
-    const retrievalContext = await retrievalTool.invoke({
-      context: state.executionContext,
-      request: {
-        enableGraph: false,
-        keywordLimit: state.request.keywordLimit,
-        limit: state.request.limit,
-        maxContextTokens: state.request.maxContextTokens,
-        query,
-        vectorLimit: state.request.vectorLimit,
-      },
+    const retrievalResult = await retrievalTool.retrieveWithBreakdown(state.executionContext, {
+      enableGraph: false,
+      keywordLimit: state.request.keywordLimit,
+      limit: state.request.limit,
+      maxContextTokens: state.request.maxContextTokens,
+      query,
+      vectorLimit: state.request.vectorLimit,
     });
 
     return {
       ...state,
-      retrievalContext,
+      retrievalBreakdown: retrievalResult.breakdown,
+      retrievalContext: retrievalResult.chunks,
     };
   }
 }

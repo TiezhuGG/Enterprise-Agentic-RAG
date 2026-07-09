@@ -47,10 +47,11 @@ export class EvaluationService {
   ): Promise<EvaluationCaseResult> {
     try {
       const context = this.createExecutionContext(defaultContext, evaluationCase.context);
-      const retrievedChunks = await this.retrievalService.retrieve(context, {
+      const retrievalResult = await this.retrievalService.retrieveWithBreakdown(context, {
         ...evaluationCase.retrieval,
         query: evaluationCase.query,
       });
+      const retrievedChunks = retrievalResult.chunks;
       const agentResponse = evaluationCase.conversationId
         ? await this.agentService.execute(context, {
             conversationId: evaluationCase.conversationId,
@@ -71,6 +72,7 @@ export class EvaluationService {
           agentResponse?.answer,
         ),
         query: evaluationCase.query,
+        retrievalBreakdown: retrievalResult.breakdown,
         retrievedChunkIds: retrievedChunks.map((chunk) => chunk.chunkId),
         retrievedDocumentIds: [...new Set(retrievedChunks.map((chunk) => chunk.documentId))],
         status: 'passed',
@@ -88,6 +90,7 @@ export class EvaluationService {
           retrievalRecall: null,
         },
         query: evaluationCase.query,
+        retrievalBreakdown: null,
         retrievedChunkIds: [],
         retrievedDocumentIds: [],
         status: 'failed',
@@ -130,6 +133,9 @@ export class EvaluationService {
         )}`,
       );
       lines.push(`- Answer groundedness: ${this.formatScore(result.metrics.answerGroundedness)}`);
+      lines.push(
+        `- Retrieval breakdown: ${this.formatRetrievalBreakdown(result.retrievalBreakdown)}`,
+      );
       lines.push(`- Retrieved chunks: ${result.retrievedChunkIds.join(', ') || 'none'}`);
       lines.push(`- Retrieved documents: ${result.retrievedDocumentIds.join(', ') || 'none'}`);
 
@@ -295,5 +301,21 @@ export class EvaluationService {
 
   private formatScore(value: number | null): string {
     return value === null ? 'n/a' : value.toFixed(4);
+  }
+
+  private formatRetrievalBreakdown(breakdown: EvaluationCaseResult['retrievalBreakdown']): string {
+    if (!breakdown) {
+      return 'n/a';
+    }
+
+    return [
+      `vector=${breakdown.vectorCount}`,
+      `keyword=${breakdown.keywordCount}`,
+      `graph=${breakdown.graphCount}`,
+      `filtered=${breakdown.filteredCount}`,
+      `rrf=${breakdown.rrfCount}`,
+      `reranked=${breakdown.rerankedCount}`,
+      `context=${breakdown.contextCount}`,
+    ].join(' ');
   }
 }

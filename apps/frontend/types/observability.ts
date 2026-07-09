@@ -2,7 +2,15 @@ export type ReadinessStatus = 'ok' | 'degraded';
 export type ReadinessCheckStatus = 'ok' | 'failed' | 'skipped';
 
 export type ReadinessCheckName =
-  'database' | 'redis' | 'storage' | 'graph' | 'vector' | 'llm' | 'embedding' | 'reranker';
+  | 'database'
+  | 'redis'
+  | 'storage'
+  | 'graph'
+  | 'vector'
+  | 'search'
+  | 'llm'
+  | 'embedding'
+  | 'reranker';
 
 export interface ReadinessCheck {
   durationMs?: number;
@@ -27,6 +35,7 @@ export interface MetricsBreakdown {
   providerHealth: boolean;
   reranker: boolean;
   retrieval: boolean;
+  search: boolean;
   storage: boolean;
   vector: boolean;
 }

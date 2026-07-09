@@ -1,0 +1,71 @@
+{
+  "name": "hybrid-retrieval-regression",
+  "description": "TASK-045 hybrid retrieval 回归数据集示例。请将 userId、tenantId、departmentId、spaceIds、chunk/document id 替换为本地真实值。",
+  "defaultContext": {
+    "userId": "replace-with-user-id",
+    "roles": ["ADMIN"],
+    "permissions": ["knowledge.retrieve", "knowledge.read", "knowledge.confidential.read"],
+    "spaceIds": ["replace-with-space-id"],
+    "tenantId": "replace-with-tenant-id",
+    "departmentId": "replace-with-department-id",
+    "metadata": {
+      "source": "hybrid-retrieval-regression"
+    }
+  },
+  "cases": [
+    {
+      "id": "vector-semantic-policy-hit",
+      "query": "员工差旅费用应该如何申请和报销？",
+      "expectedCitationChunkIds": ["replace-with-vector-hit-chunk-id"],
+      "expectedCitationDocumentIds": ["replace-with-policy-document-id"],
+      "retrieval": {
+        "limit": 5,
+        "vectorLimit": 10,
+        "keywordLimit": 10,
+        "maxContextTokens": 2000,
+        "enableGraph": false
+      }
+    },
+    {
+      "id": "keyword-bm25-exact-term-hit",
+      "query": "报销制度",
+      "expectedCitationChunkIds": ["replace-with-keyword-hit-chunk-id"],
+      "expectedCitationDocumentIds": ["replace-with-policy-document-id"],
+      "retrieval": {
+        "limit": 5,
+        "vectorLimit": 10,
+        "keywordLimit": 10,
+        "maxContextTokens": 2000,
+        "enableGraph": false
+      }
+    },
+    {
+      "id": "graph-context-participates",
+      "query": "财务部和报销制度之间是什么关系？",
+      "expectedCitationDocumentIds": ["replace-with-graph-document-id"],
+      "retrieval": {
+        "limit": 5,
+        "vectorLimit": 10,
+        "keywordLimit": 10,
+        "maxContextTokens": 2000,
+        "enableGraph": true
+      }
+    },
+    {
+      "id": "permission-filter-blocks-cross-tenant",
+      "query": "只存在于其他租户空间里的测试关键词",
+      "expectedCitationDocumentIds": [],
+      "context": {
+        "spaceIds": ["replace-with-current-tenant-space-id"],
+        "tenantId": "replace-with-current-tenant-id"
+      },
+      "retrieval": {
+        "limit": 5,
+        "vectorLimit": 10,
+        "keywordLimit": 10,
+        "maxContextTokens": 2000,
+        "enableGraph": true
+      }
+    }
+  ]
+}

@@ -1704,6 +1704,57 @@ textarea:disabled {
   padding: 10px;
 }
 
+.retrieval-breakdown {
+  background: #f7fbfa;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.retrieval-breakdown__summary,
+.retrieval-breakdown__grid,
+.retrieval-breakdown__stage {
+  min-width: 0;
+}
+
+.retrieval-breakdown__summary {
+  color: var(--muted);
+  display: flex;
+  flex-wrap: wrap;
+  font-size: 12px;
+  gap: 8px;
+}
+
+.retrieval-breakdown__grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.retrieval-breakdown__stage {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  padding: 8px;
+}
+
+.retrieval-breakdown__stage strong {
+  color: var(--text);
+  font-size: 12px;
+}
+
+.retrieval-breakdown__stage span {
+  color: var(--muted);
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .execution-detail-grid,
 .execution-metadata {
   margin: 0;

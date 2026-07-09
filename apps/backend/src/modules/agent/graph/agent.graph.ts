@@ -10,6 +10,11 @@ import { RetrievalNode } from '../nodes/retrieval.node';
 import { VerificationNode } from '../nodes/verification.node';
 import type { AgentState } from './agent.state';
 import type { AgentEvent } from '../agent.types';
+import type {
+  RetrievalPipelineBreakdown,
+  RetrievalPipelineStage,
+  RetrievalStageBreakdown,
+} from '../../retrieval';
 
 export const AGENT_START = START;
 export const AGENT_END = END;
@@ -198,6 +203,7 @@ export class AgentGraph {
           data: {
             count: next.state.retrievalContext.length,
             executionId: next.state.executionId,
+            ...this.toRetrievalBreakdownMetadata(next.state.retrievalBreakdown),
           },
           type: 'retrieval',
         });
@@ -332,6 +338,7 @@ export class AgentGraph {
         return {
           count: state.retrievalContext.length,
           retrievalCount: state.retrievalContext.length,
+          ...this.toRetrievalBreakdownMetadata(state.retrievalBreakdown),
         };
       case 'graph':
         return {
@@ -364,5 +371,47 @@ export class AgentGraph {
 
   private toErrorMessage(error: unknown): string {
     return error instanceof Error ? error.message : 'Agent node execution failed';
+  }
+
+  private toRetrievalBreakdownMetadata(
+    breakdown: RetrievalPipelineBreakdown | null,
+  ): Record<string, unknown> {
+    if (!breakdown) {
+      return {};
+    }
+
+    return {
+      contextBuilderDurationMs: this.findStageDuration(breakdown.stages, 'context-builder'),
+      contextCount: breakdown.contextCount,
+      filteredCount: breakdown.filteredCount,
+      graphCount: breakdown.graphCount,
+      graphDurationMs: this.findStageDuration(breakdown.stages, 'graph'),
+      graphStatus: this.findStageStatus(breakdown.stages, 'graph'),
+      keywordCount: breakdown.keywordCount,
+      keywordDurationMs: this.findStageDuration(breakdown.stages, 'keyword'),
+      permissionFilterDurationMs: this.findStageDuration(breakdown.stages, 'permission-filter'),
+      rerankedCount: breakdown.rerankedCount,
+      rerankerDurationMs: this.findStageDuration(breakdown.stages, 'reranker'),
+      retrievalDurationMs: breakdown.totalDurationMs,
+      rrfCount: breakdown.rrfCount,
+      rrfDurationMs: this.findStageDuration(breakdown.stages, 'rrf'),
+      scopedSpaceCount: breakdown.scopedSpaceCount,
+      vectorCount: breakdown.vectorCount,
+      vectorDurationMs: this.findStageDuration(breakdown.stages, 'vector'),
+    };
+  }
+
+  private findStageDuration(
+    stages: RetrievalStageBreakdown[],
+    stage: RetrievalPipelineStage,
+  ): number {
+    return stages.find((item) => item.stage === stage)?.durationMs ?? 0;
+  }
+
+  private findStageStatus(
+    stages: RetrievalStageBreakdown[],
+    stage: RetrievalPipelineStage,
+  ): string {
+    return stages.find((item) => item.stage === stage)?.status ?? 'skipped';
   }
 }
