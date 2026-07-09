@@ -15,6 +15,14 @@ export interface RedisConfig {
   url: string;
 }
 
+export interface SearchConfig {
+  url: string;
+  index: string;
+  username: string;
+  password: string;
+  enableFallback: boolean;
+}
+
 export interface MemoryConfig {
   redisTtlSeconds: number;
   windowSize: number;
@@ -76,6 +84,7 @@ export interface AppConfiguration {
   app: AppConfig;
   database: DatabaseConfig;
   redis: RedisConfig;
+  search: SearchConfig;
   memory: MemoryConfig;
   graph: GraphConfig;
   minio: MinioConfig;

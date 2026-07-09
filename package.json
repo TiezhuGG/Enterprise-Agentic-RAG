@@ -30,6 +30,7 @@
     "format:check": "prettier --check .",
     "lint": "eslint .",
     "prepare": "husky || exit 0",
+    "search:reindex": "pnpm --filter @enterprise-agentic-rag/backend search:reindex",
     "typecheck": "pnpm --workspace-concurrency=1 -r typecheck"
   },
   "devDependencies": {

@@ -57,6 +57,13 @@ export const createConfiguration = (): AppConfiguration => {
     redis: {
       url: env.REDIS_URL,
     },
+    search: {
+      url: env.ELASTICSEARCH_URL,
+      index: env.ELASTICSEARCH_INDEX,
+      username: env.ELASTICSEARCH_USERNAME,
+      password: env.ELASTICSEARCH_PASSWORD,
+      enableFallback: env.ELASTICSEARCH_ENABLE_FALLBACK,
+    },
     memory: {
       redisTtlSeconds: env.REDIS_MEMORY_TTL,
       windowSize: env.MEMORY_WINDOW_SIZE,

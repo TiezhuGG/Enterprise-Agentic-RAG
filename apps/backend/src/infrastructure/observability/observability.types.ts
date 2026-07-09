@@ -4,7 +4,15 @@ export type ObservabilityLogLevel = 'debug' | 'info' | 'warn' | 'error';
 export type ObservabilityStatus = 'success' | 'failed' | 'skipped';
 export type ProviderHealthStatus = 'ok' | 'failed' | 'skipped';
 export type ProviderHealthName =
-  'database' | 'redis' | 'storage' | 'graph' | 'vector' | 'llm' | 'embedding' | 'reranker';
+  | 'database'
+  | 'redis'
+  | 'storage'
+  | 'graph'
+  | 'vector'
+  | 'search'
+  | 'llm'
+  | 'embedding'
+  | 'reranker';
 
 export interface ObservabilityLogInput {
   level: ObservabilityLogLevel;
@@ -163,6 +171,14 @@ export interface RerankerObservation {
 }
 
 export interface VectorObservation {
+  durationMs: number;
+  error?: unknown;
+  operation: string;
+  recordCount?: number;
+  status: ObservabilityStatus;
+}
+
+export interface SearchObservation {
   durationMs: number;
   error?: unknown;
   operation: string;

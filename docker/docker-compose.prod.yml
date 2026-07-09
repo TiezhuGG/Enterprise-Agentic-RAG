@@ -40,6 +40,26 @@ services:
     volumes:
       - redis_data:/data
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: enterprise-agentic-rag-prod-elasticsearch
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      xpack.security.enabled: 'false'
+    healthcheck:
+      test: ['CMD-SHELL', 'curl -fsS http://127.0.0.1:9200/_cluster/health || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+    restart: unless-stopped
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
   minio:
     image: quay.io/minio/minio:latest
     container_name: enterprise-agentic-rag-prod-minio
@@ -94,6 +114,8 @@ services:
     image: enterprise-agentic-rag-backend:latest
     container_name: enterprise-agentic-rag-prod-backend
     depends_on:
+      elasticsearch:
+        condition: service_healthy
       minio:
         condition: service_healthy
       neo4j:
@@ -112,6 +134,11 @@ services:
       APP_ENV: ${APP_ENV:?APP_ENV is required}
       APP_PORT: ${APP_PORT:?APP_PORT is required}
       DATABASE_URL: ${DATABASE_URL:?DATABASE_URL is required}
+      ELASTICSEARCH_ENABLE_FALLBACK: ${ELASTICSEARCH_ENABLE_FALLBACK:?ELASTICSEARCH_ENABLE_FALLBACK is required}
+      ELASTICSEARCH_INDEX: ${ELASTICSEARCH_INDEX:?ELASTICSEARCH_INDEX is required}
+      ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD:-}
+      ELASTICSEARCH_URL: ${ELASTICSEARCH_URL:?ELASTICSEARCH_URL is required}
+      ELASTICSEARCH_USERNAME: ${ELASTICSEARCH_USERNAME:-}
       EMBEDDING_API_KEY: ${EMBEDDING_API_KEY:?EMBEDDING_API_KEY is required}
       EMBEDDING_API_URL: ${EMBEDDING_API_URL:?EMBEDDING_API_URL is required}
       EMBEDDING_DIMENSION: ${EMBEDDING_DIMENSION:?EMBEDDING_DIMENSION is required}
@@ -192,6 +219,7 @@ services:
     restart: unless-stopped
 
 volumes:
+  elasticsearch_data:
   minio_data:
   neo4j_data:
   postgres_data:

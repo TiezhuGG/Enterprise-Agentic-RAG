@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { VectorModule } from '../../infrastructure/vector';
+import { SearchModule } from '../../infrastructure/search';
 import { AccessPolicyModule } from '../access-policy';
 import { ChunkModule } from '../chunk';
 import { DocumentModule } from '../document';
@@ -23,6 +24,7 @@ import { RetrievalService } from './retrieval.service';
     KnowledgeGraphModule,
     KnowledgeSpaceModule,
     RerankerModule,
+    SearchModule,
     VectorModule,
   ],
   providers: [

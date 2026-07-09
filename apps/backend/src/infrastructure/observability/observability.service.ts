@@ -18,6 +18,7 @@ import type {
   ObservabilityLogInput,
   ProviderHealthObservation,
   RerankerObservation,
+  SearchObservation,
   StorageOperationObservation,
   RetrievalObservation,
   UploadObservation,
@@ -46,6 +47,7 @@ const requiredCounterNames = [
   'reranker_requests_total',
   'reranker_documents_total',
   'vector_operations_total',
+  'search_operations_total',
   'storage_operations_total',
   'memory_operations_total',
   'provider_health_total',
@@ -588,6 +590,33 @@ export class ObservabilityService {
         contentType: input.contentType,
         operation: input.operation,
         size: input.size,
+      },
+      status: input.status,
+    });
+  }
+
+  recordSearch(input: SearchObservation): void {
+    this.incrementCounter('search_operations_total', {
+      operation: input.operation,
+      status: input.status,
+    });
+    this.observeDuration('search_operation_duration_ms', input.durationMs, {
+      operation: input.operation,
+      status: input.status,
+    });
+
+    if (input.status === 'failed') {
+      this.recordError('search', input.error, {});
+    }
+
+    this.log({
+      durationMs: input.durationMs,
+      error: input.error,
+      event: 'search.operation',
+      level: input.status === 'failed' ? 'error' : 'info',
+      metadata: {
+        operation: input.operation,
+        recordCount: input.recordCount,
       },
       status: input.status,
     });

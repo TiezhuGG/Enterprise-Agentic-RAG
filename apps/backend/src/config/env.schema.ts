@@ -48,6 +48,11 @@ export const envSchema = z.object({
     .max(65535, 'APP_PORT must be less than or equal to 65535'),
   DATABASE_URL: requiredUrl('DATABASE_URL'),
   REDIS_URL: requiredUrl('REDIS_URL'),
+  ELASTICSEARCH_URL: requiredUrl('ELASTICSEARCH_URL'),
+  ELASTICSEARCH_INDEX: requiredString('ELASTICSEARCH_INDEX'),
+  ELASTICSEARCH_USERNAME: z.string().trim().default(''),
+  ELASTICSEARCH_PASSWORD: z.string().trim().default(''),
+  ELASTICSEARCH_ENABLE_FALLBACK: booleanFlag('ELASTICSEARCH_ENABLE_FALLBACK'),
   REDIS_MEMORY_TTL: z.coerce
     .number({
       error: 'REDIS_MEMORY_TTL is required',

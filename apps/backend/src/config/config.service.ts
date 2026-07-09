@@ -14,6 +14,7 @@ import type {
   MultimodalConfig,
   RedisConfig,
   RerankerConfig,
+  SearchConfig,
 } from './config.types';
 
 @Injectable()
@@ -40,6 +41,10 @@ export class ConfigService {
 
   getRedisConfig(): Readonly<RedisConfig> {
     return this.config.redis;
+  }
+
+  getSearchConfig(): Readonly<SearchConfig> {
+    return this.config.search;
   }
 
   getMemoryConfig(): Readonly<MemoryConfig> {

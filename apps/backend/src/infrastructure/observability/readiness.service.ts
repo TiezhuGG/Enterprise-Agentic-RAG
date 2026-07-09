@@ -3,6 +3,7 @@ import { ConfigService } from '../../config';
 import { GraphService } from '../graph';
 import { PrismaService } from '../prisma';
 import { RedisService } from '../redis';
+import { SearchService } from '../search';
 import { StorageService } from '../storage';
 import { VectorService } from '../vector';
 import { ObservabilityService } from './observability.service';
@@ -16,6 +17,7 @@ export class ReadinessService {
     private readonly observabilityService: ObservabilityService,
     private readonly prismaService: PrismaService,
     private readonly redisService: RedisService,
+    private readonly searchService: SearchService,
     private readonly storageService: StorageService,
     private readonly vectorService: VectorService,
   ) {}
@@ -27,6 +29,7 @@ export class ReadinessService {
       this.runCheck('storage', () => this.storageService.healthCheck()),
       this.runCheck('graph', () => this.graphService.healthCheck()),
       this.runCheck('vector', () => this.vectorService.healthCheck()),
+      this.runCheck('search', () => this.searchService.healthCheck()),
       this.runConfigCheck('llm', () => {
         const config = this.configService.getLlmConfig();
 

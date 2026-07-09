@@ -3,6 +3,7 @@ import { ConfigModule } from '../../config';
 import { GraphModule } from '../graph';
 import { PrismaModule } from '../prisma';
 import { RedisModule } from '../redis';
+import { SearchModule } from '../search';
 import { StorageModule } from '../storage';
 import { VectorModule } from '../vector';
 import { ObservabilityModule } from './observability.module';
@@ -16,6 +17,7 @@ import { ReadinessService } from './readiness.service';
     ObservabilityModule,
     PrismaModule,
     RedisModule,
+    SearchModule,
     StorageModule,
     VectorModule,
   ],

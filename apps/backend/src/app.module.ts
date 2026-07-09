@@ -23,6 +23,7 @@ import { RerankerModule } from './modules/reranker';
 import { RetrievalModule } from './modules/retrieval';
 import { UploadModule } from './modules/upload';
 import { UserModule } from './modules/user';
+import { SearchModule } from './infrastructure/search';
 
 @Module({
   imports: [
@@ -49,6 +50,7 @@ import { UserModule } from './modules/user';
     PipelineModule,
     RerankerModule,
     RetrievalModule,
+    SearchModule,
     UploadModule,
   ],
 })

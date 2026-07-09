@@ -27,6 +27,19 @@ services:
     volumes:
       - redis_data:/data
 
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    container_name: enterprise-agentic-rag-elasticsearch
+    environment:
+      discovery.type: single-node
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      xpack.security.enabled: 'false'
+    ports:
+      - '9200:9200'
+      - '9300:9300'
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
   minio:
     image: quay.io/minio/minio:latest
     container_name: enterprise-agentic-rag-minio
@@ -58,6 +71,7 @@ services:
       - neo4j_data:/data
 
 volumes:
+  elasticsearch_data:
   minio_data:
   neo4j_data:
   postgres_data:
