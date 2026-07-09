@@ -45,6 +45,19 @@ export interface DocumentContentCleanerMetadata {
   addedTitleHeading: boolean;
 }
 
+export interface DocumentContentOcrMetadata extends Record<string, unknown> {
+  enabled: boolean;
+  mode: 'native-text' | 'ocr';
+  pageCount?: number;
+  processedPages?: number;
+  failedPages?: number;
+  provider?: string;
+  model?: string;
+  renderWidth?: number;
+  configuredRenderWidth?: number;
+  maxImageDimension?: number;
+}
+
 export interface DocumentContentMetadata extends Record<string, unknown> {
   documentId: string;
   spaceId: string;
@@ -60,6 +73,7 @@ export interface DocumentContentMetadata extends Record<string, unknown> {
   lineCount: number;
   parser: string;
   cleaner: DocumentContentCleanerMetadata;
+  ocr?: DocumentContentOcrMetadata;
   processedAt: string;
 }
 

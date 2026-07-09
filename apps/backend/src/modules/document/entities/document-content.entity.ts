@@ -13,6 +13,19 @@ export interface DocumentContentCleanerMetadata extends Record<string, unknown> 
   addedTitleHeading: boolean;
 }
 
+export interface DocumentContentOcrMetadata extends Record<string, unknown> {
+  enabled: boolean;
+  mode: 'native-text' | 'ocr';
+  pageCount?: number;
+  processedPages?: number;
+  failedPages?: number;
+  provider?: string;
+  model?: string;
+  renderWidth?: number;
+  configuredRenderWidth?: number;
+  maxImageDimension?: number;
+}
+
 export interface DocumentContentMetadata extends Record<string, unknown> {
   allowedDepartmentIds?: string[];
   departmentId?: string;
@@ -30,6 +43,7 @@ export interface DocumentContentMetadata extends Record<string, unknown> {
   lineCount: number;
   parser: string;
   cleaner: DocumentContentCleanerMetadata;
+  ocr?: DocumentContentOcrMetadata;
   processedAt: string;
 }
 
@@ -94,6 +108,61 @@ const toCleanerMetadata = (value: unknown): DocumentContentMetadata['cleaner'] =
   };
 };
 
+const toOcrMetadata = (value: unknown): DocumentContentOcrMetadata | undefined => {
+  if (!isRecord(value)) {
+    return undefined;
+  }
+
+  const mode = toStringValue(value.mode);
+  const normalizedMode = mode === 'ocr' || mode === 'native-text' ? mode : 'native-text';
+  const result: DocumentContentOcrMetadata = {
+    enabled: toBooleanValue(value.enabled),
+    mode: normalizedMode,
+  };
+  const pageCount = value.pageCount;
+  const processedPages = value.processedPages;
+  const failedPages = value.failedPages;
+  const renderWidth = value.renderWidth;
+  const configuredRenderWidth = value.configuredRenderWidth;
+  const maxImageDimension = value.maxImageDimension;
+  const provider = toStringValue(value.provider);
+  const model = toStringValue(value.model);
+
+  if (typeof pageCount === 'number' && Number.isFinite(pageCount)) {
+    result.pageCount = pageCount;
+  }
+
+  if (typeof processedPages === 'number' && Number.isFinite(processedPages)) {
+    result.processedPages = processedPages;
+  }
+
+  if (typeof failedPages === 'number' && Number.isFinite(failedPages)) {
+    result.failedPages = failedPages;
+  }
+
+  if (provider) {
+    result.provider = provider;
+  }
+
+  if (model) {
+    result.model = model;
+  }
+
+  if (typeof renderWidth === 'number' && Number.isFinite(renderWidth)) {
+    result.renderWidth = renderWidth;
+  }
+
+  if (typeof configuredRenderWidth === 'number' && Number.isFinite(configuredRenderWidth)) {
+    result.configuredRenderWidth = configuredRenderWidth;
+  }
+
+  if (typeof maxImageDimension === 'number' && Number.isFinite(maxImageDimension)) {
+    result.maxImageDimension = maxImageDimension;
+  }
+
+  return result;
+};
+
 export const normalizeDocumentContentMetadata = (
   metadata: unknown,
   documentId: string,
@@ -119,6 +188,7 @@ export const normalizeDocumentContentMetadata = (
   const departmentId = toStringValue(candidate.departmentId);
   const allowedDepartmentIds = toStringArrayValue(candidate.allowedDepartmentIds);
   const size = candidate.size;
+  const ocr = toOcrMetadata(candidate.ocr);
 
   if (mimeType) {
     result.mimeType = mimeType;
@@ -138,6 +208,10 @@ export const normalizeDocumentContentMetadata = (
 
   if (allowedDepartmentIds.length > 0) {
     result.allowedDepartmentIds = allowedDepartmentIds;
+  }
+
+  if (ocr) {
+    result.ocr = ocr;
   }
 
   return result;

@@ -18,8 +18,10 @@ export class DocumentMetadataBuilder {
     object: StoredObject,
     cleanedContent: string,
     cleaningMetadata: DocumentCleaningMetadata,
+    parserMetadata: Record<string, unknown> = {},
   ): DocumentContentMetadata {
     const metadata: DocumentContentMetadata = {
+      ...parserMetadata,
       documentId: document.id,
       spaceId: document.spaceId,
       documentType: document.type,

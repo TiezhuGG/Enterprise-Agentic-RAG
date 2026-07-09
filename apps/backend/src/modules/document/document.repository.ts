@@ -107,6 +107,10 @@ const toPrismaDocumentContentMetadata = (
     json.size = metadata.size;
   }
 
+  if (metadata.ocr) {
+    json.ocr = metadata.ocr as Prisma.InputJsonObject;
+  }
+
   return json as Prisma.InputJsonObject;
 };
 

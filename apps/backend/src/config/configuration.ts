@@ -96,6 +96,14 @@ export const createConfiguration = (): AppConfiguration => {
       apiKey: env.OCR_API_KEY,
       model: env.OCR_MODEL,
     },
+    pdfOcr: {
+      enabled: env.PDF_OCR_ENABLED,
+      maxPages: env.PDF_OCR_MAX_PAGES,
+      renderWidth: env.PDF_OCR_RENDER_WIDTH,
+      maxImageDimension: env.PDF_OCR_MAX_IMAGE_DIMENSION,
+      concurrency: env.PDF_OCR_CONCURRENCY,
+      minTextLength: env.PDF_OCR_MIN_TEXT_LENGTH,
+    },
     asr: {
       provider: env.ASR_PROVIDER,
       apiUrl: env.ASR_API_URL,

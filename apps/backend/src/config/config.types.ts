@@ -59,6 +59,15 @@ export interface OcrConfig {
   model: string;
 }
 
+export interface PdfOcrConfig {
+  enabled: boolean;
+  maxPages: number;
+  renderWidth: number;
+  maxImageDimension: number;
+  concurrency: number;
+  minTextLength: number;
+}
+
 export interface AsrConfig {
   provider: MultimodalProviderMode;
   apiUrl: string;
@@ -115,6 +124,7 @@ export interface AppConfiguration {
   minio: MinioConfig;
   multimodal: MultimodalConfig;
   ocr: OcrConfig;
+  pdfOcr: PdfOcrConfig;
   asr: AsrConfig;
   videoUnderstanding: VideoUnderstandingConfig;
   jwt: JwtConfig;

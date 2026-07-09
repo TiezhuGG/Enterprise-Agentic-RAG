@@ -14,6 +14,7 @@ import type {
   MinioConfig,
   MultimodalConfig,
   OcrConfig,
+  PdfOcrConfig,
   RedisConfig,
   RerankerConfig,
   SearchConfig,
@@ -68,6 +69,10 @@ export class ConfigService {
 
   getOcrConfig(): Readonly<OcrConfig> {
     return this.config.ocr;
+  }
+
+  getPdfOcrConfig(): Readonly<PdfOcrConfig> {
+    return this.config.pdfOcr;
   }
 
   getAsrConfig(): Readonly<AsrConfig> {

@@ -11,6 +11,64 @@ interface ChatCompletionResponse {
   text?: unknown;
 }
 
+const providerErrorMaxLength = 800;
+
+const stringifyProviderErrorDetail = (payload: unknown): string => {
+  if (!payload || typeof payload !== 'object') {
+    return typeof payload === 'string' ? payload : '';
+  }
+
+  const response = payload as {
+    detail?: unknown;
+    error?: unknown;
+    message?: unknown;
+  };
+  const detail = response.error ?? response.message ?? response.detail;
+
+  if (typeof detail === 'string') {
+    return detail;
+  }
+
+  if (detail) {
+    return JSON.stringify(detail);
+  }
+
+  return JSON.stringify(payload);
+};
+
+const readProviderError = async (response: Response): Promise<string> => {
+  const prefix = `Provider request failed with status ${response.status}`;
+  let body = '';
+
+  try {
+    body = await response.text();
+  } catch {
+    return prefix;
+  }
+
+  const trimmedBody = body.trim();
+
+  if (!trimmedBody) {
+    return prefix;
+  }
+
+  let detail = trimmedBody;
+
+  try {
+    detail = stringifyProviderErrorDetail(JSON.parse(trimmedBody));
+  } catch {
+    detail = trimmedBody;
+  }
+
+  const compactDetail = detail.replace(/\s+/g, ' ').trim();
+
+  if (!compactDetail) {
+    return prefix;
+  }
+
+  return `${prefix}: ${compactDetail.slice(0, providerErrorMaxLength)}`;
+};
+
 export const toDataUrl = (input: MultimodalExtractionInput): string =>
   `data:${input.mimeType};base64,${input.buffer.toString('base64')}`;
 
@@ -67,7 +125,7 @@ export const extractChatCompletionText = (payload: unknown): string => {
 
 export const parseJsonResponse = async <T>(response: Response): Promise<T> => {
   if (!response.ok) {
-    throw new Error(`Provider request failed with status ${response.status}`);
+    throw new Error(await readProviderError(response));
   }
 
   return (await response.json()) as T;

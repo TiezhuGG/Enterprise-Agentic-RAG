@@ -133,6 +133,7 @@ export class IngestionService {
             contentHash: content.metadata.contentHash,
             documentContentId: content.id,
             language: content.metadata.language,
+            ocr: content.metadata.ocr,
             sourceHash: content.metadata.sourceHash,
           };
         },

@@ -5,6 +5,7 @@ import { DocumentRepository, type DocumentContentEntity, type DocumentEntity } f
 import { CleanerPipeline } from './cleaners/cleaner.pipeline';
 import { DocumentMetadataBuilder } from './metadata/document-metadata.builder';
 import { ParserFactory } from './parser.factory';
+import type { DocumentParserOutput } from './document-parser.interface';
 
 @Injectable()
 export class DocumentProcessingService {
@@ -32,7 +33,7 @@ export class DocumentProcessingService {
 
       const object = await this.storageService.getObject(document.storageKey);
       const parser = this.parserFactory.getParser(document.type);
-      const rawMarkdown = await parser.parse(object.buffer, {
+      const parserOutput = await parser.parse(object.buffer, {
         documentId: document.id,
         mimeType: document.mimeType ?? object.contentType,
         size: document.size ?? object.size,
@@ -40,7 +41,8 @@ export class DocumentProcessingService {
         title: document.title,
         type: document.type,
       });
-      const cleanedMarkdown = this.cleanerPipeline.clean(rawMarkdown, {
+      const parsedDocument = this.normalizeParserOutput(parserOutput);
+      const cleanedMarkdown = this.cleanerPipeline.clean(parsedDocument.content, {
         documentId: document.id,
         title: document.title,
         type: document.type,
@@ -50,6 +52,7 @@ export class DocumentProcessingService {
         object,
         cleanedMarkdown.content,
         cleanedMarkdown.metadata,
+        parsedDocument.metadata,
       );
       const content = await this.documentRepository.upsertContent(
         document.id,
@@ -80,6 +83,19 @@ export class DocumentProcessingService {
       });
       throw error;
     }
+  }
+
+  private normalizeParserOutput(output: DocumentParserOutput): {
+    content: string;
+    metadata?: Record<string, unknown>;
+  } {
+    if (typeof output === 'string') {
+      return {
+        content: output,
+      };
+    }
+
+    return output;
   }
 
   private async findActiveDocument(documentId: string): Promise<DocumentEntity> {

@@ -139,6 +139,47 @@ export const envSchema = z
     OCR_API_URL: optionalProviderString(),
     OCR_API_KEY: optionalProviderString(),
     OCR_MODEL: optionalProviderString(),
+    PDF_OCR_ENABLED: booleanFlag('PDF_OCR_ENABLED').default(true),
+    PDF_OCR_MAX_PAGES: z.coerce
+      .number({
+        error: 'PDF_OCR_MAX_PAGES is required',
+      })
+      .int('PDF_OCR_MAX_PAGES must be an integer')
+      .min(1, 'PDF_OCR_MAX_PAGES must be greater than 0')
+      .max(200, 'PDF_OCR_MAX_PAGES must be less than or equal to 200')
+      .default(20),
+    PDF_OCR_RENDER_WIDTH: z.coerce
+      .number({
+        error: 'PDF_OCR_RENDER_WIDTH is required',
+      })
+      .int('PDF_OCR_RENDER_WIDTH must be an integer')
+      .min(320, 'PDF_OCR_RENDER_WIDTH must be greater than or equal to 320')
+      .max(4096, 'PDF_OCR_RENDER_WIDTH must be less than or equal to 4096')
+      .default(1600),
+    PDF_OCR_MAX_IMAGE_DIMENSION: z.coerce
+      .number({
+        error: 'PDF_OCR_MAX_IMAGE_DIMENSION is required',
+      })
+      .int('PDF_OCR_MAX_IMAGE_DIMENSION must be an integer')
+      .min(512, 'PDF_OCR_MAX_IMAGE_DIMENSION must be greater than or equal to 512')
+      .max(8192, 'PDF_OCR_MAX_IMAGE_DIMENSION must be less than or equal to 8192')
+      .default(2048),
+    PDF_OCR_CONCURRENCY: z.coerce
+      .number({
+        error: 'PDF_OCR_CONCURRENCY is required',
+      })
+      .int('PDF_OCR_CONCURRENCY must be an integer')
+      .min(1, 'PDF_OCR_CONCURRENCY must be greater than 0')
+      .max(8, 'PDF_OCR_CONCURRENCY must be less than or equal to 8')
+      .default(2),
+    PDF_OCR_MIN_TEXT_LENGTH: z.coerce
+      .number({
+        error: 'PDF_OCR_MIN_TEXT_LENGTH is required',
+      })
+      .int('PDF_OCR_MIN_TEXT_LENGTH must be an integer')
+      .min(1, 'PDF_OCR_MIN_TEXT_LENGTH must be greater than 0')
+      .max(10000, 'PDF_OCR_MIN_TEXT_LENGTH must be less than or equal to 10000')
+      .default(30),
     ASR_PROVIDER: providerMode('ASR_PROVIDER').default('metadata'),
     ASR_API_URL: optionalProviderString(),
     ASR_API_KEY: optionalProviderString(),
