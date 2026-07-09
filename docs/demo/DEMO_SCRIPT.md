@@ -1,60 +1,127 @@
 # MVP Demo Script
 
-本文档用于演示 Enterprise Agentic RAG 的最小闭环。
-
-## 目标
-
-完成下面链路：
+本文档用于演示 Enterprise Agentic RAG 的最小闭环：
 
 ```text
-登录
--> 创建 Space
--> 上传 sample-policy.md
--> 调用 Ingestion API
--> 创建 Conversation
--> 调用 Agent Streaming
--> 查看 Answer / Citations / Trace / Metrics
+System Ready
+-> Login
+-> Space
+-> Upload / Ingest
+-> Agent Debug
+-> Assistant
+-> Observability
 ```
 
-## 1. 启动基础设施
+## 1. 准备环境
 
-本地开发：
+复制环境变量：
+
+```bash
+cp .env.example .env
+```
+
+确认至少配置：
 
 ```text
+DATABASE_URL
+REDIS_URL
+MINIO_*
+NEO4J_*
+ELASTICSEARCH_*
+LLM_*
+EMBEDDING_*
+RERANKER_*
+JWT_SECRET
+```
+
+OCR / ASR / Video 默认是 `metadata` fallback。要接真实服务时，将对应 provider 改为 `openai-compatible`，并填写 URL、Key、Model。
+
+## 2. 启动基础设施
+
+```bash
 pnpm docker:up
 ```
 
 生产 compose 配置检查：
 
-```text
+```bash
 pnpm docker:prod:config
 ```
 
-如果使用生产 compose：
-
-```text
-pnpm docker:prod:up
-```
-
-## 2. 数据库初始化
+## 3. 数据库初始化
 
 开发环境：
 
-```text
+```bash
 pnpm db:migrate
 pnpm db:seed
 ```
 
-生产环境：
+生产或服务器环境：
 
-```text
+```bash
 pnpm db:deploy
 pnpm db:seed
 ```
 
-## 3. 启动应用
+默认演示账号：
 
 ```text
+email: admin@example.com
+password: Admin123!
+```
+
+## 4. 准备 demo 数据
+
+推荐先用稳定路径，不启用 Graph extraction：
+
+```bash
+pnpm demo:seed
+```
+
+如需跳过入库，只创建样例 Space / Document / Conversation：
+
+```bash
+pnpm demo:seed --no-ingest
+```
+
+如需启用 Knowledge Graph：
+
+```bash
+pnpm demo:seed --graph
+```
+
+输出会包含：
+
+```json
+{
+  "userId": "...",
+  "spaceId": "...",
+  "documentId": "...",
+  "conversationId": "...",
+  "smokeCommand": "pnpm demo:smoke ..."
+}
+```
+
+## 5. Provider smoke
+
+生成安全报告：
+
+```bash
+pnpm provider:smoke
+```
+
+报告输出在：
+
+```text
+docs/demo/reports/
+```
+
+报告不会包含 API key、prompt、answer 或文档正文。
+
+## 6. 启动应用
+
+```bash
 pnpm dev:backend
 pnpm dev:frontend
 ```
@@ -62,220 +129,96 @@ pnpm dev:frontend
 默认地址：
 
 ```text
-Backend: http://localhost:3001
-Frontend: http://localhost:3000
+Backend: http://localhost:3000
+Frontend: http://localhost:3001
 ```
 
-实际端口以 `.env` 和 frontend env 配置为准。
+## 7. 前端演示路径
 
-## 4. 登录
-
-调用：
+1. 打开 `http://localhost:3001`。
+2. 在 Login 面板使用 `admin@example.com / Admin123!` 登录。
+3. 查看 System Readiness。
+4. 选择 `MVP Demo Space`。
+5. 查看样例文档和 Pipeline Timeline。
+6. 打开 Agent Debug。
+7. 输入问题：
 
 ```text
-POST /auth/login
+单笔超过10000元的报销需要谁审批？
 ```
 
-请求：
+8. 观察 streaming events：`thought / retrieval / graph / token / citation / done`。
+9. 查看 Citation、Trace Timeline、Execution Timeline、Metrics Breakdown。
+10. 切到 Assistant 区域做普通问答演示。
 
-```json
-{
-  "email": "admin@example.com",
-  "password": "password"
-}
-```
+## 8. CLI smoke
 
-保存返回的 `accessToken`，后续请求使用：
+执行 `demo:seed` 输出中的 smoke 命令，例如：
 
-```text
-Authorization: Bearer <accessToken>
-```
-
-如果 seed 用户不同，以 `apps/backend/src/infrastructure/prisma/seed.ts` 为准。
-
-## 5. 创建 Knowledge Space
-
-```text
-POST /spaces
-```
-
-请求：
-
-```json
-{
-  "name": "MVP Demo Space",
-  "description": "用于演示企业制度问答闭环",
-  "visibility": "PRIVATE"
-}
-```
-
-保存返回的 `spaceId`。
-
-## 6. 上传样例文档
-
-上传：
-
-```text
-POST /spaces/:spaceId/documents/upload
-```
-
-multipart 字段：
-
-```text
-file = docs/demo/sample-policy.md
-title = 企业费用报销与知识库使用制度
-description = MVP demo policy document
-```
-
-上传成功后保存返回的 `documentId`。
-
-预期 Document 状态：
-
-```text
-PROCESSING
-```
-
-## 7. 执行完整入库
-
-默认完整链路：
-
-```text
-POST /documents/:documentId/ingest
-```
-
-请求：
-
-```json
-{
-  "force": true,
-  "includeEmbedding": true,
-  "includeGraph": true
-}
-```
-
-如果本地 Neo4j 或 graph extraction 暂时不可用，可以先跑最小 RAG 闭环：
-
-```json
-{
-  "force": true,
-  "includeEmbedding": true,
-  "includeGraph": false
-}
-```
-
-成功后预期：
-
-```text
-Document.status = READY
-chunkCount > 0
-embeddingCount = chunkCount
-```
-
-## 8. 查询入库状态
-
-```text
-GET /documents/:documentId/ingest/status
-```
-
-预期：
-
-```json
-{
-  "documentStatus": "READY",
-  "hasContent": true,
-  "chunkCount": 1,
-  "embeddingCount": 1,
-  "readyForRetrieval": true
-}
-```
-
-具体 chunk 数量取决于 splitter 配置和文档长度。
-
-## 9. 创建 Conversation
-
-```text
-POST /conversations
-```
-
-请求：
-
-```json
-{
-  "title": "报销制度问答"
-}
-```
-
-保存返回的 `conversationId`。
-
-## 10. 调用 Agent Streaming
-
-```text
-POST /agent/chat/stream
-```
-
-请求：
-
-```json
-{
-  "conversationId": "<conversationId>",
-  "question": "单笔超过10000元的报销需要谁审批？"
-}
-```
-
-前端应看到：
-
-```text
-thought
-retrieval
-graph
-token
-citation
-done
-```
-
-如果 `includeGraph=false` 或 `AGENT_ENABLE_GRAPH=false`，graph event 可以为空或被跳过。
-
-## 11. 查看 Metrics
-
-```text
-GET /metrics
-```
-
-应能看到类似指标：
-
-```text
-ingestion_requests_total
-ingestion_stage_total
-document_processing_total
-retrieval_requests_total
-agent_workflows_total
-llm_requests_total
-```
-
-## 12. CLI 辅助命令
-
-已知 `documentId` 和 `userId` 时，可以直接触发入库：
-
-```text
-pnpm demo:ingest <documentId> <userId> <spaceId> --force
-```
-
-跳过 Graph：
-
-```text
-pnpm demo:ingest <documentId> <userId> <spaceId> --force --no-graph
-```
-
-对已有 Conversation 执行 Agent smoke：
-
-```text
+```bash
 pnpm demo:smoke <userId> <conversationId> "单笔超过10000元的报销需要谁审批？" <spaceId>
 ```
 
-## Demo 讲解重点
+预期输出：
 
-- `IngestionService` 只负责编排，不直接访问 Prisma、MinIO、Neo4j 或模型 API。
-- 文档入库失败会把 Document 标记为 `FAILED`。
-- 成功后 Document 标记为 `READY`。
-- Agent 回答包含 citation 和 trace。
-- `/metrics` 可以观察 ingestion、retrieval、LLM 和 agent workflow。
+```json
+{
+  "answerLength": 120,
+  "citationCount": 1,
+  "executionId": "...",
+  "traceCount": 6,
+  "usedGraph": false,
+  "usedMemory": true,
+  "verified": true
+}
+```
+
+实际数值会随模型、文档和配置变化。
+
+## 9. 讲解重点
+
+- 文档入库链路：Upload -> MinIO -> DocumentContent -> Chunk -> Embedding -> Search Index。
+- 检索链路：PGVector + Elasticsearch + Graph + RRF + Reranker + Permission Filter。
+- Agent 链路：LangGraph Runtime + Tool Registry + Memory + Retrieval + Verification。
+- 安全边界：Controller 不访问 Prisma / Redis / Neo4j / Provider。
+- 可观测性：Health、Readiness、Metrics、Execution Trace、Pipeline Events。
+- 企业边界：Tenant、Organization、Department、Space Role、SecurityLevel。
+
+## 10. 常见问题
+
+### Embedding 失败
+
+检查：
+
+```text
+EMBEDDING_API_URL
+EMBEDDING_API_KEY
+EMBEDDING_MODEL
+EMBEDDING_DIMENSION
+```
+
+### Graph 失败
+
+本地演示可以先用：
+
+```bash
+pnpm demo:seed
+```
+
+默认不启用 graph extraction。确认 Neo4j 和 LLM Graph provider 稳定后再使用 `--graph`。
+
+### Frontend 无法访问 Backend
+
+检查：
+
+```text
+NEXT_PUBLIC_API_BASE_URL=http://localhost:3000
+```
+
+### 登录失败
+
+先执行：
+
+```bash
+pnpm db:seed
+```

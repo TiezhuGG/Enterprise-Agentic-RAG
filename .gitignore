@@ -12,5 +12,8 @@ apps/backend/src/infrastructure/prisma/generated/
 
 *.log
 *.tsbuildinfo
+docs/demo/reports/*.json
+docs/demo/reports/*.md
+!docs/demo/reports/.gitkeep
 .DS_Store
 Thumbs.db

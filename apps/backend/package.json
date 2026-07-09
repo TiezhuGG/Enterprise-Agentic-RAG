@@ -5,6 +5,7 @@
   "scripts": {
     "build": "pnpm prisma:generate && node --max-old-space-size=4096 ./node_modules/@nestjs/cli/bin/nest.js build",
     "demo:ingest": "pnpm prisma:generate && ts-node src/modules/ingestion/run-demo-ingest.ts",
+    "demo:seed": "pnpm prisma:generate && ts-node src/modules/ingestion/run-demo-seed.ts",
     "demo:smoke": "pnpm prisma:generate && ts-node src/modules/ingestion/run-demo-smoke.ts",
     "dev": "pnpm prisma:generate && nest start --watch",
     "evaluation:run": "pnpm prisma:generate && ts-node src/modules/evaluation/run-evaluation.ts",
@@ -14,6 +15,7 @@
     "prisma:migrate": "prisma migrate dev --config prisma.config.ts",
     "prisma:seed": "prisma db seed --config prisma.config.ts",
     "prisma:validate": "prisma validate --config prisma.config.ts",
+    "provider:smoke": "pnpm prisma:generate && ts-node src/infrastructure/observability/run-provider-smoke.ts",
     "search:reindex": "pnpm prisma:generate && ts-node src/infrastructure/search/run-reindex.ts",
     "start": "node dist/main.js",
     "typecheck": "pnpm prisma:generate && tsc --noEmit -p tsconfig.json"

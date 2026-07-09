@@ -1,0 +1,21 @@
+{
+  "name": "mvp-demo-sample-policy",
+  "document": "docs/demo/sample-policy.md",
+  "questions": [
+    {
+      "question": "单笔超过10000元的报销需要谁审批？",
+      "expectedAnswerHint": "需要财务部复核，并由总经理最终批准。",
+      "expectedCitationHint": "报销审批流程"
+    },
+    {
+      "question": "知识空间中 OWNER、EDITOR、VIEWER 分别能做什么？",
+      "expectedAnswerHint": "OWNER 负责空间治理，EDITOR 可以上传和更新文档，VIEWER 只能读取文档内容。",
+      "expectedCitationHint": "知识库资料管理"
+    },
+    {
+      "question": "材料不完整时财务部应该怎么处理？",
+      "expectedAnswerHint": "财务部应退回申请并说明缺失项，员工应在 3 个工作日内补充材料。",
+      "expectedCitationHint": "报销审批流程"
+    }
+  ]
+}
