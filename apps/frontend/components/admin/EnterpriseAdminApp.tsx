@@ -8,7 +8,6 @@ import {
   BookOpen,
   Bot,
   BrainCircuit,
-  Building2,
   CheckCircle2,
   ChevronDown,
   CircleHelp,
@@ -27,7 +26,6 @@ import {
   Menu,
   MoreHorizontal,
   Network,
-  PanelLeft,
   Plus,
   RefreshCw,
   Search,
@@ -141,14 +139,52 @@ const acceptedDocumentTypes = [
 ].join(',');
 
 const mainNav: Array<{ section: AppSection; label: string; icon: LucideIcon }> = [
-  { icon: Home, label: '首页大盘', section: 'dashboard' },
-  { icon: FolderOpen, label: '文档管理', section: 'documents' },
-  { icon: Search, label: '智能搜索', section: 'search' },
-  { icon: Bot, label: 'AI智能问答', section: 'assistant' },
+  { icon: Home, label: '仪表盘', section: 'dashboard' },
+  { icon: FolderOpen, label: '文档中心', section: 'documents' },
+  { icon: Search, label: '搜索中心', section: 'search' },
+  { icon: Bot, label: 'AI 中心', section: 'assistant' },
   { icon: Network, label: '知识图谱', section: 'graph' },
   { icon: UserRound, label: '个人中心', section: 'profile' },
   { icon: Settings, label: '系统管理', section: 'system' },
 ];
+
+const sectionMeta: Record<AppSection, { breadcrumb: string[]; description: string; title: string }> = {
+  assistant: {
+    breadcrumb: ['AI 中心', 'AI 问答'],
+    description: '围绕企业知识库发起问答，实时查看回答依据和引用来源。',
+    title: 'AI 智能问答',
+  },
+  dashboard: {
+    breadcrumb: ['首页', '仪表盘'],
+    description: '一眼看到知识状态、系统健康和最近操作。',
+    title: '仪表盘',
+  },
+  documents: {
+    breadcrumb: ['知识管理', '文档中心'],
+    description: '三步完成上传、解析和入库，集中管理知识空间与文档状态。',
+    title: '文档中心',
+  },
+  graph: {
+    breadcrumb: ['知识管理', '知识图谱'],
+    description: '查看图谱服务状态、关系引用和后续节点浏览接入状态。',
+    title: '知识图谱',
+  },
+  profile: {
+    breadcrumb: ['账号', '个人中心'],
+    description: '查看当前账号、权限、角色和可访问知识空间。',
+    title: '个人中心',
+  },
+  search: {
+    breadcrumb: ['搜索中心', '智能检索'],
+    description: '五秒定位制度、文档片段和问答引用来源。',
+    title: '搜索中心',
+  },
+  system: {
+    breadcrumb: ['系统管理', '运行状态'],
+    description: '收纳系统状态、执行记录和高级调试能力。',
+    title: '系统管理',
+  },
+};
 
 const loginHighlights: Array<{ label: string; icon: LucideIcon }> = [
   { icon: FileText, label: '文档入库' },
@@ -158,25 +194,25 @@ const loginHighlights: Array<{ label: string; icon: LucideIcon }> = [
 
 const sectionSubNav: Record<AppSection, Array<{ label: string; icon: LucideIcon }>> = {
   assistant: [
-    { icon: Plus, label: '新建对话' },
+    { icon: Bot, label: 'AI 问答' },
+    { icon: Sparkles, label: '提示词管理' },
+    { icon: BrainCircuit, label: '智能体配置' },
     { icon: History, label: '历史会话' },
-    { icon: FileText, label: '引用来源' },
   ],
   dashboard: [
-    { icon: Grid2X2, label: '数据总览' },
-    { icon: Activity, label: '访问分析' },
-    { icon: FileArchive, label: '文档统计' },
-    { icon: Bell, label: '系统公告' },
+    { icon: Grid2X2, label: '数据概览' },
+    { icon: Database, label: '知识状态' },
+    { icon: Activity, label: '最近活动' },
   ],
   documents: [
-    { icon: FileText, label: '我的文档' },
-    { icon: Building2, label: '公共文档' },
-    { icon: Users, label: '部门文档' },
-    { icon: FileArchive, label: '文档归档' },
+    { icon: Database, label: '知识空间' },
+    { icon: FileText, label: '文档列表' },
+    { icon: FileArchive, label: '解析任务' },
+    { icon: ShieldCheck, label: '权限范围' },
   ],
   graph: [
     { icon: Network, label: '全局图谱' },
-    { icon: GitBranch, label: '关系洞察' },
+    { icon: GitBranch, label: '关系检索' },
     { icon: BarChart3, label: '图谱统计' },
   ],
   profile: [
@@ -185,13 +221,15 @@ const sectionSubNav: Record<AppSection, Array<{ label: string; icon: LucideIcon 
     { icon: KeyRound, label: '访问凭证' },
   ],
   search: [
-    { icon: History, label: '搜索历史' },
-    { icon: Sparkles, label: '推荐问题' },
+    { icon: Search, label: '全文检索' },
+    { icon: Sparkles, label: '语义检索' },
+    { icon: Database, label: '混合检索' },
     { icon: FileText, label: '结果来源' },
   ],
   system: [
     { icon: Gauge, label: '系统状态' },
     { icon: Activity, label: '执行记录' },
+    { icon: Users, label: '用户角色' },
     { icon: BrainCircuit, label: '高级调试' },
   ],
 };
@@ -312,181 +350,276 @@ export function EnterpriseAdminApp() {
   return (
     <TooltipProvider>
       <main className="min-h-screen bg-background text-foreground">
-        <header className="sticky top-0 z-40 border-b bg-card/95 backdrop-blur">
-          <div className="flex h-14 items-center gap-3 px-4 lg:px-5">
-            <Sheet>
-              <SheetTrigger asChild>
-                <Button className="lg:hidden" size="icon" variant="ghost">
-                  <Menu />
-                  <span className="sr-only">打开导航</span>
-                </Button>
-              </SheetTrigger>
-              <SheetContent className="w-72 p-0" side="left">
-                <SheetHeader className="border-b px-4 py-4">
-                  <SheetTitle>企业智能知识库系统</SheetTitle>
-                </SheetHeader>
-                <MobileNav activeSection={activeSection} onNavigate={setActiveSection} />
-              </SheetContent>
-            </Sheet>
-
-            <button
-              className="flex min-w-fit items-center gap-2 text-left"
-              onClick={() => setActiveSection('dashboard')}
-              type="button"
-            >
-              <span className="flex size-8 items-center justify-center rounded-md bg-primary text-primary-foreground">
-                <BookOpen className="size-5" />
-              </span>
-              <span className="hidden text-sm font-semibold sm:block">企业智能知识库系统</span>
-            </button>
-
-            <nav className="hidden min-w-0 flex-1 items-center justify-center gap-1 lg:flex">
-              {mainNav.map((item) => (
-                <Button
-                  className={cn(
-                    'h-14 rounded-none border-b-2 border-transparent px-4',
-                    activeSection === item.section &&
-                      'border-primary bg-transparent text-primary hover:bg-transparent',
-                  )}
-                  key={item.section}
-                  onClick={() => setActiveSection(item.section)}
-                  variant="ghost"
-                >
-                  {item.label}
-                </Button>
-              ))}
-            </nav>
-
-            <div className="ml-auto flex items-center gap-1 sm:gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button onClick={() => void refreshObservability()} size="icon" variant="ghost">
-                    <RefreshCw />
-                    <span className="sr-only">刷新状态</span>
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>刷新系统状态</TooltipContent>
-              </Tooltip>
-              <Button size="icon" variant="ghost">
-                <Bell />
-                <span className="sr-only">通知</span>
-              </Button>
-              <DropdownMenu>
-                <DropdownMenuTrigger asChild>
-                  <Button className="gap-2 px-2" variant="ghost">
-                    <Avatar className="size-8">
-                      <AvatarFallback>{getUserInitial(authUser?.email)}</AvatarFallback>
-                    </Avatar>
-                    <span className="hidden max-w-32 truncate text-sm md:block">
-                      {authUser?.email ?? '管理员'}
-                    </span>
-                    <ChevronDown className="size-4" />
-                  </Button>
-                </DropdownMenuTrigger>
-                <DropdownMenuContent align="end" className="w-52">
-                  <DropdownMenuLabel>当前账号</DropdownMenuLabel>
-                  <DropdownMenuItem onClick={() => setActiveSection('profile')}>
-                    <UserRound className="size-4" />
-                    个人中心
-                  </DropdownMenuItem>
-                  <DropdownMenuItem onClick={() => setActiveSection('system')}>
-                    <Settings className="size-4" />
-                    系统管理
-                  </DropdownMenuItem>
-                  <DropdownMenuSeparator />
-                  <DropdownMenuItem onClick={clearAuth}>
-                    <LogOut className="size-4" />
-                    退出登录
-                  </DropdownMenuItem>
-                </DropdownMenuContent>
-              </DropdownMenu>
-            </div>
-          </div>
-        </header>
-
-        <div className="grid min-h-[calc(100vh-3.5rem)] grid-cols-1 lg:grid-cols-[180px_minmax(0,1fr)]">
-          <aside className="hidden border-r bg-card lg:block">
-            <PageSideNav activeSection={activeSection} />
+        <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)]">
+          <aside className="hidden border-r border-border bg-card lg:block">
+            <PageSideNav activeSection={activeSection} onNavigate={setActiveSection} />
           </aside>
 
-          <section className="min-w-0 p-4 lg:p-5">
-            {error ? <ErrorBanner message={error} /> : null}
-            {loading ? <WorkspaceSkeleton /> : <SectionContent activeSection={activeSection} />}
-          </section>
+          <div className="min-w-0">
+            <TopBar
+              activeSection={activeSection}
+              authUserEmail={authUser?.email ?? null}
+              clearAuth={clearAuth}
+              onNavigate={setActiveSection}
+              onRefresh={() => void refreshObservability()}
+            />
+
+            <section className="mx-auto w-full max-w-[1440px] min-w-0 p-4 sm:p-5 lg:p-6">
+              {error ? <ErrorBanner message={error} /> : null}
+              {loading ? <WorkspaceSkeleton /> : <SectionContent activeSection={activeSection} />}
+            </section>
+          </div>
         </div>
       </main>
     </TooltipProvider>
   );
 }
 
-function MobileNav({
+function TopBar({
+  activeSection,
+  authUserEmail,
+  clearAuth,
+  onNavigate,
+  onRefresh,
+}: {
+  activeSection: AppSection;
+  authUserEmail: string | null;
+  clearAuth: () => void;
+  onNavigate: (section: AppSection) => void;
+  onRefresh: () => void;
+}) {
+  const meta = sectionMeta[activeSection];
+  const search = useSearchStore((state) => state.search);
+  const setSearchQuery = useSearchStore((state) => state.setQuery);
+  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
+  const [globalQuery, setGlobalQuery] = useState('');
+
+  const handleGlobalSearch = (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+
+    const query = globalQuery.trim();
+
+    if (!query) {
+      return;
+    }
+
+    setSearchQuery(query);
+    onNavigate('search');
+
+    if (selectedSpaceId) {
+      void search();
+    }
+  };
+
+  return (
+    <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">
+      <div className="grid h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 sm:px-5 lg:grid-cols-[minmax(210px,0.7fr)_minmax(280px,560px)_auto] lg:px-6">
+        <div className="flex min-w-0 items-center gap-3">
+          <Sheet>
+            <SheetTrigger asChild>
+              <Button className="lg:hidden" size="icon" variant="ghost">
+                <Menu />
+                <span className="sr-only">打开导航</span>
+              </Button>
+            </SheetTrigger>
+            <SheetContent className="w-[300px] p-0" side="left">
+              <SheetHeader className="border-b border-border px-4 py-4 text-left">
+                <SheetTitle>企业知识库</SheetTitle>
+              </SheetHeader>
+              <PageSideNav activeSection={activeSection} onNavigate={onNavigate} />
+            </SheetContent>
+          </Sheet>
+
+          <div className="min-w-0">
+            <div className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
+              {meta.breadcrumb.map((item, index) => (
+                <span className="inline-flex items-center gap-1" key={`${item}-${index}`}>
+                  {index > 0 ? <span className="text-slate-300">/</span> : null}
+                  {item}
+                </span>
+              ))}
+            </div>
+            <h1 className="truncate text-sm font-semibold leading-5 text-foreground sm:text-base">
+              {meta.title}
+            </h1>
+          </div>
+        </div>
+
+        <form className="hidden min-w-0 md:block" onSubmit={handleGlobalSearch}>
+          <div className="relative">
+            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              className="h-9 border-slate-200 bg-slate-50 pl-9 pr-16 shadow-none"
+              onChange={(event) => setGlobalQuery(event.target.value)}
+              placeholder="搜索文档、知识空间、标签和问答记录"
+              value={globalQuery}
+            />
+            <span className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] text-muted-foreground xl:inline">
+              Enter
+            </span>
+          </div>
+        </form>
+
+        <div className="ml-auto flex items-center gap-1">
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button onClick={onRefresh} size="icon" variant="ghost">
+                <RefreshCw />
+                <span className="sr-only">刷新状态</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>刷新状态</TooltipContent>
+          </Tooltip>
+          <Tooltip>
+            <TooltipTrigger asChild>
+              <Button size="icon" variant="ghost">
+                <CircleHelp />
+                <span className="sr-only">帮助</span>
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent>帮助中心</TooltipContent>
+          </Tooltip>
+          <Button className="relative" size="icon" variant="ghost">
+            <Bell />
+            <span className="absolute right-2 top-2 size-1.5 rounded-full bg-red-500" />
+            <span className="sr-only">通知</span>
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button className="gap-2 px-2" variant="ghost">
+                <Avatar className="size-8">
+                  <AvatarFallback>{getUserInitial(authUserEmail)}</AvatarFallback>
+                </Avatar>
+                <span className="hidden max-w-32 truncate text-sm md:block">
+                  {authUserEmail ?? '管理员'}
+                </span>
+                <ChevronDown className="size-4 text-muted-foreground" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-52">
+              <DropdownMenuLabel>当前账号</DropdownMenuLabel>
+              <DropdownMenuItem onClick={() => onNavigate('profile')}>
+                <UserRound className="size-4" />
+                个人中心
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => onNavigate('system')}>
+                <Settings className="size-4" />
+                系统管理
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem onClick={clearAuth}>
+                <LogOut className="size-4" />
+                退出登录
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
+      </div>
+    </header>
+  );
+}
+
+function PageSideNav({
   activeSection,
   onNavigate,
 }: {
   activeSection: AppSection;
   onNavigate: (section: AppSection) => void;
 }) {
-  return (
-    <nav className="grid gap-1 p-3">
-      {mainNav.map((item) => {
-        const Icon = item.icon;
-
-        return (
-          <button
-            className={cn(
-              'flex items-center gap-3 rounded-md px-3 py-2 text-sm text-muted-foreground',
-              activeSection === item.section && 'bg-accent text-primary',
-            )}
-            key={item.section}
-            onClick={() => onNavigate(item.section)}
-            type="button"
-          >
-            <Icon className="size-4" />
-            {item.label}
-          </button>
-        );
-      })}
-    </nav>
-  );
-}
-
-function PageSideNav({ activeSection }: { activeSection: AppSection }) {
   const items = sectionSubNav[activeSection];
   const documents = useWorkbenchStore((state) => state.documents);
+  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const spaces = useWorkbenchStore((state) => state.spaces);
+  const readiness = useObservabilityStore((state) => state.readiness);
+  const activeSpace = spaces.find((space) => space.id === selectedSpaceId);
 
   return (
-    <div className="flex h-full flex-col">
-      <div className="border-b px-4 py-5">
-        <p className="text-sm font-semibold">{mainNav.find((item) => item.section === activeSection)?.label}</p>
-        <p className="mt-1 text-xs text-muted-foreground">当前空间 {spaces.length || 0} 个，文档 {documents.length || 0} 份</p>
+    <div className="flex h-full min-h-screen flex-col bg-card">
+      <div className="border-b border-border px-4 py-4">
+        <button
+          className="flex w-full items-center gap-3 rounded-md px-1 py-1 text-left"
+          onClick={() => onNavigate('dashboard')}
+          type="button"
+        >
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
+            <BookOpen className="size-5" />
+          </span>
+          <span className="min-w-0">
+            <span className="block truncate text-sm font-semibold">企业知识库</span>
+            <span className="block truncate text-xs text-muted-foreground">Knowledge Console</span>
+          </span>
+        </button>
       </div>
-      <nav className="grid gap-1 p-3">
-        {items.map((item, index) => {
+
+      <div className="border-b border-border p-3">
+        <p className="px-2 pb-2 text-[11px] font-medium uppercase text-muted-foreground">主导航</p>
+        <nav className="grid gap-1">
+          {mainNav.map((item) => {
+            const Icon = item.icon;
+            const active = activeSection === item.section;
+
+            return (
+              <button
+                className={cn(
+                  'flex items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm text-slate-600 transition hover:bg-muted hover:text-foreground',
+                  active && 'bg-slate-900 text-white hover:bg-slate-900 hover:text-white',
+                )}
+                key={item.section}
+                onClick={() => onNavigate(item.section)}
+                type="button"
+              >
+                <Icon className="size-4 shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </button>
+            );
+          })}
+        </nav>
+      </div>
+
+      <div className="p-3">
+        <p className="px-2 pb-2 text-[11px] font-medium uppercase text-muted-foreground">
+          {sectionMeta[activeSection].title}
+        </p>
+        <nav className="grid gap-1">
+          {items.map((item, index) => {
           const Icon = item.icon;
 
           return (
             <button
               className={cn(
-                'flex items-center gap-3 rounded-md px-3 py-2 text-left text-sm text-muted-foreground transition hover:bg-accent hover:text-accent-foreground',
+                'flex items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground',
                 index === 0 && 'bg-accent text-primary',
               )}
               key={item.label}
               type="button"
             >
-              <Icon className="size-4" />
-              {item.label}
+              <Icon className="size-4 shrink-0" />
+              <span className="truncate">{item.label}</span>
             </button>
           );
         })}
       </nav>
+      </div>
+
       <div className="mt-auto border-t p-3">
-        <div className="rounded-md bg-muted px-3 py-2 text-xs text-muted-foreground">
-          <div className="mb-1 flex items-center gap-2 font-medium text-foreground">
-            <PanelLeft className="size-3.5" />
-            可扩展后台
+        <div className="rounded-lg border border-border bg-slate-50 p-3 text-xs">
+          <div className="mb-2 flex items-center justify-between gap-2">
+            <span className="font-medium text-foreground">当前空间</span>
+            <Badge variant={readiness?.status === 'ok' ? 'success' : 'secondary'}>
+              {readiness?.status === 'ok' ? '健康' : '待检查'}
+            </Badge>
           </div>
-          后续搜索接口和图谱浏览接口接入后，可直接扩展当前页面。
+          <p className="truncate text-muted-foreground">{activeSpace?.name ?? '未选择知识空间'}</p>
+          <div className="mt-3 grid grid-cols-2 gap-2">
+            <div className="rounded-md border bg-white px-2 py-1.5">
+              <div className="text-sm font-semibold">{spaces.length}</div>
+              <div className="text-[11px] text-muted-foreground">空间</div>
+            </div>
+            <div className="rounded-md border bg-white px-2 py-1.5">
+              <div className="text-sm font-semibold">{documents.length}</div>
+              <div className="text-[11px] text-muted-foreground">文档</div>
+            </div>
+          </div>
         </div>
       </div>
     </div>
@@ -527,23 +660,23 @@ function LoginPage() {
   };
 
   return (
-    <main className="grid min-h-screen bg-background lg:grid-cols-[1.05fr_1fr]">
-      <section className="hidden items-center justify-center bg-[#edf4ff] px-12 lg:flex">
-        <div className="max-w-xl">
+    <main className="grid min-h-screen bg-background lg:grid-cols-[minmax(420px,0.9fr)_1fr]">
+      <section className="hidden items-center justify-center border-r border-border bg-card px-12 lg:flex">
+        <div className="max-w-lg">
           <div className="mb-10 flex items-center gap-3">
             <span className="flex size-10 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <BookOpen className="size-6" />
             </span>
-            <span className="text-lg font-semibold">企业智能知识库系统</span>
+            <span className="text-lg font-semibold">企业知识库</span>
           </div>
-          <h1 className="text-4xl font-semibold tracking-normal text-slate-950">让企业知识更好找、更好问、更好用</h1>
-          <p className="mt-5 max-w-md text-base leading-8 text-slate-600">
-            汇聚企业文档、知识空间、智能问答和引用溯源，把原本面向工程演示的工作台整理成普通用户也能理解的知识库后台。
+          <h1 className="text-3xl font-semibold tracking-normal text-slate-950">清晰管理企业知识状态</h1>
+          <p className="mt-4 max-w-md text-base leading-7 text-slate-600">
+            围绕文档入库、智能检索、AI 问答和引用溯源构建的企业级知识工作台。
           </p>
-          <div className="mt-12 grid max-w-md grid-cols-3 gap-4">
+          <div className="mt-10 grid max-w-md grid-cols-3 gap-3">
             {loginHighlights.map(({ icon: Icon, label }) => (
-              <div className="rounded-lg border border-blue-100 bg-white/70 p-4" key={label}>
-                <Icon className="mb-3 size-6 text-primary" />
+              <div className="rounded-lg border border-border bg-slate-50 p-4" key={label}>
+                <Icon className="mb-3 size-5 text-primary" />
                 <span className="text-sm font-medium">{label}</span>
               </div>
             ))}
@@ -552,12 +685,12 @@ function LoginPage() {
       </section>
 
       <section className="flex items-center justify-center px-5 py-10">
-        <Card className="w-full max-w-md border-slate-200 shadow-md">
+        <Card className="w-full max-w-md border-slate-200 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
           <CardHeader className="text-center">
             <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground lg:hidden">
               <BookOpen className="size-7" />
             </div>
-            <CardTitle className="text-2xl">登录系统</CardTitle>
+            <CardTitle className="text-2xl">登录企业知识库</CardTitle>
             <CardDescription>欢迎登录企业智能知识库系统</CardDescription>
           </CardHeader>
           <CardContent>
@@ -612,9 +745,11 @@ function DashboardPage() {
   const totalSize = documents.reduce((sum, document) => sum + (document.size ?? 0), 0);
   const chartData = useMemo(() => buildDailyDocumentData(documents), [documents]);
   const statusData = useMemo(() => buildStatusData(documents), [documents]);
+  const currentSpace = spaces.find((space) => space.id === selectedSpaceId);
+  const readyRate = documents.length ? Math.round((readyCount / documents.length) * 100) : 0;
   const chartConfig = {
     count: {
-      color: '#1677ff',
+      color: '#2563eb',
       label: '新增文档',
     },
   } satisfies ChartConfig;
@@ -635,10 +770,45 @@ function DashboardPage() {
           </div>
         }
         description="从文档入库、搜索问答到系统健康状态，集中查看企业知识库运行情况。"
-        title="首页大盘"
+        title="仪表盘"
       />
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
+      <Card className="overflow-hidden">
+        <CardContent className="grid gap-4 p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+          <div className="min-w-0">
+            <div className="mb-2 flex flex-wrap items-center gap-2">
+              <Badge variant={readiness?.status === 'ok' ? 'success' : 'warning'}>
+                {readiness?.status === 'ok' ? '系统健康' : '状态待检查'}
+              </Badge>
+              <span className="text-sm text-muted-foreground">
+                {currentSpace ? `当前空间：${currentSpace.name}` : '尚未选择知识空间'}
+              </span>
+            </div>
+            <h2 className="text-xl font-semibold text-foreground">一眼看到知识状态</h2>
+            <p className="mt-1 text-sm text-muted-foreground">
+              {documents.length > 0
+                ? `${documents.length} 份文档中 ${readyCount} 份可检索，解析成功率 ${readyRate}%。`
+                : '创建知识空间并上传文档后，这里会显示真实知识状态。'}
+            </p>
+          </div>
+          <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[520px]">
+            <Button className="justify-start" onClick={() => setActiveSection('documents')} variant="outline">
+              <UploadCloud />
+              上传文档
+            </Button>
+            <Button className="justify-start" onClick={() => setActiveSection('search')} variant="outline">
+              <Search />
+              查找知识
+            </Button>
+            <Button className="justify-start" onClick={() => setActiveSection('assistant')}>
+              <Bot />
+              发起问答
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-5">
         <StatCard icon={Database} label="知识空间" value={spaces.length} />
         <StatCard icon={FileText} label="文档总数" value={documents.length} />
         <StatCard icon={CheckCircle2} label="已解析文档" value={readyCount} />
@@ -665,15 +835,15 @@ function DashboardPage() {
               <AreaChart data={chartData}>
                 <defs>
                   <linearGradient id="fillCount" x1="0" x2="0" y1="0" y2="1">
-                    <stop offset="5%" stopColor="#1677ff" stopOpacity={0.35} />
-                    <stop offset="95%" stopColor="#1677ff" stopOpacity={0.03} />
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.22} />
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0.02} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid vertical={false} />
                 <XAxis dataKey="label" tickLine={false} />
                 <YAxis allowDecimals={false} tickLine={false} width={28} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Area dataKey="count" fill="url(#fillCount)" stroke="#1677ff" strokeWidth={2} type="monotone" />
+                <Area dataKey="count" fill="url(#fillCount)" stroke="#2563eb" strokeWidth={2} type="monotone" />
               </AreaChart>
             </ChartContainer>
           </CardContent>
@@ -818,6 +988,7 @@ function DocumentsPage() {
   const [keyword, setKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'ALL'>('ALL');
   const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
+  const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
 
   const filteredDocuments = useMemo(
     () =>
@@ -868,9 +1039,51 @@ function DocumentsPage() {
             </Button>
           </form>
         }
-        description="上传、解析、筛选和管理企业知识库文档。"
-        title="文档管理"
+        description="选择知识空间、上传文档、开始解析，完成知识入库。"
+        title="文档中心"
       />
+
+      <Card>
+        <CardContent className="grid gap-3 p-4 md:grid-cols-3">
+          <div className="rounded-md border border-border bg-slate-50 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-medium">1. 知识空间</span>
+              <Badge variant={selectedSpace ? 'success' : 'secondary'}>
+                {selectedSpace ? '已选择' : '待选择'}
+              </Badge>
+            </div>
+            <p className="mt-2 truncate text-sm text-muted-foreground">
+              {selectedSpace?.name ?? '创建或选择一个空间'}
+            </p>
+          </div>
+          <div className="rounded-md border border-border bg-slate-50 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-medium">2. 文档上传</span>
+              <Badge variant={uploadState.status === 'uploading' ? 'warning' : file ? 'info' : 'secondary'}>
+                {uploadState.status === 'uploading' ? '上传中' : file ? '已选择' : '待上传'}
+              </Badge>
+            </div>
+            <p className="mt-2 truncate text-sm text-muted-foreground">
+              {file?.name ?? uploadState.filename ?? `${documents.length} 份文档`}
+            </p>
+          </div>
+          <div className="rounded-md border border-border bg-slate-50 p-3">
+            <div className="flex items-center justify-between gap-2">
+              <span className="text-sm font-medium">3. 解析入库</span>
+              <Badge variant={ingestionState.status === 'running' ? 'warning' : selectedDocument?.status === 'READY' ? 'success' : 'secondary'}>
+                {ingestionState.status === 'running'
+                  ? '解析中'
+                  : selectedDocument
+                    ? statusLabel[selectedDocument.status]
+                    : '待选择'}
+              </Badge>
+            </div>
+            <p className="mt-2 truncate text-sm text-muted-foreground">
+              {selectedDocument?.title ?? '选择文档后开始解析'}
+            </p>
+          </div>
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <Card>
@@ -1135,7 +1348,7 @@ function SearchPage() {
 
   return (
     <div className="grid gap-4">
-      <PageHeader description="用自然语言检索知识库，并查看引用来源。" title="智能搜索" />
+      <PageHeader description="用自然语言检索知识库，并查看引用来源。" title="搜索中心" />
 
       <Card>
         <CardContent className="pt-5">
@@ -1179,7 +1392,7 @@ function SearchPage() {
         <div className="grid gap-4">
           <Card>
             <CardHeader>
-              <CardTitle>搜索摘要</CardTitle>
+            <CardTitle>答案摘要</CardTitle>
               <CardDescription>由现有 AI 问答接口生成，结果会基于引用来源呈现。</CardDescription>
             </CardHeader>
             <CardContent>
@@ -1200,7 +1413,7 @@ function SearchPage() {
           <Card>
             <CardHeader className="flex-row items-center justify-between space-y-0">
               <div>
-                <CardTitle>相关结果</CardTitle>
+                <CardTitle>命中来源</CardTitle>
                 <CardDescription>{filteredCitations.length} 条引用来源</CardDescription>
               </div>
               <Badge variant="info">来自 citations</Badge>
@@ -1302,7 +1515,7 @@ function AssistantPage() {
           </Button>
         }
         description="面向企业知识库的自然语言问答，回答会附带引用来源。"
-        title="AI智能问答"
+        title="AI 智能问答"
       />
       {error ? <ErrorBanner message={error} /> : null}
       <div className="grid min-h-[calc(100vh-12rem)] gap-4 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
@@ -1783,10 +1996,10 @@ function PageHeader({
   title: string;
 }) {
   return (
-    <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
       <div>
-        <h1 className="text-2xl font-semibold tracking-normal text-foreground">{title}</h1>
-        <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+        <h1 className="text-xl font-semibold tracking-normal text-foreground sm:text-2xl">{title}</h1>
+        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{description}</p>
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
     </div>
@@ -1806,23 +2019,23 @@ function StatCard({
 }) {
   return (
     <Card>
-      <CardContent className="flex items-center gap-4 p-5">
-        <span
-          className={cn(
-            'flex size-12 shrink-0 items-center justify-center rounded-full',
-            tone === 'success'
-              ? 'bg-emerald-50 text-emerald-600'
-              : tone === 'warning'
-                ? 'bg-amber-50 text-amber-600'
-                : 'bg-blue-50 text-primary',
-          )}
-        >
-          <Icon className="size-6" />
-        </span>
-        <div className="min-w-0">
+      <CardContent className="p-4">
+        <div className="flex items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">{label}</p>
-          <p className="mt-1 truncate text-2xl font-semibold tracking-normal">{value}</p>
+          <span
+            className={cn(
+              'flex size-8 shrink-0 items-center justify-center rounded-md border',
+              tone === 'success'
+                ? 'border-emerald-200 bg-emerald-50 text-emerald-600'
+                : tone === 'warning'
+                  ? 'border-amber-200 bg-amber-50 text-amber-600'
+                  : 'border-blue-200 bg-blue-50 text-primary',
+            )}
+          >
+            <Icon className="size-4" />
+          </span>
         </div>
+        <p className="mt-3 truncate text-2xl font-semibold tracking-normal">{value}</p>
       </CardContent>
     </Card>
   );
@@ -1839,7 +2052,7 @@ function MetricLine({ label, value }: { label: string; value: ReactNode }) {
 
 function ErrorBanner({ message }: { message: string }) {
   return (
-    <div className="rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+    <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
       {message}
     </div>
   );
@@ -1857,8 +2070,8 @@ function EmptyState({
   title: string;
 }) {
   return (
-    <div className="grid place-items-center rounded-md border border-dashed bg-muted/20 px-6 py-10 text-center">
-      <Icon className="mb-3 size-8 text-muted-foreground" />
+    <div className="grid place-items-center rounded-md border border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center">
+      <Icon className="mb-3 size-8 text-slate-400" />
       <p className="font-medium">{title}</p>
       <p className="mt-1 max-w-md text-sm text-muted-foreground">{description}</p>
       {action ? <div className="mt-4">{action}</div> : null}
@@ -1899,7 +2112,7 @@ function CitationResultCard({ citation, index }: { citation: AgentCitation; inde
   const isGraph = citation.chunkId.startsWith('graph:') || Boolean(citation.metadata.graphSource);
 
   return (
-    <article className="rounded-md border p-4 text-sm">
+    <article className="rounded-md border border-border bg-card p-4 text-sm transition hover:border-slate-300 hover:bg-slate-50">
       <div className="flex flex-wrap items-center gap-2">
         <Badge variant={isGraph ? 'info' : 'secondary'}>{isGraph ? '图谱关系' : '文档引用'}</Badge>
         <span className="font-medium">结果 {index}</span>

@@ -8,7 +8,7 @@ const compat = new FlatCompat({
   baseDirectory: __dirname,
 });
 
-export default [
+const config = [
   ...baseConfig,
   ...compat.extends('next/core-web-vitals', 'next/typescript'),
   {
@@ -18,3 +18,5 @@ export default [
     },
   },
 ];
+
+export default config;

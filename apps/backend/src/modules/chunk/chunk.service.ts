@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { SearchService, type SearchChunkDocument } from '../../infrastructure/search';
 import type { DocumentContentMetadata } from '../document';
 import { ChunkRepository } from './chunk.repository';
@@ -9,6 +9,8 @@ import { TokenSplitter } from './splitters/token.splitter';
 
 @Injectable()
 export class ChunkService {
+  private readonly logger = new Logger(ChunkService.name);
+
   constructor(
     private readonly chunkRepository: ChunkRepository,
     private readonly markdownHeaderSplitter: MarkdownHeaderSplitter,
@@ -41,8 +43,8 @@ export class ChunkService {
 
     const createdChunks = await this.chunkRepository.createMany(chunks);
 
-    await this.searchService.deleteDocumentChunks(documentId);
-    await this.searchService.indexChunks(
+    await this.syncSearchIndexSafely(
+      documentId,
       createdChunks.map((chunk) => ({
         allowedDepartmentIds: chunk.metadata.allowedDepartmentIds,
         chunkId: chunk.id,
@@ -62,6 +64,22 @@ export class ChunkService {
     );
 
     return createdChunks;
+  }
+
+  private async syncSearchIndexSafely(
+    documentId: string,
+    chunks: SearchChunkDocument[],
+  ): Promise<void> {
+    try {
+      await this.searchService.deleteDocumentChunks(documentId);
+      await this.searchService.indexChunks(chunks);
+    } catch (error) {
+      this.logger.warn(
+        `Search index sync failed for document ${documentId}; ingestion will continue. ${this.toErrorMessage(
+          error,
+        )}`,
+      );
+    }
   }
 
   private createChunkMetadata(
@@ -90,5 +108,9 @@ export class ChunkService {
     }
 
     return metadata;
+  }
+
+  private toErrorMessage(error: unknown): string {
+    return error instanceof Error ? error.message : String(error);
   }
 }
