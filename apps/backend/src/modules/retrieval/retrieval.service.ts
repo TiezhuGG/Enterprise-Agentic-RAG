@@ -6,6 +6,7 @@ import { GraphRetriever } from './retrievers/graph.retriever';
 import { KeywordRetriever } from './retrievers/keyword.retriever';
 import { VectorRetriever } from './retrievers/vector.retriever';
 import { AccessPolicyService, type KnowledgeResourceMetadata } from '../access-policy';
+import { ChunkRepository, type ChunkEntity } from '../chunk';
 import { DocumentRepository } from '../document';
 import type { KnowledgeSpaceEntity, SpaceMemberRole } from '../knowledge-space';
 import { KnowledgeSpaceService } from '../knowledge-space';
@@ -26,6 +27,8 @@ import {
 } from './retrieval.types';
 
 const unique = (values: string[]): string[] => [...new Set(values.filter(Boolean))];
+const completeDocumentQueryPattern =
+  /(完整|全部|所有|全文|整份|整篇|详细|简历|履历|档案|complete|full|entire|resume|cv)/i;
 
 interface TenantScopedRetrievalContext {
   context: KnowledgeRequestContext;
@@ -43,6 +46,7 @@ interface RetrievalStageOutcome<T> {
 export class RetrievalService {
   constructor(
     private readonly accessPolicyService: AccessPolicyService,
+    private readonly chunkRepository: ChunkRepository,
     private readonly contextBuilder: ContextBuilder,
     private readonly documentRepository: DocumentRepository,
     private readonly graphRetriever: GraphRetriever,
@@ -165,10 +169,11 @@ export class RetrievalService {
       stages.push(rerankerStage.breakdown);
       this.throwFirstStageError([rerankerStage]);
       const rerankedResults = rerankerStage.result;
+      const expandedResults = await this.expandCompleteDocumentResults(query, rerankedResults);
       const contextStage = await this.runPipelineStage(
         'context-builder',
-        rerankedResults.length,
-        () => this.contextBuilder.buildContextChunks(rerankedResults, contextTokenBudget),
+        expandedResults.length,
+        () => this.contextBuilder.buildContextChunks(expandedResults, contextTokenBudget),
       );
 
       stages.push(contextStage.breakdown);
@@ -214,6 +219,97 @@ export class RetrievalService {
     }
 
     return value;
+  }
+
+  private async expandCompleteDocumentResults(
+    query: string,
+    results: RetrievalResult[],
+  ): Promise<RetrievalResult[]> {
+    if (!completeDocumentQueryPattern.test(query) || results.length === 0) {
+      return results;
+    }
+
+    const documentId = this.selectDominantDocumentId(results);
+
+    if (!documentId) {
+      return results;
+    }
+
+    const documentChunks = await this.chunkRepository.listByDocumentIds([documentId]);
+
+    if (documentChunks.length === 0) {
+      return results;
+    }
+
+    const maxScore = this.getMaxDocumentScore(results, documentId);
+    const expandedResults = documentChunks.map((chunk) =>
+      this.toExpandedRetrievalResult(chunk, maxScore),
+    );
+    const expandedChunkIds = new Set(expandedResults.map((result) => result.chunkId));
+
+    return [
+      ...expandedResults,
+      ...results.filter(
+        (result) => result.documentId === documentId && !expandedChunkIds.has(result.chunkId),
+      ),
+    ];
+  }
+
+  private selectDominantDocumentId(results: RetrievalResult[]): string | null {
+    const documentScores = new Map<string, { count: number; maxScore: number; firstIndex: number }>();
+
+    results.forEach((result, index) => {
+      const existing = documentScores.get(result.documentId);
+
+      if (!existing) {
+        documentScores.set(result.documentId, {
+          count: 1,
+          firstIndex: index,
+          maxScore: result.score,
+        });
+        return;
+      }
+
+      existing.count += 1;
+      existing.maxScore = Math.max(existing.maxScore, result.score);
+    });
+
+    const [selected] = [...documentScores.entries()].sort((left, right) => {
+      const countDelta = right[1].count - left[1].count;
+
+      if (countDelta !== 0) {
+        return countDelta;
+      }
+
+      const scoreDelta = right[1].maxScore - left[1].maxScore;
+
+      if (scoreDelta !== 0) {
+        return scoreDelta;
+      }
+
+      return left[1].firstIndex - right[1].firstIndex;
+    });
+
+    return selected?.[0] ?? null;
+  }
+
+  private getMaxDocumentScore(results: RetrievalResult[], documentId: string): number {
+    return Math.max(
+      ...results
+        .filter((result) => result.documentId === documentId)
+        .map((result) => result.score),
+      0,
+    );
+  }
+
+  private toExpandedRetrievalResult(chunk: ChunkEntity, score: number): RetrievalResult {
+    return {
+      chunkId: chunk.id,
+      content: chunk.content,
+      documentId: chunk.documentId,
+      metadata: chunk.metadata,
+      score,
+    };
   }
 
   private async createTenantScopedContext(

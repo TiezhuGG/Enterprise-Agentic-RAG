@@ -153,6 +153,32 @@ export class ChunkRepository {
     return chunks.map(toChunkEntity);
   }
 
+  async listByDocumentIds(documentIds: string[]): Promise<ChunkEntity[]> {
+    const uniqueDocumentIds = [...new Set(documentIds.filter(Boolean))];
+
+    if (uniqueDocumentIds.length === 0) {
+      return [];
+    }
+
+    const chunks = await this.prisma.chunk.findMany({
+      orderBy: [
+        {
+          documentId: 'asc',
+        },
+        {
+          sequence: 'asc',
+        },
+      ],
+      where: {
+        documentId: {
+          in: uniqueDocumentIds,
+        },
+      },
+    });
+
+    return chunks.map(toChunkEntity);
+  }
+
   async searchByKeyword(input: KeywordSearchInput): Promise<ChunkSearchResult[]> {
     if (input.spaceIds.length === 0) {
       return [];
