@@ -44,6 +44,7 @@ import {
 } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 'recharts';
 import { AgentDebugWorkbench } from '@/components/agent-debug';
+import { SearchCenter } from '@/components/search';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -1714,185 +1715,7 @@ function DocumentsPage() {
 }
 
 function SearchPage() {
-  const answer = useSearchStore((state) => state.answer);
-  const citations = useSearchStore((state) => state.citations);
-  const error = useSearchStore((state) => state.error);
-  const history = useSearchStore((state) => state.history);
-  const query = useSearchStore((state) => state.query);
-  const running = useSearchStore((state) => state.running);
-  const search = useSearchStore((state) => state.search);
-  const setQuery = useSearchStore((state) => state.setQuery);
-  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
-  const [resultType, setResultType] = useState<'ALL' | 'DOCUMENT' | 'GRAPH'>('ALL');
-
-  const filteredCitations = citations.filter((citation) => {
-    if (resultType === 'ALL') {
-      return true;
-    }
-
-    if (resultType === 'GRAPH') {
-      return citation.chunkId.startsWith('graph:') || Boolean(citation.metadata.graphSource);
-    }
-
-    return !citation.chunkId.startsWith('graph:');
-  });
-
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    void search();
-  };
-
-  return (
-    <div className="grid gap-4">
-      <PageHeader description="用自然语言检索知识库，并查看引用来源。" title="搜索中心" />
-
-      <Card>
-        <CardContent className="pt-5">
-          <form className="grid gap-3" onSubmit={handleSubmit}>
-            <div className="grid gap-2 lg:grid-cols-[minmax(0,1fr)_120px]">
-              <div className="relative">
-                <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-                <Input
-                  className="h-11 pl-9"
-                  onChange={(event) => setQuery(event.target.value)}
-                  placeholder="输入关键词、制度名称或业务问题"
-                  value={query}
-                />
-              </div>
-              <Button
-                className="h-11"
-                disabled={!query.trim() || running || !selectedSpaceId}
-                type="submit"
-              >
-                {running ? <Loader2 className="animate-spin" /> : <Search />}
-                搜索
-              </Button>
-            </div>
-            <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-              <span>结果类型</span>
-              <Select
-                onValueChange={(value) => setResultType(value as typeof resultType)}
-                value={resultType}
-              >
-                <SelectTrigger className="w-40">
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">全部结果</SelectItem>
-                  <SelectItem value="DOCUMENT">文档引用</SelectItem>
-                  <SelectItem value="GRAPH">图谱关系</SelectItem>
-                </SelectContent>
-              </Select>
-              {!selectedSpaceId ? <Badge variant="warning">请先选择知识空间</Badge> : null}
-            </div>
-          </form>
-        </CardContent>
-      </Card>
-
-      {error ? <ErrorBanner message={error} /> : null}
-
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_300px]">
-        <div className="grid gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>答案摘要</CardTitle>
-              <CardDescription>由现有 AI 问答接口生成，结果会基于引用来源呈现。</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {running && !answer ? (
-                <div className="grid gap-3">
-                  <Skeleton className="h-4 w-2/3" />
-                  <Skeleton className="h-4 w-full" />
-                  <Skeleton className="h-4 w-5/6" />
-                </div>
-              ) : answer ? (
-                <div className="prose-text">{renderPlainMarkdown(answer)}</div>
-              ) : (
-                <EmptyState
-                  description="输入问题后，系统会返回摘要和命中文档。"
-                  icon={Search}
-                  title="等待搜索"
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex-row items-center justify-between space-y-0">
-              <div>
-                <CardTitle>命中来源</CardTitle>
-                <CardDescription>{filteredCitations.length} 条引用来源</CardDescription>
-              </div>
-              <Badge variant="info">来自 citations</Badge>
-            </CardHeader>
-            <CardContent className="grid gap-3">
-              {running && filteredCitations.length === 0 ? (
-                <>
-                  <Skeleton className="h-24" />
-                  <Skeleton className="h-24" />
-                </>
-              ) : filteredCitations.length === 0 ? (
-                <EmptyState
-                  description="当前没有可展示的引用来源。"
-                  icon={FileText}
-                  title="暂无结果"
-                />
-              ) : (
-                <CitationDocumentReferences citations={filteredCitations} />
-              )}
-            </CardContent>
-          </Card>
-        </div>
-
-        <div className="grid gap-4">
-          <Card>
-            <CardHeader>
-              <CardTitle>搜索历史</CardTitle>
-              <CardDescription>最近 10 次搜索记录</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-2">
-              {history.length === 0 ? (
-                <EmptyState
-                  description="搜索完成后会保存在这里。"
-                  icon={History}
-                  title="暂无历史"
-                />
-              ) : (
-                history.map((item) => (
-                  <button
-                    className="rounded-md border p-3 text-left text-sm transition hover:bg-muted"
-                    key={item.id}
-                    onClick={() => setQuery(item.query)}
-                    type="button"
-                  >
-                    <div className="line-clamp-2 font-medium">{item.query}</div>
-                    <div className="mt-1 text-xs text-muted-foreground">
-                      {formatDateTime(item.createdAt)} · {item.citations.length} 条来源
-                    </div>
-                  </button>
-                ))
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader>
-              <CardTitle>检索能力路线图</CardTitle>
-              <CardDescription>当前页面先提供可用的智能搜索闭环</CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-3 text-sm">
-              <RoadmapItem title="全文检索" description="后续提供独立 BM25 命中文档列表。" />
-              <RoadmapItem title="语义检索" description="后续提供独立向量召回结果列表。" />
-              <RoadmapItem
-                title="混合检索"
-                description="后续提供关键词 + 向量 + 重排的纯检索页。"
-              />
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
+  return <SearchCenter title="搜索中心" />;
 }
 
 function AssistantPage() {
@@ -2768,18 +2591,6 @@ function MetricLine({ label, value }: { label: string; value: ReactNode }) {
     <div className="flex min-w-0 items-center justify-between gap-3 text-sm">
       <span className="text-muted-foreground">{label}</span>
       <span className="min-w-0 truncate font-medium">{value}</span>
-    </div>
-  );
-}
-
-function RoadmapItem({ description, title }: { description: string; title: string }) {
-  return (
-    <div className="rounded-md border bg-slate-50 p-3">
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-medium">{title}</span>
-        <Badge variant="secondary">待接入</Badge>
-      </div>
-      <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
     </div>
   );
 }

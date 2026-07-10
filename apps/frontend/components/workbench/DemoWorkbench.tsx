@@ -5,6 +5,7 @@ import { AgentDebugWorkbench } from '@/components/agent-debug';
 import { ChatWindow } from '@/components/chat/ChatWindow';
 import { DemoGuidePanel, SystemReadinessPanel } from '@/components/demo';
 import { ObservabilityWorkbench } from '@/components/observability';
+import { SearchCenter } from '@/components/search';
 import { useDemoStore } from '@/store/demo.store';
 import { useObservabilityStore } from '@/store/observability.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
@@ -39,7 +40,7 @@ export function DemoWorkbench() {
           <h1>Demo Workbench</h1>
         </div>
 
-        <div className="workbench-tabs workbench-tabs--four" role="tablist">
+        <div className="workbench-tabs workbench-tabs--five" role="tablist">
           <button
             aria-selected={activeTab === 'pipeline'}
             className={`workbench-tab ${activeTab === 'pipeline' ? 'workbench-tab--active' : ''}`}
@@ -48,6 +49,15 @@ export function DemoWorkbench() {
             type="button"
           >
             Pipeline
+          </button>
+          <button
+            aria-selected={activeTab === 'search'}
+            className={`workbench-tab ${activeTab === 'search' ? 'workbench-tab--active' : ''}`}
+            onClick={() => setActiveTab('search')}
+            role="tab"
+            type="button"
+          >
+            Search
           </button>
           <button
             aria-selected={activeTab === 'observability'}
@@ -108,6 +118,8 @@ export function DemoWorkbench() {
         ) : null}
 
         {activeTab === 'observability' ? <ObservabilityWorkbench /> : null}
+
+        {activeTab === 'search' ? <SearchCenter title="Search Center" /> : null}
 
         {activeTab === 'agent-debug' ? <AgentDebugWorkbench /> : null}
 

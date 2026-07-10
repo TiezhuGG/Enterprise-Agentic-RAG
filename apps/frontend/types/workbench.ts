@@ -1,7 +1,7 @@
 export type SpaceMemberRole = 'OWNER' | 'EDITOR' | 'VIEWER';
 export type AppSection =
   'dashboard' | 'documents' | 'search' | 'assistant' | 'graph' | 'profile' | 'system';
-export type WorkbenchTab = 'pipeline' | 'observability' | 'agent-debug' | 'assistant';
+export type WorkbenchTab = 'pipeline' | 'search' | 'observability' | 'agent-debug' | 'assistant';
 
 export interface SpaceMember {
   spaceId: string;

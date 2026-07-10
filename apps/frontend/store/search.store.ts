@@ -1,36 +1,43 @@
 'use client';
 
 import { create } from 'zustand';
-import { agentService } from '@/services/agent.service';
-import { conversationService } from '@/services/conversation.service';
+import { toUserFacingErrorMessage } from '@/lib/workbench-copy';
+import { searchService } from '@/services/search.service';
+import type { AgentCitation } from '@/types/agent';
 import type {
-  AgentCitation,
-  AgentEvent,
-  DoneEventData,
-  ErrorEventData,
-  TokenEventData,
-} from '@/types/agent';
+  SearchHistoryItem,
+  SearchMode,
+  SearchRequest,
+  SearchResponse,
+  SearchSort,
+} from '@/types/search';
+import type { DocumentType } from '@/types/workbench';
 import { useWorkbenchStore } from './workbench.store';
-
-export interface SearchHistoryItem {
-  answer: string;
-  citations: AgentCitation[];
-  createdAt: string;
-  id: string;
-  query: string;
-}
 
 interface SearchState {
   answer: string;
   citations: AgentCitation[];
-  conversationId: string | null;
+  documentType: DocumentType | 'ALL';
   error: string | null;
   history: SearchHistoryItem[];
+  limit: number;
+  loading: boolean;
+  mode: SearchMode;
+  offset: number;
   query: string;
+  response: SearchResponse | null;
   running: boolean;
-  setQuery: (query: string) => void;
+  sort: SearchSort;
+  nextPage: () => Promise<void>;
+  previousPage: () => Promise<void>;
   reset: () => void;
-  search: () => Promise<void>;
+  search: (options?: { offset?: number }) => Promise<void>;
+  setDocumentType: (documentType: DocumentType | 'ALL') => void;
+  setLimit: (limit: number) => void;
+  setMode: (mode: SearchMode) => void;
+  setQuery: (query: string) => void;
+  setSort: (sort: SearchSort) => void;
+  useHistoryItem: (item: SearchHistoryItem) => void;
 }
 
 const createId = (): string => {
@@ -42,137 +49,143 @@ const createId = (): string => {
 };
 
 const toErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : '搜索请求失败';
+  toUserFacingErrorMessage(error, '搜索请求失败，请稍后重试。');
+
+const normalizeLimit = (limit: number): number => Math.max(1, Math.min(50, Math.round(limit)));
+
+const createRequest = (
+  state: Pick<SearchState, 'documentType' | 'limit' | 'offset' | 'query' | 'sort'>,
+  spaceId: string | null,
+): SearchRequest => ({
+  documentType: state.documentType === 'ALL' ? undefined : state.documentType,
+  limit: state.limit,
+  offset: state.offset,
+  q: state.query.trim(),
+  sort: state.sort,
+  spaceId: spaceId ?? undefined,
+});
 
 export const useSearchStore = create<SearchState>((set, get) => ({
+  documentType: 'ALL',
   answer: '',
   citations: [],
-  conversationId: null,
   error: null,
   history: [],
+  limit: 10,
+  loading: false,
+  mode: 'hybrid',
+  offset: 0,
   query: '',
+  response: null,
   running: false,
+  sort: 'relevance',
+
+  async nextPage() {
+    const state = get();
+
+    if (state.loading || !state.response || state.response.results.length < state.limit) {
+      return;
+    }
+
+    await state.search({ offset: state.offset + state.limit });
+  },
+
+  async previousPage() {
+    const state = get();
+
+    if (state.loading || state.offset === 0) {
+      return;
+    }
+
+    await state.search({ offset: Math.max(0, state.offset - state.limit) });
+  },
 
   reset() {
     set({
-      answer: '',
-      citations: [],
       error: null,
+      loading: false,
+      offset: 0,
       query: '',
+      response: null,
       running: false,
     });
   },
 
-  setQuery(query: string) {
-    set({ query });
-  },
+  async search(options) {
+    const state = get();
+    const query = state.query.trim();
+    const selectedSpaceId = useWorkbenchStore.getState().selectedSpaceId;
+    const offset = options?.offset ?? state.offset;
 
-  async search() {
-    const query = get().query.trim();
-
-    if (!query || get().running) {
+    if (!query || state.loading) {
       return;
     }
 
     set({
-      answer: '',
-      citations: [],
       error: null,
+      loading: true,
+      offset,
       running: true,
     });
 
     try {
-      let conversationId = get().conversationId;
+      const request = createRequest({ ...state, offset, query }, selectedSpaceId);
+      const response = await searchService.search(state.mode, request);
+      const historyItem: SearchHistoryItem = {
+        createdAt: new Date().toISOString(),
+        citations: [],
+        documentType: request.documentType,
+        id: createId(),
+        mode: state.mode,
+        query,
+        resultCount: response.results.length,
+        sort: state.sort,
+        spaceId: selectedSpaceId ?? undefined,
+      };
 
-      if (!conversationId) {
-        const conversation = await conversationService.create('智能搜索');
-        conversationId = conversation.id;
-        set({ conversationId });
-      }
-
-      const selectedSpaceId = useWorkbenchStore.getState().selectedSpaceId;
-      let finalAnswer = '';
-      let finalCitations: AgentCitation[] = [];
-
-      for await (const event of agentService.streamChat({
-        conversationId,
-        question: query,
-        spaceIds: selectedSpaceId ? [selectedSpaceId] : undefined,
-      })) {
-        handleSearchEvent(event, set);
-
-        if (event.type === 'done') {
-          const data = event.data as DoneEventData;
-          finalAnswer = data.answer;
-          finalCitations = data.citations;
-        }
-      }
-
-      const state = get();
-      const answer = finalAnswer || state.answer;
-      const citations = finalCitations.length > 0 ? finalCitations : state.citations;
-
-      set({
-        answer,
-        citations,
-        history: [
-          {
-            answer,
-            citations,
-            createdAt: new Date().toISOString(),
-            id: createId(),
-            query,
-          },
-          ...state.history,
-        ].slice(0, 10),
+      set((current) => ({
+        error: null,
+        history: offset === 0 ? [historyItem, ...current.history].slice(0, 10) : current.history,
+        loading: false,
+        response,
         running: false,
-      });
+      }));
     } catch (error) {
       set({
         error: toErrorMessage(error),
+        loading: false,
         running: false,
       });
     }
   },
+
+  setDocumentType(documentType) {
+    set({ documentType, offset: 0 });
+  },
+
+  setLimit(limit) {
+    set({ limit: normalizeLimit(limit), offset: 0 });
+  },
+
+  setMode(mode) {
+    set({ mode, offset: 0 });
+  },
+
+  setQuery(query) {
+    set({ query, offset: 0 });
+  },
+
+  setSort(sort) {
+    set({ offset: 0, sort });
+  },
+
+  useHistoryItem(item) {
+    set({
+      documentType: item.documentType ?? 'ALL',
+      mode: item.mode,
+      offset: 0,
+      query: item.query,
+      sort: item.sort,
+    });
+  },
 }));
-
-const handleSearchEvent = (
-  event: AgentEvent,
-  set: (partial: Partial<SearchState> | ((state: SearchState) => Partial<SearchState>)) => void,
-): void => {
-  switch (event.type) {
-    case 'token': {
-      const data = event.data as TokenEventData;
-
-      set((state) => ({
-        answer: `${state.answer}${data.token}`,
-      }));
-      break;
-    }
-    case 'citation': {
-      set((state) => ({
-        citations: [...state.citations, event.data as AgentCitation],
-      }));
-      break;
-    }
-    case 'done': {
-      const data = event.data as DoneEventData;
-
-      set({
-        answer: data.answer,
-        citations: data.citations,
-        running: false,
-      });
-      break;
-    }
-    case 'error': {
-      const data = event.data as ErrorEventData;
-
-      set({
-        error: data.message,
-        running: false,
-      });
-      break;
-    }
-  }
-};

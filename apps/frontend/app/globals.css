@@ -686,6 +686,10 @@ textarea:disabled {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.workbench-tabs--five {
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
 .workbench-tab {
   background: transparent;
   border: 0;
@@ -1855,6 +1859,266 @@ textarea:disabled {
   overflow-wrap: anywhere;
 }
 
+.search-center {
+  display: grid;
+  gap: 16px;
+}
+
+.search-center__header,
+.search-center__section-header,
+.search-result-card header,
+.search-result-card footer,
+.search-center__pagination,
+.search-stage {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.search-center__header h2 {
+  font-size: 20px;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.search-center__header span,
+.search-center__hint,
+.search-result-card header span,
+.search-result-card footer,
+.search-history button span,
+.search-empty-state span,
+.search-stage span,
+.search-breakdown__stats span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.search-center__form {
+  display: grid;
+  gap: 14px;
+}
+
+.search-center__query-row {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.search-center__query-input {
+  position: relative;
+}
+
+.search-center__query-input input {
+  padding-left: 36px;
+}
+
+.search-center__query-icon {
+  color: var(--muted-foreground);
+  height: 16px;
+  left: 12px;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 16px;
+}
+
+.search-center__filters {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(180px, 1.1fr) repeat(3, minmax(130px, 0.6fr));
+}
+
+.search-center__field {
+  display: grid;
+  gap: 6px;
+}
+
+.search-center__field span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.search-center__field select {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  min-height: 40px;
+  padding: 0 10px;
+}
+
+.search-center__segmented {
+  background: var(--panel-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  padding: 3px;
+}
+
+.search-center__segmented button {
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--muted-foreground);
+  min-height: 34px;
+}
+
+.search-center__segmented button[aria-pressed='true'] {
+  background: #ffffff;
+  box-shadow: var(--shadow);
+  color: var(--text);
+}
+
+.search-center__grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) minmax(280px, 340px);
+}
+
+.search-center__side,
+.search-center__results,
+.search-result-card,
+.search-breakdown,
+.search-breakdown__stages,
+.search-history {
+  display: grid;
+  gap: 12px;
+}
+
+.search-result-card {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+}
+
+.search-result-card header > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.search-result-card header strong {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.search-result-card__content {
+  line-height: 1.75;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.search-result-card mark {
+  background: #fef3c7;
+  border-radius: 4px;
+  color: #92400e;
+  padding: 0 2px;
+}
+
+.search-center__pagination {
+  border-top: 1px solid var(--border);
+  margin-top: 14px;
+  padding-top: 14px;
+}
+
+.search-center__pagination span {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.search-empty-state,
+.search-center__loading {
+  align-items: center;
+  background: var(--panel-muted);
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  color: var(--muted-foreground);
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  padding: 28px;
+  text-align: center;
+}
+
+.search-empty-state svg,
+.search-center__loading svg,
+.search-center__icon-title svg {
+  height: 16px;
+  width: 16px;
+}
+
+.search-empty-state strong {
+  color: var(--text);
+  font-size: 14px;
+}
+
+.search-center__loading--compact {
+  padding: 18px;
+}
+
+.search-center__icon-title {
+  align-items: center;
+  display: inline-flex;
+  gap: 8px;
+}
+
+.search-breakdown__stats {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.search-breakdown__stats div {
+  background: var(--panel-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+}
+
+.search-breakdown__stats strong {
+  font-size: 18px;
+}
+
+.search-stage {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.search-stage > div {
+  display: grid;
+  gap: 3px;
+}
+
+.search-stage--failed {
+  border-color: #fecaca;
+}
+
+.search-stage--skipped {
+  background: var(--panel-muted);
+}
+
+.search-history button {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 5px;
+  padding: 10px;
+  text-align: left;
+}
+
+.search-history button:hover {
+  background: var(--panel-muted);
+}
+
 @media (max-width: 1180px) {
   .workbench-shell {
     grid-template-columns: 1fr;
@@ -1874,7 +2138,8 @@ textarea:disabled {
   }
 
   .agent-debug-grid,
-  .observability-grid {
+  .observability-grid,
+  .search-center__grid {
     grid-template-columns: minmax(260px, 1fr) minmax(320px, 1fr);
   }
 
@@ -1883,7 +2148,8 @@ textarea:disabled {
   }
 
   .agent-debug-column:last-child,
-  .execution-detail-stack {
+  .execution-detail-stack,
+  .search-center__side {
     grid-column: 1 / -1;
   }
 
@@ -1909,6 +2175,9 @@ textarea:disabled {
   .agent-debug-summary__grid,
   .observability-top-grid,
   .observability-grid,
+  .search-center__grid,
+  .search-center__filters,
+  .search-center__query-row,
   .metrics-breakdown,
   .execution-detail-grid {
     grid-template-columns: 1fr;
@@ -1943,7 +2212,13 @@ textarea:disabled {
   .execution-run__top,
   .execution-run__meta,
   .execution-timeline__top,
-  .execution-timeline__meta {
+  .execution-timeline__meta,
+  .search-center__header,
+  .search-center__section-header,
+  .search-result-card header,
+  .search-result-card footer,
+  .search-center__pagination,
+  .search-stage {
     align-items: flex-start;
     flex-direction: column;
     gap: 4px;
