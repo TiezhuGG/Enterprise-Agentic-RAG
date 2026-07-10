@@ -56,12 +56,31 @@ export interface GraphContext {
   content: string;
   departmentId?: string | null;
   documentId: string;
+  path: GraphPath;
   securityLevel?: string;
   score: number;
   spaceId?: string;
   source: string;
   target: string;
   type: string;
+}
+
+export interface GraphPathNode {
+  id: string;
+  name: string;
+  type: string;
+}
+
+export interface GraphPathRelation {
+  type: string;
+}
+
+export interface GraphPath {
+  documentId: string;
+  relation: GraphPathRelation;
+  source: GraphPathNode;
+  spaceId: string;
+  target: GraphPathNode;
 }
 
 export interface GraphExtractionResult {

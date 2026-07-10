@@ -439,7 +439,11 @@ export class RetrievalService {
       chunkId: result.chunkId,
       content: result.content,
       documentId: result.documentId,
-      metadata: result.metadata,
+      metadata: {
+        ...result.metadata,
+        retrievalSource: result.source,
+        retrievalSources: [result.source],
+      },
       score: result.score,
     };
   }

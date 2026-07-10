@@ -15,6 +15,7 @@ import type {
   DoneEventData,
   ErrorEventData,
   GraphEventData,
+  GraphReasoningPath,
   IterationEventData,
   RetrievalEventData,
   ThoughtEventData,
@@ -53,6 +54,7 @@ interface AgentDebugStore {
   events: AgentDebugEventItem[];
   executionId: string | null;
   graphCount: number | null;
+  graphPaths: GraphReasoningPath[];
   plannerDecision: AgentDebugPlannerDecision | null;
   question: string;
   retrievalCount: number | null;
@@ -116,7 +118,7 @@ const summarizeEvent = (event: AgentEvent): string => {
     case 'graph': {
       const data = event.data as GraphEventData;
 
-      return `${data.count} graph contexts`;
+      return `${data.count} graph contexts / ${data.paths?.length ?? 0} paths`;
     }
     case 'token': {
       const data = event.data as TokenEventData;
@@ -162,6 +164,7 @@ const resetRunState = () => ({
   executionId: null,
   finalResponse: null,
   graphCount: null,
+  graphPaths: [],
   plannerDecision: null,
   retrievalCount: null,
   trace: [],
@@ -192,6 +195,7 @@ export const useAgentDebugStore = create<AgentDebugStore>((set, get) => ({
   executionId: null,
   finalResponse: null,
   graphCount: null,
+  graphPaths: [],
   plannerDecision: null,
   question: '',
   retrievalCount: null,
@@ -290,6 +294,7 @@ export const useAgentDebugStore = create<AgentDebugStore>((set, get) => ({
             set({
               executionId: data.executionId,
               graphCount: data.count,
+              graphPaths: data.paths ?? [],
             });
             break;
           }

@@ -1,4 +1,4 @@
-export interface ChunkMetadata extends Record<string, string | number | string[] | undefined> {
+export interface ChunkMetadata extends Record<string, unknown> {
   allowedDepartmentIds?: string[];
   departmentId?: string;
   documentId: string;

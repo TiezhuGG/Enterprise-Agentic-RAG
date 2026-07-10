@@ -1,5 +1,10 @@
 import { Injectable } from '@nestjs/common';
-import { rrfRankConstant, type RetrievalResult, type RetrieverResult } from '../retrieval.types';
+import {
+  rrfRankConstant,
+  type RetrievalResult,
+  type RetrievalSource,
+  type RetrieverResult,
+} from '../retrieval.types';
 
 interface AccumulatedResult extends RetrievalResult {
   bestSourceScore: number;
@@ -19,6 +24,10 @@ export class RrfFusion {
         if (existingResult) {
           existingResult.score += score;
           existingResult.bestSourceScore = Math.max(existingResult.bestSourceScore, result.score);
+          existingResult.metadata = this.mergeSourceMetadata(
+            existingResult.metadata,
+            result.source,
+          );
           return;
         }
 
@@ -27,7 +36,7 @@ export class RrfFusion {
           documentId: result.documentId,
           content: result.content,
           score,
-          metadata: result.metadata,
+          metadata: this.mergeSourceMetadata(result.metadata, result.source),
           bestSourceScore: result.score,
         });
       });
@@ -51,5 +60,27 @@ export class RrfFusion {
         score: result.score,
         metadata: result.metadata,
       }));
+  }
+
+  private mergeSourceMetadata(
+    metadata: RetrieverResult['metadata'],
+    source: RetrievalSource,
+  ): RetrieverResult['metadata'] {
+    const existingSources = Array.isArray(metadata.retrievalSources)
+      ? metadata.retrievalSources.filter((value): value is RetrievalSource =>
+          ['vector', 'keyword', 'graph'].includes(String(value)),
+        )
+      : [];
+    const retrievalSources = [...new Set([...existingSources, source])];
+
+    return {
+      ...metadata,
+      retrievalSource: retrievalSources.includes('graph')
+        ? 'graph'
+        : retrievalSources.length > 1
+          ? 'hybrid'
+          : retrievalSources[0],
+      retrievalSources,
+    };
   }
 }

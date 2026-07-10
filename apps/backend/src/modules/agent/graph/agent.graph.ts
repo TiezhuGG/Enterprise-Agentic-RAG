@@ -15,6 +15,7 @@ import type {
   RetrievalPipelineStage,
   RetrievalStageBreakdown,
 } from '../../retrieval';
+import type { GraphContext } from '../../knowledge-graph';
 
 export const AGENT_START = START;
 export const AGENT_END = END;
@@ -216,6 +217,7 @@ export class AgentGraph {
           data: {
             count: next.state.graphContext.length,
             executionId: next.state.executionId,
+            paths: this.toGraphPathSummaries(next.state.graphContext),
           },
           type: 'graph',
         });
@@ -344,6 +346,8 @@ export class AgentGraph {
         return {
           count: state.graphContext.length,
           graphCount: state.graphContext.length,
+          graphPathCount: state.graphContext.filter((graphContext) => graphContext.path).length,
+          graphPaths: this.toGraphPathSummaries(state.graphContext),
         };
       case 'answer':
         return {
@@ -399,6 +403,22 @@ export class AgentGraph {
       vectorCount: breakdown.vectorCount,
       vectorDurationMs: this.findStageDuration(breakdown.stages, 'vector'),
     };
+  }
+
+  private toGraphPathSummaries(graphContexts: GraphContext[]): Array<Record<string, unknown>> {
+    return graphContexts.slice(0, 12).map((graphContext) => ({
+      documentId: graphContext.documentId,
+      relation: graphContext.path.relation.type,
+      score: graphContext.score,
+      source: {
+        name: graphContext.path.source.name,
+        type: graphContext.path.source.type,
+      },
+      target: {
+        name: graphContext.path.target.name,
+        type: graphContext.path.target.type,
+      },
+    }));
   }
 
   private findStageDuration(

@@ -12,9 +12,11 @@ import type {
 
 interface GraphContextRow {
   documentId: string;
+  sourceId: string;
   source: string;
   spaceId: string;
   sourceType: string;
+  targetId: string;
   target: string;
   targetType: string;
   type: string;
@@ -58,13 +60,15 @@ const toNumber = (value: unknown): number => {
 };
 
 const toGraphContextRow = (row: unknown[]): GraphContextRow => ({
-  source: toString(row[0]),
-  sourceType: toString(row[1]),
-  target: toString(row[2]),
-  targetType: toString(row[3]),
-  type: toString(row[4]),
-  documentId: toString(row[5]),
-  spaceId: toString(row[6]),
+  sourceId: toString(row[0]),
+  source: toString(row[1]),
+  sourceType: toString(row[2]),
+  targetId: toString(row[3]),
+  target: toString(row[4]),
+  targetType: toString(row[5]),
+  type: toString(row[6]),
+  documentId: toString(row[7]),
+  spaceId: toString(row[8]),
 });
 
 const toGraphNodeRow = (row: unknown[]): GraphNodeRow => ({
@@ -180,7 +184,7 @@ export class KnowledgeGraphRepository {
       MATCH (source:Entity)-[edge:RELATION]-(target:Entity)
       WHERE source.spaceId IN $spaceIds
         AND toLower(source.name) IN $entityNames
-      RETURN source.name, source.type, target.name, target.type, edge.type, edge.documentId, source.spaceId
+      RETURN source.id, source.name, source.type, target.id, target.name, target.type, edge.type, edge.documentId, source.spaceId
       LIMIT $limit
       `,
       {
@@ -196,6 +200,23 @@ export class KnowledgeGraphRepository {
       return {
         content: `${row.source}(${row.sourceType}) -[${row.type}]- ${row.target}(${row.targetType})`,
         documentId: row.documentId,
+        path: {
+          documentId: row.documentId,
+          relation: {
+            type: row.type,
+          },
+          source: {
+            id: row.sourceId,
+            name: row.source,
+            type: row.sourceType,
+          },
+          spaceId: row.spaceId,
+          target: {
+            id: row.targetId,
+            name: row.target,
+            type: row.targetType,
+          },
+        },
         score: 1 / (index + 1),
         spaceId: row.spaceId,
         source: row.source,

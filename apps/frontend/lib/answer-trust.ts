@@ -1,4 +1,4 @@
-import type { AgentCitation } from '@/types/agent';
+import type { AgentCitation, GraphReasoningPath } from '@/types/agent';
 import type {
   AnswerTrustInput,
   AnswerTrustLevel,
@@ -13,6 +13,13 @@ const trustLabels: Record<AnswerTrustLevel, string> = {
   none: '没有找到依据',
 };
 
+const retrievalSourceLabels: Record<string, string> = {
+  graph: 'Graph',
+  hybrid: 'Hybrid',
+  keyword: 'Keyword',
+  vector: 'Vector',
+};
+
 export const calculateAnswerTrust = ({
   citations,
   verificationResult,
@@ -20,7 +27,7 @@ export const calculateAnswerTrust = ({
 }: AnswerTrustInput): AnswerTrustSummary => {
   if (citations.length === 0) {
     return {
-      description: '当前回答没有可展示引用。建议换个问题，或确认文档已完成入库。',
+      description: '当前回答没有可展示引用。建议换一个问题，或确认文档已完成入库。',
       label: trustLabels.none,
       level: 'none',
       maxScore: null,
@@ -72,7 +79,62 @@ export const calculateAnswerTrust = ({
 export const isGraphCitation = (citation: AgentCitation): boolean =>
   citation.chunkId.startsWith('graph:') ||
   citation.metadata.documentType === 'GRAPH' ||
+  citation.metadata.retrievalSource === 'graph' ||
   Boolean(citation.metadata.graphSource);
+
+export const getCitationSourceLabel = (citation: AgentCitation): string => {
+  if (isGraphCitation(citation)) {
+    return retrievalSourceLabels.graph;
+  }
+
+  const sources = Array.isArray(citation.metadata.retrievalSources)
+    ? citation.metadata.retrievalSources.filter(
+        (value): value is string => typeof value === 'string',
+      )
+    : [];
+  const source =
+    sources.length > 1
+      ? 'hybrid'
+      : typeof citation.metadata.retrievalSource === 'string'
+        ? citation.metadata.retrievalSource
+        : sources[0];
+
+  return source ? (retrievalSourceLabels[source] ?? source) : 'Document';
+};
+
+export const getGraphCitationPath = (citation: AgentCitation): GraphReasoningPath | null => {
+  const value = citation.metadata.graphPath;
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const path = value as {
+    documentId?: unknown;
+    relation?: unknown;
+    source?: unknown;
+    target?: unknown;
+  };
+  const source = readGraphPathNode(path.source);
+  const target = readGraphPathNode(path.target);
+  const relation =
+    typeof path.relation === 'string'
+      ? path.relation
+      : path.relation && typeof path.relation === 'object' && !Array.isArray(path.relation)
+        ? readRelationType(path.relation)
+        : null;
+
+  if (!source || !target || !relation) {
+    return null;
+  }
+
+  return {
+    documentId: typeof path.documentId === 'string' ? path.documentId : citation.documentId,
+    relation,
+    source,
+    target,
+  };
+};
 
 export const getCitationSectionTitle = (citation: AgentCitation): string =>
   typeof citation.metadata.sectionTitle === 'string'
@@ -81,6 +143,29 @@ export const getCitationSectionTitle = (citation: AgentCitation): string =>
 
 export const getCitationDocumentType = (citation: AgentCitation): string =>
   typeof citation.metadata.documentType === 'string' ? citation.metadata.documentType : 'DOCUMENT';
+
+const readGraphPathNode = (
+  value: unknown,
+): GraphReasoningPath['source'] | GraphReasoningPath['target'] | null => {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return null;
+  }
+
+  const candidate = value as { name?: unknown; type?: unknown };
+
+  return typeof candidate.name === 'string' && typeof candidate.type === 'string'
+    ? {
+        name: candidate.name,
+        type: candidate.type,
+      }
+    : null;
+};
+
+const readRelationType = (value: object): string | null => {
+  const candidate = value as { type?: unknown };
+
+  return typeof candidate.type === 'string' ? candidate.type : null;
+};
 
 export const toCitationExcerpt = (content: string, maxLength = 260): string => {
   const normalized = content.replace(/\s+/g, ' ').trim();

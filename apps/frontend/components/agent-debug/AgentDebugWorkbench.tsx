@@ -8,6 +8,7 @@ import { useWorkbenchStore } from '@/store/workbench.store';
 import { AgentCitationInspector } from './AgentCitationInspector';
 import { AgentEventTimeline } from './AgentEventTimeline';
 import { AgentExecutionSummary } from './AgentExecutionSummary';
+import { AgentGraphReasoningPath } from './AgentGraphReasoningPath';
 import { AgentRunForm } from './AgentRunForm';
 import { AgentTokenStream } from './AgentTokenStream';
 import { AgentTraceTimeline } from './AgentTraceTimeline';
@@ -23,6 +24,7 @@ export function AgentDebugWorkbench() {
     executionId,
     finalResponse,
     graphCount,
+    graphPaths,
     initialize,
     plannerDecision,
     question,
@@ -81,6 +83,13 @@ export function AgentDebugWorkbench() {
         <div className="agent-debug-column agent-debug-column--wide">
           <AgentTokenStream answer={answer} running={running} />
           <AgentTraceTimeline trace={trace} />
+          <AgentGraphReasoningPath
+            finalResponse={finalResponse}
+            graphCount={graphCount}
+            paths={graphPaths}
+            plannerDecision={plannerDecision}
+            running={running}
+          />
         </div>
         <div className="agent-debug-column">
           <AgentCitationInspector

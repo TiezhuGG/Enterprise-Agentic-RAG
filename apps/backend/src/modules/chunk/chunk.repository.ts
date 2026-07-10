@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma';
+import type { Prisma } from '../../infrastructure/prisma/generated/client';
 import { normalizeDocumentContentMetadata, type DocumentContentEntity } from '../document';
 import type { ChunkEntity, ChunkMetadata } from './chunk.entity';
 
@@ -96,6 +97,9 @@ const toChunkMetadata = (metadata: unknown): ChunkMetadata => {
   return chunkMetadata;
 };
 
+const toPrismaMetadata = (metadata: ChunkMetadata): Prisma.InputJsonObject =>
+  JSON.parse(JSON.stringify(metadata)) as Prisma.InputJsonObject;
+
 @Injectable()
 export class ChunkRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -133,7 +137,7 @@ export class ChunkRepository {
         content: chunk.content,
         sequence: chunk.sequence,
         tokenCount: chunk.tokenCount,
-        metadata: chunk.metadata,
+        metadata: toPrismaMetadata(chunk.metadata),
       })),
     });
 

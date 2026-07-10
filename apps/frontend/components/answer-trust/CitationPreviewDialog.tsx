@@ -1,6 +1,7 @@
 'use client';
 
 import { Download, Loader2 } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 import {
   Dialog,
   DialogContent,
@@ -9,9 +10,13 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
-import { Button } from '@/components/ui/button';
+import {
+  getCitationSectionTitle,
+  getGraphCitationPath,
+  isGraphCitation,
+  toCitationExcerpt,
+} from '@/lib/answer-trust';
 import { useAnswerTrustStore } from '@/store/answer-trust.store';
-import { getCitationSectionTitle, isGraphCitation, toCitationExcerpt } from '@/lib/answer-trust';
 import type { AgentCitation } from '@/types/agent';
 import type { CitationPreviewMatch } from '@/types/answer-trust';
 
@@ -26,6 +31,7 @@ export function CitationPreviewDialog() {
   const match = useAnswerTrustStore((state) => state.match);
   const open = useAnswerTrustStore((state) => state.open);
   const textPreview = useAnswerTrustStore((state) => state.textPreview);
+  const graphPath = citation ? getGraphCitationPath(citation) : null;
 
   return (
     <Dialog onOpenChange={(nextOpen) => (!nextOpen ? closePreview() : undefined)} open={open}>
@@ -35,7 +41,7 @@ export function CitationPreviewDialog() {
             {document?.title ?? getCitationSectionTitle(citation ?? fallbackCitation)}
           </DialogTitle>
           <DialogDescription>
-            {citation ? `${citation.documentId} · ${citation.chunkId}` : '等待加载引用'}
+            {citation ? `${citation.documentId} / ${citation.chunkId}` : '等待加载引用'}
           </DialogDescription>
         </DialogHeader>
 
@@ -53,6 +59,13 @@ export function CitationPreviewDialog() {
             <section className="answer-preview-evidence">
               <h3>命中片段</h3>
               <p>{toCitationExcerpt(citation.content, 900)}</p>
+              {graphPath ? (
+                <div className="answer-preview-graph-path">
+                  <strong>{graphPath.source.name}</strong>
+                  <span>{graphPath.relation}</span>
+                  <strong>{graphPath.target.name}</strong>
+                </div>
+              ) : null}
               {isGraphCitation(citation) ? <span>这是图谱引用，当前不打开原文件。</span> : null}
             </section>
 

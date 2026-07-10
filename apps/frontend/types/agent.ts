@@ -24,6 +24,19 @@ export interface AgentCitation {
   metadata: Record<string, unknown>;
 }
 
+export interface GraphReasoningNode {
+  name: string;
+  type: string;
+}
+
+export interface GraphReasoningPath {
+  documentId: string;
+  relation: string;
+  score?: number;
+  source: GraphReasoningNode;
+  target: GraphReasoningNode;
+}
+
 export interface AgentResponse {
   executionId: string;
   answer: string;
@@ -102,6 +115,7 @@ export interface RetrievalEventData {
 export interface GraphEventData {
   executionId: string;
   count: number;
+  paths?: GraphReasoningPath[];
 }
 
 export interface TokenEventData {
