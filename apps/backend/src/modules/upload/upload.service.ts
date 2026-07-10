@@ -21,6 +21,30 @@ import {
 } from './upload.types';
 
 const writeRoles: SpaceMemberRole[] = ['OWNER', 'EDITOR'];
+const genericDocumentMimeTypes = new Set([
+  '',
+  'application/octet-stream',
+  'application/x-download',
+  'binary/octet-stream',
+]);
+const markdownMimeTypes = new Set([
+  'application/markdown',
+  'application/x-markdown',
+  'text/markdown',
+  'text/md',
+  'text/plain',
+  'text/x-markdown',
+]);
+const documentMimeTypesByType: Partial<Record<DocumentType, readonly string[]>> = {
+  MARKDOWN: [...markdownMimeTypes],
+  PDF: ['application/pdf'],
+  TXT: ['text/plain'],
+  WORD: [
+    'application/msword',
+    'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  ],
+};
+const genericMimeDocumentTypes = new Set<DocumentType>(['MARKDOWN', 'PDF', 'TXT', 'WORD']);
 
 @Injectable()
 export class UploadService {
@@ -112,23 +136,25 @@ export class UploadService {
   }
 
   private resolveDocumentType(file: UploadedDocumentFile): DocumentType {
+    const mimeType = this.normalizeMimeType(file.mimetype);
+
     if (
-      file.mimetype.startsWith('image/') &&
-      (allowedUploadMimeTypes as readonly string[]).includes(file.mimetype)
+      mimeType.startsWith('image/') &&
+      (allowedUploadMimeTypes as readonly string[]).includes(mimeType)
     ) {
       return 'IMAGE';
     }
 
     if (
-      file.mimetype.startsWith('audio/') &&
-      (allowedUploadMimeTypes as readonly string[]).includes(file.mimetype)
+      mimeType.startsWith('audio/') &&
+      (allowedUploadMimeTypes as readonly string[]).includes(mimeType)
     ) {
       return 'AUDIO';
     }
 
     if (
-      file.mimetype.startsWith('video/') &&
-      (allowedUploadMimeTypes as readonly string[]).includes(file.mimetype)
+      mimeType.startsWith('video/') &&
+      (allowedUploadMimeTypes as readonly string[]).includes(mimeType)
     ) {
       return 'VIDEO';
     }
@@ -136,11 +162,25 @@ export class UploadService {
     const extension = extname(file.originalname).toLowerCase();
     const type = extensionDocumentTypeMap[extension];
 
-    if (type && (allowedUploadMimeTypes as readonly string[]).includes(file.mimetype)) {
+    if (type && this.isCompatibleDocumentMimeType(type, mimeType)) {
       return type;
     }
 
     throw createAppBadRequestException('UNSUPPORTED_FILE_TYPE');
+  }
+
+  private normalizeMimeType(mimeType: string | undefined): string {
+    return (mimeType ?? '').split(';')[0].trim().toLowerCase();
+  }
+
+  private isCompatibleDocumentMimeType(type: DocumentType, mimeType: string): boolean {
+    const allowedMimeTypes = documentMimeTypesByType[type] ?? [];
+
+    if (allowedMimeTypes.includes(mimeType)) {
+      return true;
+    }
+
+    return genericMimeDocumentTypes.has(type) && genericDocumentMimeTypes.has(mimeType);
   }
 
   private resolveTitle(title: string | undefined, filename: string): string {

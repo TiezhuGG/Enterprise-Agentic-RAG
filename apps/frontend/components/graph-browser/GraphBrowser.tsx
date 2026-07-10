@@ -24,7 +24,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import {
-  selectGraphVisibleView,
+  createGraphVisibleView,
   useGraphBrowserStore,
   type GraphVisibleView,
 } from '@/store/graph-browser.store';
@@ -74,7 +74,18 @@ export function GraphBrowser() {
     typeFilter,
     view,
   } = useGraphBrowserStore();
-  const visibleView = useGraphBrowserStore(selectGraphVisibleView);
+  const visibleView = useMemo(
+    () =>
+      createGraphVisibleView({
+        hopDepth,
+        selectedEdgeId,
+        selectedNodeId,
+        submittedQuery,
+        typeFilter,
+        view,
+      }),
+    [hopDepth, selectedEdgeId, selectedNodeId, submittedQuery, typeFilter, view],
+  );
   const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
   const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
   const selectedEdge = visibleView?.selectedEdge ?? null;

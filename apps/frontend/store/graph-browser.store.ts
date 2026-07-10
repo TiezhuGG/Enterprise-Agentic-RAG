@@ -40,6 +40,11 @@ export interface GraphVisibleView extends GraphView {
   typeOptions: string[];
 }
 
+type GraphVisibleViewInput = Pick<
+  GraphBrowserState,
+  'hopDepth' | 'selectedEdgeId' | 'selectedNodeId' | 'submittedQuery' | 'typeFilter' | 'view'
+>;
+
 const graphLimit = 160;
 
 export const useGraphBrowserStore = create<GraphBrowserState>((set, get) => ({
@@ -159,7 +164,7 @@ export const useGraphBrowserStore = create<GraphBrowserState>((set, get) => ({
   },
 }));
 
-export const selectGraphVisibleView = (state: GraphBrowserState): GraphVisibleView | null => {
+export const createGraphVisibleView = (state: GraphVisibleViewInput): GraphVisibleView | null => {
   if (!state.view) {
     return null;
   }

@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
   Activity,
@@ -44,7 +45,6 @@ import {
 } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 'recharts';
 import { AgentDebugWorkbench } from '@/components/agent-debug';
-import { GraphBrowser } from '@/components/graph-browser';
 import { SearchCenter } from '@/components/search';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
@@ -133,6 +133,10 @@ const acceptedDocumentTypes = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   'text/plain',
   'text/markdown',
+  'text/x-markdown',
+  'text/md',
+  'application/markdown',
+  'application/x-markdown',
   'image/png',
   'image/jpeg',
   'image/webp',
@@ -146,6 +150,14 @@ const acceptedDocumentTypes = [
   'video/webm',
   'video/quicktime',
 ].join(',');
+
+const GraphBrowser = dynamic(
+  () => import('@/components/graph-browser').then((module) => module.GraphBrowser),
+  {
+    loading: () => <GraphBrowserLoading />,
+    ssr: false,
+  },
+);
 
 const mainNav: Array<{ section: AppSection; label: string; icon: LucideIcon }> = [
   { icon: Home, label: '仪表盘', section: 'dashboard' },
@@ -1930,6 +1942,15 @@ function AssistantPage() {
 function GraphPage() {
   return <GraphBrowser />;
 }
+
+function GraphBrowserLoading() {
+  return (
+    <div className="grid min-h-[420px] place-items-center rounded-lg border border-border bg-card text-sm text-muted-foreground">
+      正在加载知识图谱...
+    </div>
+  );
+}
+
 function ProfilePage() {
   const authToken = useWorkbenchStore((state) => state.authToken);
   const authUser = useWorkbenchStore((state) => state.authUser);
