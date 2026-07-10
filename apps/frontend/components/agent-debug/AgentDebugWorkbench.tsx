@@ -83,7 +83,11 @@ export function AgentDebugWorkbench() {
           <AgentTraceTimeline trace={trace} />
         </div>
         <div className="agent-debug-column">
-          <AgentCitationInspector citations={citations} />
+          <AgentCitationInspector
+            citations={citations}
+            verificationResult={finalResponse?.metadata.verificationResult}
+            verified={finalResponse?.metadata.verified}
+          />
         </div>
       </div>
     </div>

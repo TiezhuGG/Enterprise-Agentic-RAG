@@ -10,6 +10,7 @@ import type {
   AgentEvent,
   AgentResponse,
   AgentTraceEntry,
+  AgentVerificationResult,
   ErrorEventData,
   RetrievalEventData,
   ThoughtEventData,
@@ -29,6 +30,8 @@ export interface ChatMessage {
   attachments?: ChatMessageAttachment[];
   citations?: AgentCitation[];
   status?: 'streaming' | 'done' | 'error';
+  verificationResult?: AgentVerificationResult | null;
+  verified?: boolean;
 }
 
 export interface ChatMessageAttachment {
@@ -64,6 +67,8 @@ interface ChatStore {
   streamingMessage: ChatMessage | null;
   trace: AgentTraceItem[];
   citations: AgentCitation[];
+  verificationResult: AgentVerificationResult | null;
+  verified: boolean | null;
   error: string | null;
   initialize: () => Promise<void>;
   setAuthToken: (token: string) => void;
@@ -111,13 +116,54 @@ const traceLabels: Record<string, string> = {
 const mapTraceEntry = (entry: AgentTraceEntry): AgentTraceItem =>
   createTraceItem(entry.node, traceLabels[entry.node] ?? entry.node, entry.status);
 
-const mapConversationMessage = (message: ConversationMessage): ChatMessage => ({
-  content: message.content,
-  createdAt: message.createdAt,
-  id: message.id,
-  role: message.role.toLowerCase() as ChatMessageRole,
-  status: 'done',
-});
+const isAgentCitation = (value: unknown): value is AgentCitation => {
+  if (!value || typeof value !== 'object') {
+    return false;
+  }
+
+  const citation = value as Partial<AgentCitation>;
+
+  return (
+    typeof citation.chunkId === 'string' &&
+    typeof citation.content === 'string' &&
+    typeof citation.documentId === 'string' &&
+    typeof citation.score === 'number'
+  );
+};
+
+const readMessageCitations = (metadata: Record<string, unknown>): AgentCitation[] => {
+  const citations = metadata.citations;
+
+  return Array.isArray(citations) ? citations.filter(isAgentCitation) : [];
+};
+
+const readVerificationResult = (
+  metadata: Record<string, unknown>,
+): AgentVerificationResult | null => {
+  const verificationResult = metadata.verificationResult;
+
+  return verificationResult && typeof verificationResult === 'object'
+    ? (verificationResult as AgentVerificationResult)
+    : null;
+};
+
+const mapConversationMessage = (message: ConversationMessage): ChatMessage => {
+  const role = message.role.toLowerCase() as ChatMessageRole;
+
+  return {
+    citations: role === 'assistant' ? readMessageCitations(message.metadata) : undefined,
+    content: message.content,
+    createdAt: message.createdAt,
+    id: message.id,
+    role,
+    status: 'done',
+    verificationResult: role === 'assistant' ? readVerificationResult(message.metadata) : undefined,
+    verified:
+      role === 'assistant' && typeof message.metadata.verified === 'boolean'
+        ? message.metadata.verified
+        : undefined,
+  };
+};
 
 const toErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : 'Request failed';
@@ -155,6 +201,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
   streaming: false,
   streamingMessage: null,
   trace: [],
+  verificationResult: null,
+  verified: null,
 
   async initialize() {
     set({
@@ -201,6 +249,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
         messages: [],
         streamingMessage: null,
         trace: [],
+        verificationResult: null,
+        verified: null,
       }));
     } catch (error) {
       set({
@@ -217,13 +267,22 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       error: null,
       streamingMessage: null,
       trace: [],
+      verificationResult: null,
+      verified: null,
     });
 
     try {
       const messages = await conversationService.listMessages(conversationId);
+      const mappedMessages = messages.map(mapConversationMessage);
+      const latestAssistantWithCitations = [...mappedMessages]
+        .reverse()
+        .find((message) => message.role === 'assistant' && message.citations?.length);
 
       set({
-        messages: messages.map(mapConversationMessage),
+        citations: latestAssistantWithCitations?.citations ?? [],
+        messages: mappedMessages,
+        verificationResult: latestAssistantWithCitations?.verificationResult ?? null,
+        verified: latestAssistantWithCitations?.verified ?? null,
       });
     } catch (error) {
       set({
@@ -385,6 +444,8 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       streaming: true,
       streamingMessage: assistantMessage,
       trace: [createTraceItem('planner', '问题规划', 'running')],
+      verificationResult: null,
+      verified: null,
     }));
 
     try {
@@ -494,12 +555,16 @@ const handleAgentEvent = (event: AgentEvent, set: ChatStoreSet): void => {
                 content: state.streamingMessage.content || data.answer,
                 citations: data.citations,
                 status: 'done',
+                verificationResult: data.metadata.verificationResult,
+                verified: data.metadata.verified,
               },
             ]
           : state.messages,
         streaming: false,
         streamingMessage: null,
         trace: mapDoneTrace(data),
+        verificationResult: data.metadata.verificationResult,
+        verified: data.metadata.verified,
       }));
       break;
     }

@@ -27,6 +27,8 @@ export function ChatWindow() {
     streamingMessage,
     trace,
     uploadAttachment,
+    verificationResult,
+    verified,
   } = useChatStore();
   const [tokenDraft, setTokenDraft] = useState(authToken);
 
@@ -104,7 +106,11 @@ export function ChatWindow() {
 
       <section className="assistant-inspector" aria-label="Assistant details">
         <AgentTracePanel trace={trace} />
-        <CitationPanel citations={citations} />
+        <CitationPanel
+          citations={citations}
+          verificationResult={verificationResult}
+          verified={verified}
+        />
       </section>
     </main>
   );

@@ -21,7 +21,7 @@ export interface AgentCitation {
   chunkId: string;
   content: string;
   score: number;
-  metadata: Record<string, string | number>;
+  metadata: Record<string, unknown>;
 }
 
 export interface AgentResponse {

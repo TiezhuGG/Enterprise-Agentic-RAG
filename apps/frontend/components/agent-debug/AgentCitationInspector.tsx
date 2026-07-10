@@ -1,50 +1,27 @@
 'use client';
 
-import type { AgentCitation } from '@/types/agent';
-import { DemoEmptyState } from '@/components/demo';
+import { AnswerTrustPanel } from '@/components/answer-trust';
+import type { AgentCitation, AgentVerificationResult } from '@/types/agent';
 
 interface AgentCitationInspectorProps {
   citations: AgentCitation[];
+  verificationResult?: AgentVerificationResult | null;
+  verified?: boolean;
 }
 
-const excerpt = (content: string): string =>
-  content.length > 220 ? `${content.slice(0, 220)}...` : content;
-
-export function AgentCitationInspector({ citations }: AgentCitationInspectorProps) {
+export function AgentCitationInspector({
+  citations,
+  verificationResult,
+  verified,
+}: AgentCitationInspectorProps) {
   return (
     <section className="workbench-panel agent-debug-citation-panel">
-      <div className="workbench-panel__header">
-        <div>
-          <h2>Citations</h2>
-          <span>{citations.length} sources</span>
-        </div>
-      </div>
-
-      {citations.length === 0 ? (
-        <DemoEmptyState
-          title="No Citations"
-          action="Citations appear when retrieval returns sources."
-        />
-      ) : null}
-
-      <div className="agent-debug-citations">
-        {citations.map((citation) => (
-          <article
-            className="agent-debug-citation"
-            key={`${citation.documentId}-${citation.chunkId}`}
-          >
-            <header>
-              <strong>{String(citation.metadata.sectionTitle ?? 'Document')}</strong>
-              <span>{citation.score.toFixed(4)}</span>
-            </header>
-            <p>{excerpt(citation.content)}</p>
-            <footer>
-              <span>{citation.documentId}</span>
-              <span>{citation.chunkId}</span>
-            </footer>
-          </article>
-        ))}
-      </div>
+      <AnswerTrustPanel
+        citations={citations}
+        title="Citations"
+        verificationResult={verificationResult}
+        verified={verified}
+      />
     </section>
   );
 }

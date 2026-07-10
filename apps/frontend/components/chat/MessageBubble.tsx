@@ -1,5 +1,6 @@
 'use client';
 
+import { AnswerTrustPanel } from '@/components/answer-trust';
 import type { ChatMessage } from '@/store/chat.store';
 
 interface MessageBubbleProps {
@@ -25,6 +26,16 @@ export function MessageBubble({ message }: MessageBubbleProps) {
         </div>
       ) : null}
       <div className="message-bubble__content">{renderMarkdown(message.content)}</div>
+      {message.role === 'assistant' && message.citations?.length ? (
+        <div className="message-bubble__citations">
+          <AnswerTrustPanel
+            citations={message.citations}
+            title="本条回答依据"
+            verificationResult={message.verificationResult}
+            verified={message.verified}
+          />
+        </div>
+      ) : null}
     </article>
   );
 }
