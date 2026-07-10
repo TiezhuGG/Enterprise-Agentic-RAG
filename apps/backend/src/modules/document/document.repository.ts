@@ -160,6 +160,25 @@ export class DocumentRepository {
     return document ? toDocumentEntity(document) : null;
   }
 
+  async findActiveByIds(ids: string[]): Promise<DocumentEntity[]> {
+    const documentIds = [...new Set(ids.filter(Boolean))];
+
+    if (documentIds.length === 0) {
+      return [];
+    }
+
+    const documents = await this.prisma.document.findMany({
+      where: {
+        ...activeDocumentWhere,
+        id: {
+          in: documentIds,
+        },
+      },
+    });
+
+    return documents.map(toDocumentEntity);
+  }
+
   async update(id: string, input: UpdateDocumentInput): Promise<DocumentEntity> {
     const document = await this.prisma.document.update({
       where: {

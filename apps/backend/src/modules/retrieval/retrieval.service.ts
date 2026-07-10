@@ -107,17 +107,31 @@ export class RetrievalService {
       const vectorLimit = this.resolveLimit(request.vectorLimit, defaultRetrieverCandidateLimit);
       const keywordLimit = this.resolveLimit(request.keywordLimit, defaultRetrieverCandidateLimit);
       const contextTokenBudget = this.resolveLimit(request.maxContextTokens, MAX_CONTEXT_TOKENS);
+      const mode = request.mode ?? 'hybrid';
+      const shouldRunVector = mode === 'hybrid' || mode === 'vector';
+      const shouldRunKeyword = mode === 'hybrid' || mode === 'keyword';
+      const shouldRunGraph = mode === 'hybrid' && request.enableGraph !== false;
       const [vectorStage, keywordStage, graphStage] = await Promise.all([
-        this.runRetrieverStage('vector', vectorLimit, () =>
-          this.vectorRetriever.retrieve(query, accessContext, vectorLimit),
-        ),
-        this.runRetrieverStage('keyword', keywordLimit, () =>
-          this.keywordRetriever.retrieve(query, accessContext, keywordLimit),
-        ),
-        request.enableGraph === false
-          ? Promise.resolve(this.skipRetrieverStage('graph', 'enableGraph=false', keywordLimit))
-          : this.runRetrieverStage('graph', keywordLimit, () =>
+        shouldRunVector
+          ? this.runRetrieverStage('vector', vectorLimit, () =>
+              this.vectorRetriever.retrieve(query, accessContext, vectorLimit),
+            )
+          : Promise.resolve(this.skipRetrieverStage('vector', `mode=${mode}`, vectorLimit)),
+        shouldRunKeyword
+          ? this.runRetrieverStage('keyword', keywordLimit, () =>
+              this.keywordRetriever.retrieve(query, accessContext, keywordLimit),
+            )
+          : Promise.resolve(this.skipRetrieverStage('keyword', `mode=${mode}`, keywordLimit)),
+        shouldRunGraph
+          ? this.runRetrieverStage('graph', keywordLimit, () =>
               this.graphRetriever.retrieve(query, accessContext, keywordLimit),
+            )
+          : Promise.resolve(
+              this.skipRetrieverStage(
+                'graph',
+                mode === 'hybrid' ? 'enableGraph=false' : `mode=${mode}`,
+                keywordLimit,
+              ),
             ),
       ]);
 
@@ -155,16 +169,22 @@ export class RetrievalService {
       this.throwFirstStageError([permissionStage]);
       const filteredResultSets = permissionStage.result;
       const filteredCount = this.countResults(filteredResultSets);
-      const rrfStage = await this.runPipelineStage('rrf', filteredCount, () =>
-        this.rrfFusion.fuse(filteredResultSets, resultLimit),
-      );
+      const rrfStage =
+        mode === 'hybrid'
+          ? await this.runPipelineStage('rrf', filteredCount, () =>
+              this.rrfFusion.fuse(filteredResultSets, resultLimit),
+            )
+          : this.passThroughRankingStage('rrf', filteredResultSets, resultLimit, `mode=${mode}`);
 
       stages.push(rrfStage.breakdown);
       this.throwFirstStageError([rrfStage]);
       const rrfResults = rrfStage.result;
-      const rerankerStage = await this.runPipelineStage('reranker', rrfResults.length, () =>
-        this.rerankerService.rerank(query, rrfResults),
-      );
+      const rerankerStage =
+        mode === 'hybrid'
+          ? await this.runPipelineStage('reranker', rrfResults.length, () =>
+              this.rerankerService.rerank(query, rrfResults),
+            )
+          : this.passThroughResultsStage('reranker', rrfResults, `mode=${mode}`);
 
       stages.push(rerankerStage.breakdown);
       this.throwFirstStageError([rerankerStage]);
@@ -369,6 +389,59 @@ export class RetrievalService {
 
   private countResults(resultSets: RetrieverResult[][]): number {
     return resultSets.reduce((count, results) => count + results.length, 0);
+  }
+
+  private passThroughRankingStage(
+    stage: Extract<RetrievalPipelineStage, 'rrf'>,
+    resultSets: RetrieverResult[][],
+    limit: number,
+    reason: string,
+  ): RetrievalStageOutcome<RetrievalResult[]> {
+    const results = resultSets
+      .flat()
+      .sort((left, right) => right.score - left.score)
+      .slice(0, limit)
+      .map((result) => this.toRetrievalResult(result));
+
+    return {
+      breakdown: {
+        durationMs: 0,
+        inputCount: this.countResults(resultSets),
+        outputCount: results.length,
+        reason,
+        stage,
+        status: 'skipped',
+      },
+      result: results,
+    };
+  }
+
+  private passThroughResultsStage(
+    stage: Extract<RetrievalPipelineStage, 'reranker'>,
+    results: RetrievalResult[],
+    reason: string,
+  ): RetrievalStageOutcome<RetrievalResult[]> {
+    return {
+      breakdown: {
+        durationMs: 0,
+        inputCount: results.length,
+        outputCount: results.length,
+        reason,
+        stage,
+        status: 'skipped',
+      },
+      result: results,
+    };
+  }
+
+  private toRetrievalResult(result: RetrieverResult): RetrievalResult {
+    return {
+      chunkId: result.chunkId,
+      content: result.content,
+      documentId: result.documentId,
+      metadata: result.metadata,
+      score: result.score,
+    };
   }
 
   private createBreakdown(

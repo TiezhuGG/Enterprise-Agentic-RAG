@@ -9,6 +9,8 @@ export const defaultRetrieverCandidateLimit = 20;
 export const MAX_CONTEXT_TOKENS = 8000;
 export const rrfRankConstant = 60;
 
+export type RetrievalMode = 'hybrid' | 'keyword' | 'vector';
+
 export interface RetrievalRequest {
   query: string;
   limit?: number;
@@ -16,6 +18,7 @@ export interface RetrievalRequest {
   keywordLimit?: number;
   maxContextTokens?: number;
   enableGraph?: boolean;
+  mode?: RetrievalMode;
 }
 
 export interface RetrievalAccessContext {
