@@ -2367,6 +2367,291 @@ textarea:disabled {
   background: var(--panel-muted);
 }
 
+.graph-browser {
+  display: grid;
+  gap: 16px;
+}
+
+.graph-browser__header,
+.graph-browser__section-header,
+.graph-detail-card__top,
+.graph-relation-item span {
+  align-items: center;
+  display: flex;
+  gap: 10px;
+  justify-content: space-between;
+}
+
+.graph-browser__header h2 {
+  font-size: 22px;
+  font-weight: 650;
+  letter-spacing: 0;
+  margin: 0;
+}
+
+.graph-browser__header span,
+.graph-browser__section-header p,
+.graph-browser__field span,
+.graph-detail-card span,
+.graph-browser__empty span,
+.graph-browser__empty-mini {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.graph-browser__stats {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.graph-browser__stat {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  min-height: 74px;
+}
+
+.graph-browser__stat svg {
+  color: var(--primary);
+  height: 18px;
+  width: 18px;
+}
+
+.graph-browser__stat div {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.graph-browser__stat span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.graph-browser__stat strong {
+  font-size: 16px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-browser__toolbar {
+  align-items: end;
+  display: grid;
+  gap: 12px;
+  grid-template-columns: 150px minmax(180px, 1fr) 150px 150px minmax(220px, 1.4fr) auto auto;
+}
+
+.graph-browser__field,
+.graph-browser__query {
+  display: grid;
+  gap: 6px;
+}
+
+.graph-browser__segments {
+  display: grid;
+  gap: 6px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.graph-browser__query {
+  position: relative;
+}
+
+.graph-browser__query svg {
+  color: var(--muted-foreground);
+  height: 15px;
+  left: 10px;
+  position: absolute;
+  top: 33px;
+  width: 15px;
+}
+
+.graph-browser__query input {
+  padding-left: 32px;
+}
+
+.graph-browser__grid {
+  align-items: start;
+  display: grid;
+  gap: 16px;
+  grid-template-columns: minmax(0, 1fr) 360px;
+}
+
+.graph-browser__canvas-card {
+  min-width: 0;
+}
+
+.graph-browser__canvas {
+  background:
+    linear-gradient(rgba(148, 163, 184, 0.08) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(148, 163, 184, 0.08) 1px, transparent 1px), #ffffff;
+  background-size: 28px 28px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  height: min(62vh, 620px);
+  min-height: 420px;
+  overflow: hidden;
+  position: relative;
+}
+
+.graph-browser__edges {
+  inset: 0;
+  position: absolute;
+}
+
+.graph-browser__edge-line {
+  stroke: #94a3b8;
+  stroke-opacity: 0.58;
+  stroke-width: 0.22;
+}
+
+.graph-browser__edge-line--selected {
+  stroke: #2563eb;
+  stroke-opacity: 0.95;
+  stroke-width: 0.5;
+}
+
+.graph-browser__edge-hit {
+  cursor: pointer;
+  opacity: 0;
+  stroke: transparent;
+  stroke-width: 2.8;
+}
+
+.graph-browser__node {
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  gap: 2px;
+  min-height: 58px;
+  padding: 8px 9px;
+  position: absolute;
+  text-align: left;
+  transition:
+    border-color 0.16s ease,
+    box-shadow 0.16s ease,
+    transform 0.16s ease;
+  width: 96px;
+}
+
+.graph-browser__node:hover,
+.graph-browser__node--selected {
+  border-color: #2563eb;
+  box-shadow: 0 10px 22px rgba(37, 99, 235, 0.16);
+  transform: translateY(-1px);
+}
+
+.graph-browser__node strong,
+.graph-relation-item strong {
+  font-size: 12px;
+  line-height: 1.25;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-browser__node span {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-browser__side {
+  display: grid;
+  gap: 16px;
+}
+
+.graph-browser__details,
+.graph-browser__relations {
+  display: grid;
+  gap: 10px;
+}
+
+.graph-detail-card,
+.graph-relation-item {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 12px;
+}
+
+.graph-detail-card strong {
+  align-items: center;
+  display: inline-flex;
+  font-size: 14px;
+  gap: 8px;
+  min-width: 0;
+}
+
+.graph-detail-card strong svg,
+.graph-relation-item span svg {
+  height: 14px;
+  width: 14px;
+}
+
+.graph-relation-item {
+  align-items: center;
+  background: #ffffff;
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.graph-relation-item:hover,
+.graph-relation-item--selected {
+  background: var(--panel-muted);
+  border-color: #93c5fd;
+}
+
+.graph-relation-item__main {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.graph-relation-item span {
+  justify-content: flex-start;
+  min-width: 0;
+}
+
+.graph-browser__loading,
+.graph-browser__empty,
+.graph-browser__empty-mini {
+  align-items: center;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  min-height: 260px;
+  padding: 28px;
+  text-align: center;
+}
+
+.graph-browser__empty-mini {
+  min-height: 120px;
+}
+
+.graph-browser__loading svg,
+.graph-browser__empty svg,
+.graph-browser__empty-mini svg {
+  height: 18px;
+  width: 18px;
+}
+
 @media (max-width: 1180px) {
   .workbench-shell {
     grid-template-columns: 1fr;
@@ -2386,6 +2671,7 @@ textarea:disabled {
   }
 
   .agent-debug-grid,
+  .graph-browser__grid,
   .observability-grid,
   .search-center__grid {
     grid-template-columns: minmax(260px, 1fr) minmax(320px, 1fr);
@@ -2396,6 +2682,7 @@ textarea:disabled {
   }
 
   .agent-debug-column:last-child,
+  .graph-browser__side,
   .execution-detail-stack,
   .search-center__side {
     grid-column: 1 / -1;
@@ -2423,6 +2710,9 @@ textarea:disabled {
   .agent-debug-summary__grid,
   .observability-top-grid,
   .observability-grid,
+  .graph-browser__grid,
+  .graph-browser__stats,
+  .graph-browser__toolbar,
   .search-center__grid,
   .search-center__filters,
   .search-center__query-row,
@@ -2455,6 +2745,8 @@ textarea:disabled {
   .agent-debug-trace__top,
   .agent-debug-citation header,
   .agent-debug-citation footer,
+  .graph-browser__header,
+  .graph-browser__section-header,
   .observability-toolbar,
   .readiness-check__top,
   .metrics-breakdown__item,

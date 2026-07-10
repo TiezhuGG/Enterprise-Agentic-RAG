@@ -24,3 +24,6 @@ export interface GraphView {
   nodes: GraphNode[];
   source: 'document' | 'space';
 }
+
+export type GraphBrowserScope = 'space' | 'document';
+export type GraphHopDepth = 1 | 2;
