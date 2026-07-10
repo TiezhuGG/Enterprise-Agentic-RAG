@@ -256,7 +256,10 @@ export class RetrievalService {
   }
 
   private selectDominantDocumentId(results: RetrievalResult[]): string | null {
-    const documentScores = new Map<string, { count: number; maxScore: number; firstIndex: number }>();
+    const documentScores = new Map<
+      string,
+      { count: number; maxScore: number; firstIndex: number }
+    >();
 
     results.forEach((result, index) => {
       const existing = documentScores.get(result.documentId);
@@ -295,9 +298,7 @@ export class RetrievalService {
 
   private getMaxDocumentScore(results: RetrievalResult[], documentId: string): number {
     return Math.max(
-      ...results
-        .filter((result) => result.documentId === documentId)
-        .map((result) => result.score),
+      ...results.filter((result) => result.documentId === documentId).map((result) => result.score),
       0,
     );
   }

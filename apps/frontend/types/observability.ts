@@ -16,9 +16,14 @@ export type ReadinessCheckName =
   | 'video';
 
 export interface ReadinessCheck {
+  code?: string;
+  configured?: boolean;
   durationMs?: number;
+  inference?: boolean;
   message?: string;
   name: ReadinessCheckName;
+  reachable?: boolean;
+  stage?: 'configuration' | 'connectivity' | 'inference';
   status: ReadinessCheckStatus;
 }
 

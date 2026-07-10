@@ -137,7 +137,11 @@ function createMarkdownReport(report: ProviderSmokeReport): string {
   const readinessRows = report.readiness.checks
     .map(
       (check) =>
-        `| ${check.name} | ${check.status} | ${check.durationMs ?? '-'} | ${check.message ?? ''} |`,
+        `| ${check.name} | ${check.status} | ${check.stage ?? '-'} | ${check.code ?? '-'} | ${
+          check.configured ?? '-'
+        } | ${check.reachable ?? '-'} | ${check.inference ?? '-'} | ${
+          check.durationMs ?? '-'
+        } | ${check.message ?? ''} |`,
     )
     .join('\n');
 
@@ -155,8 +159,8 @@ function createMarkdownReport(report: ProviderSmokeReport): string {
     '',
     '## Readiness',
     '',
-    '| Check | Status | Duration(ms) | Message |',
-    '| --- | --- | --- | --- |',
+    '| Check | Status | Stage | Code | Configured | Reachable | Inference | Duration(ms) | Message |',
+    '| --- | --- | --- | --- | --- | --- | --- | --- | --- |',
     readinessRows,
     '',
     'Sensitive values such as API keys, prompts, answers, and document content are intentionally omitted.',

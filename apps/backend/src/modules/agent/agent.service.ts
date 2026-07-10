@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import type { ExecutionContext } from '../../common';
+import { toAppErrorMessage } from '../../common';
 import { ConfigService } from '../../config';
 import { ObservabilityService } from '../../infrastructure/observability';
 import type { ChatHistoryMessage, ChatRequestDto } from '../chat/chat.types';
@@ -392,7 +393,7 @@ export class AgentService {
   }
 
   private toErrorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : 'Agent execution failed';
+    return toAppErrorMessage(error, 'Agent execution failed');
   }
 
   private async getHistoryMessages(

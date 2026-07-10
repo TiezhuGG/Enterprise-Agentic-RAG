@@ -229,9 +229,11 @@ export class DocumentService {
     const titleExtension = extname(document.title);
     const filename = titleExtension ? document.title : `${document.title}${storageExtension}`;
 
-    return filename
-      .replace(/[/\\]/g, '_')
-      .replace(/[\r\n"]/g, '_')
-      .trim() || `document-${document.id}`;
+    return (
+      filename
+        .replace(/[/\\]/g, '_')
+        .replace(/[\r\n"]/g, '_')
+        .trim() || `document-${document.id}`
+    );
   }
 }

@@ -1,12 +1,6 @@
 export type SpaceMemberRole = 'OWNER' | 'EDITOR' | 'VIEWER';
 export type AppSection =
-  | 'dashboard'
-  | 'documents'
-  | 'search'
-  | 'assistant'
-  | 'graph'
-  | 'profile'
-  | 'system';
+  'dashboard' | 'documents' | 'search' | 'assistant' | 'graph' | 'profile' | 'system';
 export type WorkbenchTab = 'pipeline' | 'observability' | 'agent-debug' | 'assistant';
 
 export interface SpaceMember {

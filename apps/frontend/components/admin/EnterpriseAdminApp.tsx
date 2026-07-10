@@ -42,16 +42,7 @@ import {
   Users,
   type LucideIcon,
 } from 'lucide-react';
-import {
-  Area,
-  AreaChart,
-  CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
-  XAxis,
-  YAxis,
-} from 'recharts';
+import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 'recharts';
 import { AgentDebugWorkbench } from '@/components/agent-debug';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
@@ -91,7 +82,14 @@ import {
 import { Separator } from '@/components/ui/separator';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
@@ -103,7 +101,12 @@ import { useSearchStore } from '@/store/search.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
 import type { AgentCitation } from '@/types/agent';
 import type { GraphView } from '@/types/graph';
-import type { AppSection, DocumentStatus, DocumentType, KnowledgeDocument } from '@/types/workbench';
+import type {
+  AppSection,
+  DocumentStatus,
+  DocumentType,
+  KnowledgeDocument,
+} from '@/types/workbench';
 import { cn } from '@/lib/utils';
 
 const acceptedDocumentTypes = [
@@ -154,7 +157,10 @@ const mainNav: Array<{ section: AppSection; label: string; icon: LucideIcon }> =
   { icon: Settings, label: '系统管理', section: 'system' },
 ];
 
-const sectionMeta: Record<AppSection, { breadcrumb: string[]; description: string; title: string }> = {
+const sectionMeta: Record<
+  AppSection,
+  { breadcrumb: string[]; description: string; title: string }
+> = {
   assistant: {
     breadcrumb: ['AI 中心', 'AI 问答'],
     description: '围绕企业知识库发起问答，实时查看回答依据和引用来源。',
@@ -511,7 +517,9 @@ function TopBar({
                           : '内部空间'}
                     </span>
                   </span>
-                  {space.id === selectedSpaceId ? <CheckCircle2 className="ml-auto size-4 text-emerald-600" /> : null}
+                  {space.id === selectedSpaceId ? (
+                    <CheckCircle2 className="ml-auto size-4 text-emerald-600" />
+                  ) : null}
                 </DropdownMenuItem>
               ))
             )}
@@ -652,22 +660,22 @@ function PageSideNav({
         </p>
         <div className="grid gap-1">
           {items.map((item, index) => {
-          const Icon = item.icon;
+            const Icon = item.icon;
 
-          return (
-            <div
-              className={cn(
-                'flex items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm text-muted-foreground',
-                index === 0 && 'bg-accent text-primary',
-              )}
-              key={item.label}
-            >
-              <Icon className="size-4 shrink-0" />
-              <span className="truncate">{item.label}</span>
-            </div>
-          );
-        })}
-      </div>
+            return (
+              <div
+                className={cn(
+                  'flex items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm text-muted-foreground',
+                  index === 0 && 'bg-accent text-primary',
+                )}
+                key={item.label}
+              >
+                <Icon className="size-4 shrink-0" />
+                <span className="truncate">{item.label}</span>
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       <div className="mt-auto border-t p-3">
@@ -766,7 +774,9 @@ export function LoginPage() {
             </span>
             <span className="text-lg font-semibold">企业知识库</span>
           </div>
-          <h1 className="text-3xl font-semibold tracking-normal text-slate-950">清晰管理企业知识状态</h1>
+          <h1 className="text-3xl font-semibold tracking-normal text-slate-950">
+            清晰管理企业知识状态
+          </h1>
           <p className="mt-4 max-w-md text-base leading-7 text-slate-600">
             围绕文档入库、智能检索、AI 问答和引用溯源构建的企业级知识工作台。
           </p>
@@ -889,11 +899,19 @@ function DashboardPage() {
             </p>
           </div>
           <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[520px]">
-            <Button className="justify-start" onClick={() => setActiveSection('documents')} variant="outline">
+            <Button
+              className="justify-start"
+              onClick={() => setActiveSection('documents')}
+              variant="outline"
+            >
               <UploadCloud />
               上传文档
             </Button>
-            <Button className="justify-start" onClick={() => setActiveSection('search')} variant="outline">
+            <Button
+              className="justify-start"
+              onClick={() => setActiveSection('search')}
+              variant="outline"
+            >
               <Search />
               查找知识
             </Button>
@@ -965,7 +983,13 @@ function DashboardPage() {
                 <XAxis dataKey="label" tickLine={false} />
                 <YAxis allowDecimals={false} tickLine={false} width={28} />
                 <ChartTooltip content={<ChartTooltipContent />} />
-                <Area dataKey="count" fill="url(#fillCount)" stroke="#2563eb" strokeWidth={2} type="monotone" />
+                <Area
+                  dataKey="count"
+                  fill="url(#fillCount)"
+                  stroke="#2563eb"
+                  strokeWidth={2}
+                  type="monotone"
+                />
               </AreaChart>
             </ChartContainer>
           </CardContent>
@@ -982,7 +1006,13 @@ function DashboardPage() {
             <ChartContainer className="mx-auto h-72 max-w-md" config={{}}>
               <PieChart>
                 <ChartTooltip content={<ChartTooltipContent hideLabel />} />
-                <Pie data={statusData} dataKey="value" innerRadius={58} nameKey="name" outerRadius={92}>
+                <Pie
+                  data={statusData}
+                  dataKey="value"
+                  innerRadius={58}
+                  nameKey="name"
+                  outerRadius={92}
+                >
                   {statusData.map((entry) => (
                     <Cell fill={entry.color} key={entry.name} />
                   ))}
@@ -993,7 +1023,10 @@ function DashboardPage() {
               {statusData.map((entry) => (
                 <div className="flex items-center justify-between" key={entry.name}>
                   <span className="flex items-center gap-2">
-                    <span className="size-2.5 rounded-full" style={{ backgroundColor: entry.color }} />
+                    <span
+                      className="size-2.5 rounded-full"
+                      style={{ backgroundColor: entry.color }}
+                    />
                     {entry.name}
                   </span>
                   <span className="font-medium">{entry.value}</span>
@@ -1025,7 +1058,11 @@ function DashboardPage() {
             ) : recentDocuments.length === 0 ? (
               <EmptyState
                 action={<Button onClick={() => setActiveSection('documents')}>去上传文档</Button>}
-                description={selectedSpaceId ? '当前知识空间还没有文档。' : '请选择或创建知识空间后再上传文档。'}
+                description={
+                  selectedSpaceId
+                    ? '当前知识空间还没有文档。'
+                    : '请选择或创建知识空间后再上传文档。'
+                }
                 icon={FileText}
                 title="暂无文档"
               />
@@ -1042,10 +1079,14 @@ function DashboardPage() {
                 <TableBody>
                   {recentDocuments.map((document) => (
                     <TableRow key={document.id}>
-                      <TableCell className="max-w-[320px] truncate font-medium">{document.title}</TableCell>
+                      <TableCell className="max-w-[320px] truncate font-medium">
+                        {document.title}
+                      </TableCell>
                       <TableCell>{typeLabel[document.type]}</TableCell>
                       <TableCell>
-                        <Badge variant={statusVariant[document.status]}>{statusLabel[document.status]}</Badge>
+                        <Badge variant={statusVariant[document.status]}>
+                          {statusLabel[document.status]}
+                        </Badge>
                       </TableCell>
                       <TableCell>{formatDateTime(document.updatedAt)}</TableCell>
                     </TableRow>
@@ -1063,16 +1104,29 @@ function DashboardPage() {
           </CardHeader>
           <CardContent className="grid gap-4">
             <MetricLine label="总容量" value={formatSize(totalSize)} />
-            <MetricLine label="解析成功率" value={documents.length ? `${Math.round((readyCount / documents.length) * 100)}%` : '-'} />
+            <MetricLine
+              label="解析成功率"
+              value={
+                documents.length ? `${Math.round((readyCount / documents.length) * 100)}%` : '-'
+              }
+            />
             <MetricLine label="失败文档" value={failedCount} />
             <Separator />
             <div className="grid gap-2">
               <p className="text-sm font-medium">推荐下一步</p>
-              <Button className="justify-start" onClick={() => setActiveSection('search')} variant="outline">
+              <Button
+                className="justify-start"
+                onClick={() => setActiveSection('search')}
+                variant="outline"
+              >
                 <Search />
                 试试智能搜索
               </Button>
-              <Button className="justify-start" onClick={() => setActiveSection('graph')} variant="outline">
+              <Button
+                className="justify-start"
+                onClick={() => setActiveSection('graph')}
+                variant="outline"
+              >
                 <Network />
                 查看图谱洞察
               </Button>
@@ -1170,7 +1224,9 @@ function DocumentsPage() {
     setPreviewOpen(true);
 
     if (!previewableDocumentTypes.has(document.type)) {
-      setPreviewError('当前文件类型暂不支持在线预览，请下载原文件查看。解析完成后可在元数据中查看文本处理信息。');
+      setPreviewError(
+        '当前文件类型暂不支持在线预览，请下载原文件查看。解析完成后可在元数据中查看文本处理信息。',
+      );
       return;
     }
 
@@ -1239,7 +1295,11 @@ function DocumentsPage() {
           <div className="rounded-md border border-border bg-slate-50 p-3">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-medium">2. 文档上传</span>
-              <Badge variant={uploadState.status === 'uploading' ? 'warning' : file ? 'info' : 'secondary'}>
+              <Badge
+                variant={
+                  uploadState.status === 'uploading' ? 'warning' : file ? 'info' : 'secondary'
+                }
+              >
                 {uploadState.status === 'uploading' ? '上传中' : file ? '已选择' : '待上传'}
               </Badge>
             </div>
@@ -1250,7 +1310,15 @@ function DocumentsPage() {
           <div className="rounded-md border border-border bg-slate-50 p-3">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-medium">3. 解析入库</span>
-              <Badge variant={ingestionState.status === 'running' ? 'warning' : selectedDocument?.status === 'READY' ? 'success' : 'secondary'}>
+              <Badge
+                variant={
+                  ingestionState.status === 'running'
+                    ? 'warning'
+                    : selectedDocument?.status === 'READY'
+                      ? 'success'
+                      : 'secondary'
+                }
+              >
                 {ingestionState.status === 'running'
                   ? '解析中'
                   : selectedDocument
@@ -1271,7 +1339,9 @@ function DocumentsPage() {
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
               <div>
                 <CardTitle>我的文档</CardTitle>
-                <CardDescription>共 {documents.length} 份文档，当前显示 {filteredDocuments.length} 份</CardDescription>
+                <CardDescription>
+                  共 {documents.length} 份文档，当前显示 {filteredDocuments.length} 份
+                </CardDescription>
               </div>
               <form className="flex flex-wrap gap-2" onSubmit={handleUpload}>
                 <input
@@ -1290,14 +1360,25 @@ function DocumentsPage() {
                   <UploadCloud />
                   选择文件
                 </Button>
-                <Button disabled={!selectedSpaceId || !file || uploadState.status === 'uploading'} type="submit">
-                  {uploadState.status === 'uploading' ? <Loader2 className="animate-spin" /> : <UploadCloud />}
+                <Button
+                  disabled={!selectedSpaceId || !file || uploadState.status === 'uploading'}
+                  type="submit"
+                >
+                  {uploadState.status === 'uploading' ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <UploadCloud />
+                  )}
                   批量上传
                 </Button>
               </form>
             </div>
             <div className="grid gap-2 md:grid-cols-[240px_1fr_180px]">
-              <Select disabled={loading || spaces.length === 0} onValueChange={(value) => void selectSpace(value)} value={selectedSpaceId ?? ''}>
+              <Select
+                disabled={loading || spaces.length === 0}
+                onValueChange={(value) => void selectSpace(value)}
+                value={selectedSpaceId ?? ''}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="选择知识空间" />
                 </SelectTrigger>
@@ -1309,8 +1390,15 @@ function DocumentsPage() {
                   ))}
                 </SelectContent>
               </Select>
-              <Input onChange={(event) => setKeyword(event.target.value)} placeholder="搜索文档名称" value={keyword} />
-              <Select onValueChange={(value) => setStatusFilter(value as DocumentStatus | 'ALL')} value={statusFilter}>
+              <Input
+                onChange={(event) => setKeyword(event.target.value)}
+                placeholder="搜索文档名称"
+                value={keyword}
+              />
+              <Select
+                onValueChange={(value) => setStatusFilter(value as DocumentStatus | 'ALL')}
+                value={statusFilter}
+              >
                 <SelectTrigger>
                   <SelectValue />
                 </SelectTrigger>
@@ -1328,7 +1416,11 @@ function DocumentsPage() {
           </CardHeader>
           <CardContent>
             {!selectedSpaceId ? (
-              <EmptyState description="创建或选择知识空间后，即可上传文档。" icon={FolderOpen} title="请选择知识空间" />
+              <EmptyState
+                description="创建或选择知识空间后，即可上传文档。"
+                icon={FolderOpen}
+                title="请选择知识空间"
+              />
             ) : loadingDocuments ? (
               <div className="grid gap-3">
                 <Skeleton className="h-12" />
@@ -1413,7 +1505,9 @@ function DocumentsPage() {
                             <DropdownMenuItem
                               onClick={(event) => {
                                 event.stopPropagation();
-                                void selectDocument(document.id).then(() => ingestSelectedDocument());
+                                void selectDocument(document.id).then(() =>
+                                  ingestSelectedDocument(),
+                                );
                               }}
                             >
                               <RefreshCw className="size-4" />
@@ -1424,7 +1518,9 @@ function DocumentsPage() {
                               className="text-destructive"
                               onClick={(event) => {
                                 event.stopPropagation();
-                                void selectDocument(document.id).then(() => deleteSelectedDocument());
+                                void selectDocument(document.id).then(() =>
+                                  deleteSelectedDocument(),
+                                );
                               }}
                             >
                               <Trash2 className="size-4" />
@@ -1444,7 +1540,9 @@ function DocumentsPage() {
         <Card>
           <CardHeader>
             <CardTitle>解析与详情</CardTitle>
-            <CardDescription>{selectedDocument ? selectedDocument.title : '选择文档后查看详情'}</CardDescription>
+            <CardDescription>
+              {selectedDocument ? selectedDocument.title : '选择文档后查看详情'}
+            </CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             {selectedDocument ? (
@@ -1458,7 +1556,9 @@ function DocumentsPage() {
                 <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
                   <input
                     checked={ingestionOptions.includeGraph}
-                    onChange={(event) => setIngestionOptions({ includeGraph: event.target.checked })}
+                    onChange={(event) =>
+                      setIngestionOptions({ includeGraph: event.target.checked })
+                    }
                     type="checkbox"
                   />
                   <span>解析时抽取知识图谱</span>
@@ -1467,7 +1567,11 @@ function DocumentsPage() {
                   disabled={ingestionState.status === 'running'}
                   onClick={() => void ingestSelectedDocument()}
                 >
-                  {ingestionState.status === 'running' ? <Loader2 className="animate-spin" /> : <RefreshCw />}
+                  {ingestionState.status === 'running' ? (
+                    <Loader2 className="animate-spin" />
+                  ) : (
+                    <RefreshCw />
+                  )}
                   {ingestionState.status === 'running' ? '解析中' : '开始解析'}
                 </Button>
                 <Button onClick={() => setDetailOpen(true)} variant="outline">
@@ -1490,7 +1594,11 @@ function DocumentsPage() {
                 </div>
               </>
             ) : (
-              <EmptyState description="从左侧文档表格选择一份文档。" icon={FileText} title="未选择文档" />
+              <EmptyState
+                description="从左侧文档表格选择一份文档。"
+                icon={FileText}
+                title="未选择文档"
+              />
             )}
           </CardContent>
         </Card>
@@ -1514,7 +1622,11 @@ function DocumentsPage() {
               <MetricLine label="清洗后字符" value={metadata.cleaner.outputLength} />
             </div>
           ) : (
-            <EmptyState description="文档解析完成后会显示元数据。" icon={FileText} title="暂无元数据" />
+            <EmptyState
+              description="文档解析完成后会显示元数据。"
+              icon={FileText}
+              title="暂无元数据"
+            />
           )}
           <DialogFooter>
             <Button onClick={() => setDetailOpen(false)}>关闭</Button>
@@ -1549,7 +1661,11 @@ function DocumentsPage() {
                   <p className="font-medium">暂不能在线预览</p>
                   <p className="mt-2 max-w-md text-sm text-muted-foreground">{previewError}</p>
                   {previewDocument ? (
-                    <Button className="mt-4" onClick={() => void handleDownload(previewDocument)} variant="outline">
+                    <Button
+                      className="mt-4"
+                      onClick={() => void handleDownload(previewDocument)}
+                      variant="outline"
+                    >
                       <Download />
                       下载原文件
                     </Button>
@@ -1557,13 +1673,22 @@ function DocumentsPage() {
                 </div>
               </div>
             ) : previewDocument?.type === 'PDF' && previewFile ? (
-              <iframe className="h-[70vh] w-full bg-white" src={previewFile.url} title={previewDocument.title} />
+              <iframe
+                className="h-[70vh] w-full bg-white"
+                src={previewFile.url}
+                title={previewDocument.title}
+              />
             ) : previewDocument?.type === 'IMAGE' && previewFile ? (
               <div className="grid max-h-[70vh] place-items-center overflow-auto p-4">
                 {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img alt={previewDocument.title} className="max-h-[66vh] max-w-full rounded-md" src={previewFile.url} />
+                <img
+                  alt={previewDocument.title}
+                  className="max-h-[66vh] max-w-full rounded-md"
+                  src={previewFile.url}
+                />
               </div>
-            ) : textPreviewDocumentTypes.has(previewDocument?.type ?? 'TXT') && previewText !== null ? (
+            ) : textPreviewDocumentTypes.has(previewDocument?.type ?? 'TXT') &&
+              previewText !== null ? (
               <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap bg-white p-4 text-sm leading-7">
                 {previewText}
               </pre>
@@ -1634,14 +1759,21 @@ function SearchPage() {
                   value={query}
                 />
               </div>
-              <Button className="h-11" disabled={!query.trim() || running || !selectedSpaceId} type="submit">
+              <Button
+                className="h-11"
+                disabled={!query.trim() || running || !selectedSpaceId}
+                type="submit"
+              >
                 {running ? <Loader2 className="animate-spin" /> : <Search />}
                 搜索
               </Button>
             </div>
             <div className="flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
               <span>结果类型</span>
-              <Select onValueChange={(value) => setResultType(value as typeof resultType)} value={resultType}>
+              <Select
+                onValueChange={(value) => setResultType(value as typeof resultType)}
+                value={resultType}
+              >
                 <SelectTrigger className="w-40">
                   <SelectValue />
                 </SelectTrigger>
@@ -1663,7 +1795,7 @@ function SearchPage() {
         <div className="grid gap-4">
           <Card>
             <CardHeader>
-            <CardTitle>答案摘要</CardTitle>
+              <CardTitle>答案摘要</CardTitle>
               <CardDescription>由现有 AI 问答接口生成，结果会基于引用来源呈现。</CardDescription>
             </CardHeader>
             <CardContent>
@@ -1676,7 +1808,11 @@ function SearchPage() {
               ) : answer ? (
                 <div className="prose-text">{renderPlainMarkdown(answer)}</div>
               ) : (
-                <EmptyState description="输入问题后，系统会返回摘要和命中文档。" icon={Search} title="等待搜索" />
+                <EmptyState
+                  description="输入问题后，系统会返回摘要和命中文档。"
+                  icon={Search}
+                  title="等待搜索"
+                />
               )}
             </CardContent>
           </Card>
@@ -1696,7 +1832,11 @@ function SearchPage() {
                   <Skeleton className="h-24" />
                 </>
               ) : filteredCitations.length === 0 ? (
-                <EmptyState description="当前没有可展示的引用来源。" icon={FileText} title="暂无结果" />
+                <EmptyState
+                  description="当前没有可展示的引用来源。"
+                  icon={FileText}
+                  title="暂无结果"
+                />
               ) : (
                 <CitationDocumentReferences citations={filteredCitations} />
               )}
@@ -1712,7 +1852,11 @@ function SearchPage() {
             </CardHeader>
             <CardContent className="grid gap-2">
               {history.length === 0 ? (
-                <EmptyState description="搜索完成后会保存在这里。" icon={History} title="暂无历史" />
+                <EmptyState
+                  description="搜索完成后会保存在这里。"
+                  icon={History}
+                  title="暂无历史"
+                />
               ) : (
                 history.map((item) => (
                   <button
@@ -1739,7 +1883,10 @@ function SearchPage() {
             <CardContent className="grid gap-3 text-sm">
               <RoadmapItem title="全文检索" description="后续提供独立 BM25 命中文档列表。" />
               <RoadmapItem title="语义检索" description="后续提供独立向量召回结果列表。" />
-              <RoadmapItem title="混合检索" description="后续提供关键词 + 向量 + 重排的纯检索页。" />
+              <RoadmapItem
+                title="混合检索"
+                description="后续提供关键词 + 向量 + 重排的纯检索页。"
+              />
             </CardContent>
           </Card>
         </div>
@@ -1823,8 +1970,12 @@ function AssistantPage() {
                 onClick={() => void selectConversation(conversation.id)}
                 type="button"
               >
-                <div className="line-clamp-1 text-sm font-medium">{conversation.title || '新对话'}</div>
-                <div className="mt-1 text-xs text-muted-foreground">{formatDateTime(conversation.updatedAt)}</div>
+                <div className="line-clamp-1 text-sm font-medium">
+                  {conversation.title || '新对话'}
+                </div>
+                <div className="mt-1 text-xs text-muted-foreground">
+                  {formatDateTime(conversation.updatedAt)}
+                </div>
               </button>
             ))}
             {conversationId ? (
@@ -1856,7 +2007,10 @@ function AssistantPage() {
             {attachments.length > 0 ? (
               <div className="mb-3 flex flex-wrap gap-2">
                 {attachments.map((attachment) => (
-                  <Badge key={attachment.clientId} variant={attachment.status === 'error' ? 'destructive' : 'secondary'}>
+                  <Badge
+                    key={attachment.clientId}
+                    variant={attachment.status === 'error' ? 'destructive' : 'secondary'}
+                  >
                     {attachment.filename}
                     <button
                       className="ml-2 text-muted-foreground hover:text-foreground"
@@ -1883,13 +2037,20 @@ function AssistantPage() {
                     accept="image/*,audio/*,video/*"
                     hidden
                     onChange={(event) => {
-                      Array.from(event.target.files ?? []).forEach((file) => void uploadAttachment(file));
+                      Array.from(event.target.files ?? []).forEach(
+                        (file) => void uploadAttachment(file),
+                      );
                       event.target.value = '';
                     }}
                     ref={fileInputRef}
                     type="file"
                   />
-                  <Button disabled={streaming} onClick={() => fileInputRef.current?.click()} type="button" variant="outline">
+                  <Button
+                    disabled={streaming}
+                    onClick={() => fileInputRef.current?.click()}
+                    type="button"
+                    variant="outline"
+                  >
                     <UploadCloud />
                     附件
                   </Button>
@@ -1916,14 +2077,22 @@ function AssistantPage() {
               </TabsList>
               <TabsContent className="grid gap-3" value="citations">
                 {citations.length === 0 ? (
-                  <EmptyState description="发送问题后会显示引用来源。" icon={FileText} title="暂无引用" />
+                  <EmptyState
+                    description="发送问题后会显示引用来源。"
+                    icon={FileText}
+                    title="暂无引用"
+                  />
                 ) : (
                   <CitationDocumentReferences citations={citations} />
                 )}
               </TabsContent>
               <TabsContent className="grid gap-2" value="trace">
                 {trace.length === 0 ? (
-                  <EmptyState description="系统处理问题时会显示步骤。" icon={Activity} title="暂无过程" />
+                  <EmptyState
+                    description="系统处理问题时会显示步骤。"
+                    icon={Activity}
+                    title="暂无过程"
+                  />
                 ) : (
                   trace.map((item) => <TraceItem item={item} key={item.node} />)
                 )}
@@ -2005,21 +2174,34 @@ function GraphPage() {
 
   return (
     <div className="grid gap-4">
-      <PageHeader
-        description="浏览当前知识空间或选中文档中抽取出的实体关系。"
-        title="知识图谱"
-      />
+      <PageHeader description="浏览当前知识空间或选中文档中抽取出的实体关系。" title="知识图谱" />
 
       <div className="grid gap-4 md:grid-cols-4">
-        <StatCard icon={Network} label="图谱服务" tone={graphCheck?.status === 'ok' ? 'success' : 'warning'} value={graphCheck?.status === 'ok' ? '正常' : '待检查'} />
+        <StatCard
+          icon={Network}
+          label="图谱服务"
+          tone={graphCheck?.status === 'ok' ? 'success' : 'warning'}
+          value={graphCheck?.status === 'ok' ? '正常' : '待检查'}
+        />
         <StatCard icon={Database} label="当前空间" value={currentSpace?.name ?? '未选择'} />
-        <StatCard icon={Sparkles} label="实体数量" value={graphView?.counts.nodes ?? ingestionStatus?.graphEntityCount ?? 0} />
-        <StatCard icon={GitBranch} label="关系数量" value={graphView?.counts.edges ?? ingestionStatus?.graphRelationCount ?? 0} />
+        <StatCard
+          icon={Sparkles}
+          label="实体数量"
+          value={graphView?.counts.nodes ?? ingestionStatus?.graphEntityCount ?? 0}
+        />
+        <StatCard
+          icon={GitBranch}
+          label="关系数量"
+          value={graphView?.counts.edges ?? ingestionStatus?.graphRelationCount ?? 0}
+        />
       </div>
 
       <Card>
         <CardContent className="grid gap-3 p-4 lg:grid-cols-[180px_240px_minmax(0,1fr)_auto]">
-          <Select onValueChange={(value) => setGraphScope(value as 'document' | 'space')} value={graphScope}>
+          <Select
+            onValueChange={(value) => setGraphScope(value as 'document' | 'space')}
+            value={graphScope}
+          >
             <SelectTrigger>
               <SelectValue />
             </SelectTrigger>
@@ -2075,7 +2257,9 @@ function GraphPage() {
           </CardHeader>
           <CardContent>
             {graphLoading ? (
-              <div className="grid h-96 place-items-center text-sm text-muted-foreground">正在加载图谱...</div>
+              <div className="grid h-96 place-items-center text-sm text-muted-foreground">
+                正在加载图谱...
+              </div>
             ) : graphView && graphView.nodes.length > 0 ? (
               <GraphViewCanvas view={graphView} />
             ) : (
@@ -2095,10 +2279,16 @@ function GraphPage() {
             <CardDescription>当前视图中的实体关系</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
-            <MetricLine label="当前图谱状态" value={graphCheck?.status === 'ok' ? '可用' : '未就绪'} />
+            <MetricLine
+              label="当前图谱状态"
+              value={graphCheck?.status === 'ok' ? '可用' : '未就绪'}
+            />
             <MetricLine label="实体数量" value={graphView?.counts.nodes ?? 0} />
             <MetricLine label="关系数量" value={graphView?.counts.edges ?? 0} />
-            <MetricLine label="数据范围" value={graphView?.source === 'document' ? '当前文档' : '当前空间'} />
+            <MetricLine
+              label="数据范围"
+              value={graphView?.source === 'document' ? '当前文档' : '当前空间'}
+            />
             <Separator />
             <div className="grid gap-2">
               <p className="text-sm font-medium">关系列表</p>
@@ -2121,7 +2311,9 @@ function GraphPage() {
               )}
             </div>
             {graphView && graphView.edges.length > 12 ? (
-              <p className="text-xs text-muted-foreground">已显示前 12 条关系，可通过关键词缩小范围。</p>
+              <p className="text-xs text-muted-foreground">
+                已显示前 12 条关系，可通过关键词缩小范围。
+              </p>
             ) : null}
           </CardContent>
         </Card>
@@ -2207,7 +2399,9 @@ function ProfilePage() {
         <Card>
           <CardHeader className="items-center text-center">
             <Avatar className="size-20">
-              <AvatarFallback className="text-2xl">{getUserInitial(authUser?.email)}</AvatarFallback>
+              <AvatarFallback className="text-2xl">
+                {getUserInitial(authUser?.email)}
+              </AvatarFallback>
             </Avatar>
             <CardTitle>{authUser?.email ?? '已登录用户'}</CardTitle>
             <CardDescription>{authUser?.tenantId ?? '当前会话使用本地凭证'}</CardDescription>
@@ -2242,11 +2436,13 @@ function ProfilePage() {
             <div className="grid gap-2">
               <p className="text-sm font-medium">权限</p>
               <div className="flex flex-wrap gap-2">
-                {(authUser?.permissions.length ? authUser.permissions : ['knowledge.read']).map((permission) => (
-                  <Badge key={permission} variant="outline">
-                    {permission}
-                  </Badge>
-                ))}
+                {(authUser?.permissions.length ? authUser.permissions : ['knowledge.read']).map(
+                  (permission) => (
+                    <Badge key={permission} variant="outline">
+                      {permission}
+                    </Badge>
+                  ),
+                )}
               </div>
             </div>
             <Separator />
@@ -2256,9 +2452,14 @@ function ProfilePage() {
                 <p className="text-sm text-muted-foreground">暂无可访问知识空间。</p>
               ) : (
                 spaces.map((space) => (
-                  <div className="flex items-center justify-between rounded-md border p-3 text-sm" key={space.id}>
+                  <div
+                    className="flex items-center justify-between rounded-md border p-3 text-sm"
+                    key={space.id}
+                  >
                     <span>{space.name}</span>
-                    <Badge variant={space.visibility === 'PRIVATE' ? 'secondary' : 'info'}>{space.visibility}</Badge>
+                    <Badge variant={space.visibility === 'PRIVATE' ? 'secondary' : 'info'}>
+                      {space.visibility}
+                    </Badge>
                   </div>
                 ))
               )}
@@ -2311,8 +2512,17 @@ function SystemPage() {
 
         <TabsContent className="grid gap-4" value="status">
           <div className="grid gap-4 md:grid-cols-3">
-            <StatCard icon={Gauge} label="总体状态" tone={readiness?.status === 'ok' ? 'success' : 'warning'} value={readiness?.status === 'ok' ? '正常' : '降级'} />
-            <StatCard icon={Activity} label="监控指标" value={metricsBreakdown ? '已接入' : '待刷新'} />
+            <StatCard
+              icon={Gauge}
+              label="总体状态"
+              tone={readiness?.status === 'ok' ? 'success' : 'warning'}
+              value={readiness?.status === 'ok' ? '正常' : '降级'}
+            />
+            <StatCard
+              icon={Activity}
+              label="监控指标"
+              value={metricsBreakdown ? '已接入' : '待刷新'}
+            />
             <StatCard icon={Database} label="检查项" value={readiness?.checks.length ?? 0} />
           </div>
           <Card>
@@ -2327,18 +2537,36 @@ function SystemPage() {
                   <Skeleton className="h-10" />
                 </div>
               ) : !readiness ? (
-                <EmptyState description="点击刷新全部获取健康状态。" icon={Gauge} title="暂无状态" />
+                <EmptyState
+                  description="点击刷新全部获取健康状态。"
+                  icon={Gauge}
+                  title="暂无状态"
+                />
               ) : (
                 <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                   {readiness.checks.map((check) => (
                     <div className="rounded-md border p-3" key={check.name}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium">{readinessLabel(check.name)}</span>
-                        <Badge variant={check.status === 'ok' ? 'success' : check.status === 'failed' ? 'destructive' : 'secondary'}>
-                          {check.status === 'ok' ? '正常' : check.status === 'failed' ? '失败' : '跳过'}
+                        <Badge
+                          variant={
+                            check.status === 'ok'
+                              ? 'success'
+                              : check.status === 'failed'
+                                ? 'destructive'
+                                : 'secondary'
+                          }
+                        >
+                          {check.status === 'ok'
+                            ? '正常'
+                            : check.status === 'failed'
+                              ? '失败'
+                              : '跳过'}
                         </Badge>
                       </div>
-                      <p className="mt-2 text-xs text-muted-foreground">{check.message ?? `${check.durationMs ?? 0} ms`}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        {check.message ?? `${check.durationMs ?? 0} ms`}
+                      </p>
                     </div>
                   ))}
                 </div>
@@ -2356,7 +2584,11 @@ function SystemPage() {
               </CardHeader>
               <CardContent className="grid max-h-[65vh] gap-2 overflow-auto">
                 {executionRuns.length === 0 ? (
-                  <EmptyState description="问答或搜索后会生成执行记录。" icon={Activity} title="暂无记录" />
+                  <EmptyState
+                    description="问答或搜索后会生成执行记录。"
+                    icon={Activity}
+                    title="暂无记录"
+                  />
                 ) : (
                   executionRuns.map((run) => (
                     <button
@@ -2367,11 +2599,21 @@ function SystemPage() {
                     >
                       <div className="flex items-center justify-between gap-2">
                         <span className="truncate font-medium">{run.source}</span>
-                        <Badge variant={run.status === 'SUCCEEDED' ? 'success' : run.status === 'FAILED' ? 'destructive' : 'warning'}>
+                        <Badge
+                          variant={
+                            run.status === 'SUCCEEDED'
+                              ? 'success'
+                              : run.status === 'FAILED'
+                                ? 'destructive'
+                                : 'warning'
+                          }
+                        >
                           {run.status}
                         </Badge>
                       </div>
-                      <div className="mt-1 text-xs text-muted-foreground">{formatDateTime(run.startedAt)}</div>
+                      <div className="mt-1 text-xs text-muted-foreground">
+                        {formatDateTime(run.startedAt)}
+                      </div>
                     </button>
                   ))
                 )}
@@ -2381,17 +2623,31 @@ function SystemPage() {
             <Card>
               <CardHeader>
                 <CardTitle>执行时间线</CardTitle>
-                <CardDescription>{selectedRun ? selectedRun.executionId : '选择一条执行记录查看详情'}</CardDescription>
+                <CardDescription>
+                  {selectedRun ? selectedRun.executionId : '选择一条执行记录查看详情'}
+                </CardDescription>
               </CardHeader>
               <CardContent className="grid gap-3">
                 {timeline.length === 0 ? (
-                  <EmptyState description="选择执行记录后显示节点步骤。" icon={Activity} title="暂无时间线" />
+                  <EmptyState
+                    description="选择执行记录后显示节点步骤。"
+                    icon={Activity}
+                    title="暂无时间线"
+                  />
                 ) : (
                   timeline.map((event) => (
                     <div className="grid gap-2 rounded-md border p-3 text-sm" key={event.id}>
                       <div className="flex items-center justify-between gap-2">
                         <span className="font-medium">{event.stage}</span>
-                        <Badge variant={event.status === 'SUCCEEDED' ? 'success' : event.status === 'FAILED' ? 'destructive' : 'secondary'}>
+                        <Badge
+                          variant={
+                            event.status === 'SUCCEEDED'
+                              ? 'success'
+                              : event.status === 'FAILED'
+                                ? 'destructive'
+                                : 'secondary'
+                          }
+                        >
                           {event.status}
                         </Badge>
                       </div>
@@ -2416,7 +2672,10 @@ function SystemPage() {
               <CardDescription>仅高级调试场景使用，普通用户无需手动填写。</CardDescription>
             </CardHeader>
             <CardContent>
-              <form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]" onSubmit={handleManualToken}>
+              <form
+                className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]"
+                onSubmit={handleManualToken}
+              >
                 <Input
                   onChange={(event) => setManualTokenDraft(event.target.value)}
                   placeholder="粘贴 JWT Token"
@@ -2459,7 +2718,9 @@ function PageHeader({
   return (
     <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
       <div>
-        <h1 className="text-xl font-semibold tracking-normal text-foreground sm:text-2xl">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-normal text-foreground sm:text-2xl">
+          {title}
+        </h1>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{description}</p>
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
@@ -2535,10 +2796,9 @@ function CitationDocumentReferences({ citations }: { citations: AgentCitation[] 
   const documents = useWorkbenchStore((state) => state.documents);
   const [extraDocuments, setExtraDocuments] = useState<Record<string, KnowledgeDocument>>({});
   const documentById = useMemo(() => {
-    const entries = [...documents, ...Object.values(extraDocuments)].map((document) => [
-      document.id,
-      document,
-    ] as const);
+    const entries = [...documents, ...Object.values(extraDocuments)].map(
+      (document) => [document.id, document] as const,
+    );
 
     return new Map(entries);
   }, [documents, extraDocuments]);
@@ -2558,26 +2818,29 @@ function CitationDocumentReferences({ citations }: { citations: AgentCitation[] 
 
     let canceled = false;
 
-    void Promise.allSettled(missingDocumentIds.map((documentId) => documentService.get(documentId))).then(
-      (results) => {
-        if (canceled) {
-          return;
-        }
+    void Promise.allSettled(
+      missingDocumentIds.map((documentId) => documentService.get(documentId)),
+    ).then((results) => {
+      if (canceled) {
+        return;
+      }
 
-        const loadedDocuments = results
-          .filter((result): result is PromiseFulfilledResult<KnowledgeDocument> => result.status === 'fulfilled')
-          .map((result) => result.value);
+      const loadedDocuments = results
+        .filter(
+          (result): result is PromiseFulfilledResult<KnowledgeDocument> =>
+            result.status === 'fulfilled',
+        )
+        .map((result) => result.value);
 
-        if (loadedDocuments.length === 0) {
-          return;
-        }
+      if (loadedDocuments.length === 0) {
+        return;
+      }
 
-        setExtraDocuments((current) => ({
-          ...current,
-          ...Object.fromEntries(loadedDocuments.map((document) => [document.id, document])),
-        }));
-      },
-    );
+      setExtraDocuments((current) => ({
+        ...current,
+        ...Object.fromEntries(loadedDocuments.map((document) => [document.id, document])),
+      }));
+    });
 
     return () => {
       canceled = true;
@@ -2585,7 +2848,13 @@ function CitationDocumentReferences({ citations }: { citations: AgentCitation[] 
   }, [citations, documentById]);
 
   if (groups.length === 0) {
-    return <EmptyState description="回答完成后会显示引用过的文档。" icon={FileText} title="暂无引用文档" />;
+    return (
+      <EmptyState
+        description="回答完成后会显示引用过的文档。"
+        icon={FileText}
+        title="暂无引用文档"
+      />
+    );
   }
 
   return (
@@ -2615,11 +2884,16 @@ function CitationDocumentReferences({ citations }: { citations: AgentCitation[] 
           </summary>
           <div className="mt-3 grid gap-2">
             {group.citations.map((citation, index) => (
-              <div className="rounded-md border bg-slate-50 p-3 text-xs leading-6" key={`${citation.chunkId}-${index}`}>
+              <div
+                className="rounded-md border bg-slate-50 p-3 text-xs leading-6"
+                key={`${citation.chunkId}-${index}`}
+              >
                 <div className="mb-1 flex flex-wrap gap-2 text-muted-foreground">
                   <span>片段 {index + 1}</span>
                   <span>相关度 {citation.score.toFixed(3)}</span>
-                  {citation.metadata.sectionTitle ? <span>{String(citation.metadata.sectionTitle)}</span> : null}
+                  {citation.metadata.sectionTitle ? (
+                    <span>{String(citation.metadata.sectionTitle)}</span>
+                  ) : null}
                 </div>
                 <p className="line-clamp-4 text-foreground">{citation.content}</p>
               </div>
@@ -2690,7 +2964,8 @@ function DocumentTypeIcon({ type }: { type: DocumentType }) {
 }
 
 function ChatMessageBubble({ message }: { message: ChatMessage }) {
-  const roleLabel = message.role === 'assistant' ? 'AI 助手' : message.role === 'user' ? '我' : '系统';
+  const roleLabel =
+    message.role === 'assistant' ? 'AI 助手' : message.role === 'user' ? '我' : '系统';
 
   return (
     <article className={cn('flex', message.role === 'user' ? 'justify-end' : 'justify-start')}>
@@ -2700,7 +2975,12 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
           message.role === 'user' ? 'bg-primary text-primary-foreground' : 'bg-card',
         )}
       >
-        <div className={cn('mb-1 text-xs', message.role === 'user' ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+        <div
+          className={cn(
+            'mb-1 text-xs',
+            message.role === 'user' ? 'text-primary-foreground/80' : 'text-muted-foreground',
+          )}
+        >
           {roleLabel}
           {message.status === 'streaming' ? ' · 正在生成' : ''}
         </div>
@@ -2740,7 +3020,11 @@ function TraceItem({ item }: { item: AgentTraceItem }) {
       <span
         className={cn(
           'mt-1 size-2.5 rounded-full',
-          item.status === 'success' ? 'bg-emerald-500' : item.status === 'failed' ? 'bg-red-500' : 'bg-amber-500',
+          item.status === 'success'
+            ? 'bg-emerald-500'
+            : item.status === 'failed'
+              ? 'bg-red-500'
+              : 'bg-amber-500',
         )}
       />
       <div className="min-w-0">
@@ -2774,7 +3058,9 @@ function buildStatusData(documents: KnowledgeDocument[]) {
     value: documents.filter((document) => document.status === status).length,
   }));
 
-  return entries.some((entry) => entry.value > 0) ? entries : [{ color: '#dbeafe', name: '暂无数据', value: 1 }];
+  return entries.some((entry) => entry.value > 0)
+    ? entries
+    : [{ color: '#dbeafe', name: '暂无数据', value: 1 }];
 }
 
 function buildCitationDocumentGroups(

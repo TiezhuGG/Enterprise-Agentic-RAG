@@ -5,6 +5,7 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { ExecutionContext } from '../../common';
+import { createAppBadRequestException, toAppErrorMessage } from '../../common';
 import { ObservabilityService } from '../../infrastructure/observability';
 import { ChunkService } from '../chunk';
 import { DocumentProcessingService } from '../document-processing';
@@ -342,7 +343,7 @@ export class IngestionService {
     }
 
     if (!supportedDocumentTypes.has(document.type)) {
-      throw new BadRequestException('Document type is not supported by ingestion pipeline');
+      throw createAppBadRequestException('UNSUPPORTED_FILE_TYPE');
     }
   }
 
@@ -604,6 +605,6 @@ export class IngestionService {
   }
 
   private toErrorMessage(error: unknown): string {
-    return error instanceof Error ? error.message : 'Document ingestion failed';
+    return toAppErrorMessage(error, 'Document ingestion failed');
   }
 }

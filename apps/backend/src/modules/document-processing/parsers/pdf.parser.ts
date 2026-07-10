@@ -213,7 +213,11 @@ export class PdfParser implements DocumentParser {
 
     if (!this.isWithinImageLimit(resizedScreenshot, pdfOcrConfig.maxImageDimension)) {
       throw new BadRequestException(
-        this.buildImageLimitError(pageRenderPlan, resizedScreenshot, pdfOcrConfig.maxImageDimension),
+        this.buildImageLimitError(
+          pageRenderPlan,
+          resizedScreenshot,
+          pdfOcrConfig.maxImageDimension,
+        ),
       );
     }
 

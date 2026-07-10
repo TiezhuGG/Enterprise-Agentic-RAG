@@ -7,6 +7,7 @@ import { SearchModule } from '../search';
 import { StorageModule } from '../storage';
 import { VectorModule } from '../vector';
 import { ObservabilityModule } from './observability.module';
+import { ProviderDiagnosticsService } from './provider-diagnostics.service';
 import { ReadinessController } from './readiness.controller';
 import { ReadinessService } from './readiness.service';
 
@@ -22,7 +23,7 @@ import { ReadinessService } from './readiness.service';
     VectorModule,
   ],
   controllers: [ReadinessController],
-  providers: [ReadinessService],
-  exports: [ReadinessService],
+  providers: [ProviderDiagnosticsService, ReadinessService],
+  exports: [ProviderDiagnosticsService, ReadinessService],
 })
 export class ReadinessModule {}

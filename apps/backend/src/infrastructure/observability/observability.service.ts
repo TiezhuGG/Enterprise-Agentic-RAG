@@ -669,6 +669,7 @@ export class ObservabilityService {
       event: 'provider.health',
       level: input.status === 'failed' ? 'warn' : 'info',
       metadata: {
+        code: input.code,
         message: input.message,
         name: input.name,
       },

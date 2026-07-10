@@ -1,4 +1,5 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { createAppServiceUnavailableException } from '../../common';
 import { ConfigService } from '../../config';
 import type { GraphParameters, GraphQueryResult } from './graph.types';
 
@@ -29,32 +30,45 @@ export class GraphClient {
   }
 
   async run(cypher: string, parameters: GraphParameters = {}): Promise<GraphQueryResult[]> {
-    const response = await fetch(this.endpoint, {
-      method: 'POST',
-      headers: {
-        authorization: `Basic ${Buffer.from(`${this.username}:${this.password}`).toString('base64')}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        statements: [
-          {
-            statement: cypher,
-            parameters,
-            resultDataContents: ['row'],
-          },
-        ],
-      }),
-    });
+    let response: Response;
 
-    if (!response.ok) {
-      throw new ServiceUnavailableException('Neo4j graph request failed');
+    try {
+      response = await fetch(this.endpoint, {
+        method: 'POST',
+        headers: {
+          authorization: `Basic ${Buffer.from(`${this.username}:${this.password}`).toString('base64')}`,
+          'content-type': 'application/json',
+        },
+        body: JSON.stringify({
+          statements: [
+            {
+              statement: cypher,
+              parameters,
+              resultDataContents: ['row'],
+            },
+          ],
+        }),
+      });
+    } catch {
+      throw createAppServiceUnavailableException('GRAPH_UNAVAILABLE');
     }
 
-    const payload = (await response.json()) as Neo4jHttpResponse;
+    if (!response.ok) {
+      throw createAppServiceUnavailableException('GRAPH_UNAVAILABLE');
+    }
+
+    let payload: Neo4jHttpResponse;
+
+    try {
+      payload = (await response.json()) as Neo4jHttpResponse;
+    } catch {
+      throw createAppServiceUnavailableException('GRAPH_UNAVAILABLE');
+    }
+
     const errorMessage = payload.errors?.find((error) => error.message)?.message;
 
     if (errorMessage) {
-      throw new ServiceUnavailableException(`Neo4j graph query failed: ${errorMessage}`);
+      throw createAppServiceUnavailableException('GRAPH_UNAVAILABLE');
     }
 
     return (

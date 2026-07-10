@@ -36,6 +36,20 @@ const formatDuration = (durationMs?: number): string => {
   return `${(durationMs / 1000).toFixed(2)} s`;
 };
 
+const stageLabels: Record<NonNullable<ReadinessCheck['stage']>, string> = {
+  configuration: '配置',
+  connectivity: '连接',
+  inference: '真实调用',
+};
+
+const boolLabel = (value?: boolean): string => {
+  if (value === undefined) {
+    return '-';
+  }
+
+  return value ? '是' : '否';
+};
+
 const shortMessage = (message?: string): string =>
   message ? message.replace(/\s+/g, ' ').slice(0, 120) : '';
 
@@ -67,8 +81,19 @@ export function ReadinessCheckPanel({ loading, onRefresh, readiness }: Readiness
             </div>
             <div className="readiness-check__meta">
               <span>{formatDuration(check.durationMs)}</span>
+              {check.stage ? <span>{stageLabels[check.stage]}</span> : null}
+              {check.code ? <span>{check.code}</span> : null}
               {check.message ? <span>{shortMessage(check.message)}</span> : null}
             </div>
+            {check.configured !== undefined ||
+            check.reachable !== undefined ||
+            check.inference !== undefined ? (
+              <div className="readiness-check__meta readiness-check__meta--compact">
+                <span>配置 {boolLabel(check.configured)}</span>
+                <span>连接 {boolLabel(check.reachable)}</span>
+                <span>调用 {boolLabel(check.inference)}</span>
+              </div>
+            ) : null}
           </article>
         ))}
       </div>

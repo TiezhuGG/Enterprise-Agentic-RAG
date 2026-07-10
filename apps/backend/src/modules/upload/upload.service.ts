@@ -8,6 +8,7 @@ import {
 import { basename, extname, parse } from 'node:path';
 import type { ExecutionContext } from '../../common';
 import { ObservabilityService } from '../../infrastructure/observability';
+import { createAppBadRequestException } from '../../common';
 import { StorageService } from '../../infrastructure/storage';
 import { DocumentRepository, type DocumentEntity, type DocumentType } from '../document';
 import { KnowledgeSpaceRepository, type SpaceMemberRole } from '../knowledge-space';
@@ -139,7 +140,7 @@ export class UploadService {
       return type;
     }
 
-    throw new BadRequestException('Unsupported document file type');
+    throw createAppBadRequestException('UNSUPPORTED_FILE_TYPE');
   }
 
   private resolveTitle(title: string | undefined, filename: string): string {

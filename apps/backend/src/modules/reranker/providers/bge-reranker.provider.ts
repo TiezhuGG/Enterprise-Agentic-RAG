@@ -1,4 +1,5 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { createAppServiceUnavailableException } from '../../../common';
 import { ConfigService } from '../../../config';
 import type { RerankDocument, RerankScore } from '../reranker.types';
 import type { RerankerProvider } from './reranker.provider';
@@ -48,14 +49,14 @@ export class BgeRerankerProvider implements RerankerProvider {
     });
 
     if (!response.ok) {
-      throw new ServiceUnavailableException('Reranker provider request failed');
+      throw createAppServiceUnavailableException('RERANKER_UNAVAILABLE');
     }
 
     const payload = (await response.json()) as OpenAiCompatibleRerankResponse;
     const rawScores = payload.data ?? payload.results;
 
     if (!Array.isArray(rawScores)) {
-      throw new ServiceUnavailableException('Reranker provider returned invalid response');
+      throw createAppServiceUnavailableException('RERANKER_UNAVAILABLE', '重排序返回格式异常');
     }
 
     return rawScores.map((rawScore) => {
@@ -64,7 +65,7 @@ export class BgeRerankerProvider implements RerankerProvider {
       const document = documents[index];
 
       if (!document) {
-        throw new ServiceUnavailableException('Reranker provider returned invalid index');
+        throw createAppServiceUnavailableException('RERANKER_UNAVAILABLE', '重排序返回索引异常');
       }
 
       return {
@@ -78,7 +79,7 @@ export class BgeRerankerProvider implements RerankerProvider {
     const index = Number(rawScore.index ?? rawScore.document_index);
 
     if (!Number.isInteger(index) || index < 0) {
-      throw new ServiceUnavailableException('Reranker provider returned invalid index');
+      throw createAppServiceUnavailableException('RERANKER_UNAVAILABLE', '重排序返回索引异常');
     }
 
     return index;
@@ -88,7 +89,7 @@ export class BgeRerankerProvider implements RerankerProvider {
     const score = Number(rawScore.relevance_score ?? rawScore.score);
 
     if (!Number.isFinite(score)) {
-      throw new ServiceUnavailableException('Reranker provider returned invalid score');
+      throw createAppServiceUnavailableException('RERANKER_UNAVAILABLE', '重排序返回分数异常');
     }
 
     return score;

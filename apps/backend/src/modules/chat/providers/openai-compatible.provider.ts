@@ -1,4 +1,5 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { createAppServiceUnavailableException } from '../../../common';
 import { ConfigService } from '../../../config';
 import type { ChatMessage } from '../chat.types';
 import type { LlmProvider } from './llm.provider';
@@ -45,14 +46,14 @@ export class OpenAiCompatibleLlmProvider implements LlmProvider {
     });
 
     if (!response.ok) {
-      throw new ServiceUnavailableException('LLM provider request failed');
+      throw createAppServiceUnavailableException('LLM_UNAVAILABLE');
     }
 
     const payload = (await response.json()) as OpenAiChatCompletionResponse;
     const content = payload.choices?.[0]?.message?.content;
 
     if (typeof content !== 'string') {
-      throw new ServiceUnavailableException('LLM provider returned invalid response');
+      throw createAppServiceUnavailableException('LLM_UNAVAILABLE', '大模型返回格式异常');
     }
 
     return content;
@@ -66,7 +67,7 @@ export class OpenAiCompatibleLlmProvider implements LlmProvider {
     });
 
     if (!response.ok || !response.body) {
-      throw new ServiceUnavailableException('LLM provider stream request failed');
+      throw createAppServiceUnavailableException('LLM_UNAVAILABLE');
     }
 
     const decoder = new TextDecoder();

@@ -15,7 +15,10 @@ export const graphService = {
     return (await response.json()) as GraphView;
   },
 
-  async getSpaceGraph(spaceId: string, input: { limit?: number; query?: string } = {}): Promise<GraphView> {
+  async getSpaceGraph(
+    spaceId: string,
+    input: { limit?: number; query?: string } = {},
+  ): Promise<GraphView> {
     const params = new URLSearchParams();
 
     if (input.query?.trim()) {

@@ -138,9 +138,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
 
 const handleSearchEvent = (
   event: AgentEvent,
-  set: (
-    partial: Partial<SearchState> | ((state: SearchState) => Partial<SearchState>),
-  ) => void,
+  set: (partial: Partial<SearchState> | ((state: SearchState) => Partial<SearchState>)) => void,
 ): void => {
   switch (event.type) {
     case 'token': {

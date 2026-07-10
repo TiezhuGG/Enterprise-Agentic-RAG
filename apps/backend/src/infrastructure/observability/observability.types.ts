@@ -1,8 +1,10 @@
 import type { ExecutionContext } from '../../common';
+import type { AppErrorCode } from '../../common';
 
 export type ObservabilityLogLevel = 'debug' | 'info' | 'warn' | 'error';
 export type ObservabilityStatus = 'success' | 'failed' | 'skipped';
 export type ProviderHealthStatus = 'ok' | 'failed' | 'skipped';
+export type ProviderReadinessStage = 'configuration' | 'connectivity' | 'inference';
 export type ProviderHealthName =
   | 'database'
   | 'redis'
@@ -54,7 +56,12 @@ export interface HealthResponse {
 }
 
 export interface ReadinessCheck {
+  code?: AppErrorCode;
+  configured?: boolean;
   name: ProviderHealthName;
+  inference?: boolean;
+  reachable?: boolean;
+  stage?: ProviderReadinessStage;
   status: ProviderHealthStatus;
   durationMs?: number;
   message?: string;
@@ -207,6 +214,7 @@ export interface MemoryObservation {
 }
 
 export interface ProviderHealthObservation {
+  code?: AppErrorCode;
   durationMs: number;
   error?: unknown;
   message?: string;

@@ -67,10 +67,7 @@ interface ChartTooltipContentProps extends React.ComponentProps<'div'> {
   payload?: TooltipPayloadItem[];
 }
 
-const ChartTooltipContent = React.forwardRef<
-  HTMLDivElement,
-  ChartTooltipContentProps
->(
+const ChartTooltipContent = React.forwardRef<HTMLDivElement, ChartTooltipContentProps>(
   (
     {
       active,
@@ -125,11 +122,16 @@ const ChartTooltipContent = React.forwardRef<
               <div className="flex min-w-0 items-center gap-2" key={String(item.dataKey)}>
                 {!hideIndicator ? (
                   <span
-                    className={cn('shrink-0 rounded-[2px]', indicator === 'dot' ? 'size-2.5' : 'h-2.5 w-1')}
+                    className={cn(
+                      'shrink-0 rounded-[2px]',
+                      indicator === 'dot' ? 'size-2.5' : 'h-2.5 w-1',
+                    )}
                     style={{ backgroundColor: color }}
                   />
                 ) : null}
-                <span className="truncate text-muted-foreground">{itemConfig?.label ?? item.name}</span>
+                <span className="truncate text-muted-foreground">
+                  {itemConfig?.label ?? item.name}
+                </span>
                 <span className="ml-auto font-mono font-medium tabular-nums text-foreground">
                   {typeof item.value === 'number' ? item.value.toLocaleString() : item.value}
                 </span>
@@ -158,38 +160,44 @@ interface ChartLegendContentProps extends React.ComponentProps<'div'> {
   verticalAlign?: 'top' | 'bottom' | 'middle';
 }
 
-const ChartLegendContent = React.forwardRef<
-  HTMLDivElement,
-  ChartLegendContentProps
->(({ className, hideIcon = false, nameKey, payload, verticalAlign = 'bottom' }, ref) => {
-  const { config } = useChart();
-  const payloadItems = payload ?? [];
+const ChartLegendContent = React.forwardRef<HTMLDivElement, ChartLegendContentProps>(
+  ({ className, hideIcon = false, nameKey, payload, verticalAlign = 'bottom' }, ref) => {
+    const { config } = useChart();
+    const payloadItems = payload ?? [];
 
-  if (payloadItems.length === 0) {
-    return null;
-  }
+    if (payloadItems.length === 0) {
+      return null;
+    }
 
-  return (
-    <div
-      className={cn('flex items-center justify-center gap-4', verticalAlign === 'top' ? 'pb-3' : 'pt-3', className)}
-      ref={ref}
-    >
-      {payloadItems.map((item) => {
-        const key = `${nameKey ?? item.dataKey ?? 'value'}`;
-        const itemConfig = config[key];
+    return (
+      <div
+        className={cn(
+          'flex items-center justify-center gap-4',
+          verticalAlign === 'top' ? 'pb-3' : 'pt-3',
+          className,
+        )}
+        ref={ref}
+      >
+        {payloadItems.map((item) => {
+          const key = `${nameKey ?? item.dataKey ?? 'value'}`;
+          const itemConfig = config[key];
 
-        return (
-          <div className="flex items-center gap-1.5 text-xs" key={String(item.value)}>
-            {!hideIcon ? (
-              <span className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: item.color }} />
-            ) : null}
-            {itemConfig?.label ?? item.value}
-          </div>
-        );
-      })}
-    </div>
-  );
-});
+          return (
+            <div className="flex items-center gap-1.5 text-xs" key={String(item.value)}>
+              {!hideIcon ? (
+                <span
+                  className="size-2 shrink-0 rounded-[2px]"
+                  style={{ backgroundColor: item.color }}
+                />
+              ) : null}
+              {itemConfig?.label ?? item.value}
+            </div>
+          );
+        })}
+      </div>
+    );
+  },
+);
 ChartLegendContent.displayName = 'ChartLegendContent';
 
 export { ChartContainer, ChartLegend, ChartLegendContent, ChartTooltip, ChartTooltipContent };

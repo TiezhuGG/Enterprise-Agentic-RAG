@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { createAppServiceUnavailableException } from '../../../common';
 import { ConfigService } from '../../../config';
 import type { EmbeddingProvider } from './embedding.provider';
 
@@ -38,25 +39,31 @@ export class OpenAiCompatibleEmbeddingProvider implements EmbeddingProvider {
     });
 
     if (!response.ok) {
-      throw new ServiceUnavailableException('Embedding provider request failed');
+      throw createAppServiceUnavailableException('EMBEDDING_UNAVAILABLE');
     }
 
     const payload = (await response.json()) as OpenAiCompatibleEmbeddingResponse;
     const vector = payload.data?.[0]?.embedding;
 
     if (!Array.isArray(vector)) {
-      throw new ServiceUnavailableException('Embedding provider returned invalid response');
+      throw createAppServiceUnavailableException('EMBEDDING_UNAVAILABLE', '向量模型返回格式异常');
     }
 
     if (vector.length !== this.dimension) {
-      throw new BadRequestException('Embedding provider returned unexpected vector dimension');
+      throw createAppServiceUnavailableException(
+        'EMBEDDING_UNAVAILABLE',
+        `向量模型维度不匹配，期望 ${this.dimension} 维，实际 ${vector.length} 维`,
+      );
     }
 
     return vector.map((value) => {
       const numericValue = Number(value);
 
       if (!Number.isFinite(numericValue)) {
-        throw new ServiceUnavailableException('Embedding provider returned non-numeric vector');
+        throw createAppServiceUnavailableException(
+          'EMBEDDING_UNAVAILABLE',
+          '向量模型返回了非数字向量',
+        );
       }
 
       return numericValue;

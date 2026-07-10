@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
+import { createAppBadRequestException } from '../../common';
 import type { DocumentType } from '../document';
 import type { DocumentParser } from './document-parser.interface';
 import { DocxParser } from './parsers/docx.parser';
@@ -37,7 +38,7 @@ export class ParserFactory {
     const parser = this.parsers.find((candidate) => candidate.supports(type));
 
     if (!parser) {
-      throw new BadRequestException(`Unsupported document type for processing: ${type}`);
+      throw createAppBadRequestException('UNSUPPORTED_FILE_TYPE');
     }
 
     return parser;

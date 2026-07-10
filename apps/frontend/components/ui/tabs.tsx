@@ -11,7 +11,10 @@ const TabsList = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.List>
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.List
-    className={cn('inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground', className)}
+    className={cn(
+      'inline-flex h-9 items-center justify-center rounded-lg bg-muted p-1 text-muted-foreground',
+      className,
+    )}
     ref={ref}
     {...props}
   />
@@ -38,7 +41,10 @@ const TabsContent = React.forwardRef<
   React.ComponentPropsWithoutRef<typeof TabsPrimitive.Content>
 >(({ className, ...props }, ref) => (
   <TabsPrimitive.Content
-    className={cn('mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring', className)}
+    className={cn(
+      'mt-2 ring-offset-background focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring',
+      className,
+    )}
     ref={ref}
     {...props}
   />

@@ -1,4 +1,5 @@
 import { Injectable } from '@nestjs/common';
+import { getAppErrorResponse } from '../../common';
 import { ConfigService } from '../../config';
 import { GraphService } from '../graph';
 import { PrismaService } from '../prisma';
@@ -8,6 +9,7 @@ import { StorageService } from '../storage';
 import { VectorService } from '../vector';
 import { ObservabilityService } from './observability.service';
 import type { ProviderHealthName, ReadinessCheck, ReadinessResponse } from './observability.types';
+import { ProviderDiagnosticsService } from './provider-diagnostics.service';
 
 @Injectable()
 export class ReadinessService {
@@ -15,6 +17,7 @@ export class ReadinessService {
     private readonly configService: ConfigService,
     private readonly graphService: GraphService,
     private readonly observabilityService: ObservabilityService,
+    private readonly providerDiagnosticsService: ProviderDiagnosticsService,
     private readonly prismaService: PrismaService,
     private readonly redisService: RedisService,
     private readonly searchService: SearchService,
@@ -30,21 +33,9 @@ export class ReadinessService {
       this.runCheck('graph', () => this.graphService.healthCheck()),
       this.runCheck('vector', () => this.vectorService.healthCheck()),
       this.runCheck('search', () => this.searchService.healthCheck()),
-      this.runConfigCheck('llm', () => {
-        const config = this.configService.getLlmConfig();
-
-        return Boolean(config.apiUrl && config.model && config.maxTokens > 0);
-      }),
-      this.runConfigCheck('embedding', () => {
-        const config = this.configService.getEmbeddingConfig();
-
-        return Boolean(config.apiUrl && config.model && config.dimension > 0);
-      }),
-      this.runConfigCheck('reranker', () => {
-        const config = this.configService.getRerankerConfig();
-
-        return Boolean(config.apiUrl && config.model);
-      }),
+      this.runProviderDiagnostic(() => this.providerDiagnosticsService.checkLlm()),
+      this.runProviderDiagnostic(() => this.providerDiagnosticsService.checkEmbedding()),
+      this.runProviderDiagnostic(() => this.providerDiagnosticsService.checkReranker()),
       this.runConfigCheck('ocr', () => {
         const config = this.configService.getOcrConfig();
 
@@ -71,6 +62,22 @@ export class ReadinessService {
     };
   }
 
+  private async runProviderDiagnostic(
+    check: () => Promise<ReadinessCheck>,
+  ): Promise<ReadinessCheck> {
+    const result = await check();
+
+    this.observabilityService.recordProviderHealth({
+      code: result.code,
+      durationMs: result.durationMs ?? 0,
+      message: result.message,
+      name: result.name,
+      status: result.status,
+    });
+
+    return result;
+  }
+
   private async runCheck(
     name: ProviderHealthName,
     check: () => Promise<void>,
@@ -88,15 +95,21 @@ export class ReadinessService {
       });
 
       return {
+        configured: true,
         durationMs,
+        inference: true,
         name,
+        reachable: true,
+        stage: 'connectivity',
         status: 'ok',
       };
     } catch (error) {
       const durationMs = Date.now() - startedAt;
-      const message = this.toSafeMessage(error);
+      const appError = getAppErrorResponse(error);
+      const message = appError?.message ?? this.toSafeMessage(error);
 
       this.observabilityService.recordProviderHealth({
+        code: appError?.code,
         durationMs,
         error,
         message,
@@ -105,9 +118,14 @@ export class ReadinessService {
       });
 
       return {
+        code: appError?.code,
+        configured: true,
         durationMs,
+        inference: false,
         message,
         name,
+        reachable: false,
+        stage: 'connectivity',
         status: 'failed',
       };
     }
@@ -131,9 +149,11 @@ export class ReadinessService {
     });
 
     return {
+      configured: ok,
       durationMs,
       message,
       name,
+      stage: 'configuration',
       status,
     };
   }
