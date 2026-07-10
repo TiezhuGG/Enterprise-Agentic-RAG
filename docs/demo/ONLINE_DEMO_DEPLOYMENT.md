@@ -15,13 +15,33 @@
 
 ```bash
 cp .env.production.example .env.production
-pnpm docker:prod:config
-pnpm docker:prod:build
-pnpm docker:prod:up
-pnpm db:deploy
-pnpm db:seed
-pnpm provider:smoke
-pnpm demo:seed --reset --no-graph
+# 编辑 .env.production，替换 change-me-*、域名和 provider 配置
+pnpm install
+pnpm deploy:prod
+```
+
+部署前只查看计划、不启动服务：
+
+```bash
+pnpm deploy:prod:dry-run
+```
+
+服务已经启动后，只复查 health、provider smoke 和 demo seed：
+
+```bash
+pnpm deploy:prod:smoke
+```
+
+如果镜像已构建，只重新启动和验证：
+
+```bash
+pnpm deploy:prod -- --skip-build
+```
+
+如果要启用图谱抽取：
+
+```bash
+pnpm deploy:prod -- --graph
 ```
 
 ## 演示验收流程

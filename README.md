@@ -12,7 +12,7 @@ cp .env.example .env
 pnpm docker:up
 pnpm db:migrate
 pnpm db:seed
-pnpm demo:seed
+pnpm demo:seed --reset --no-graph
 pnpm provider:smoke
 pnpm dev
 ```
@@ -241,11 +241,17 @@ Production compose:
 
 ```bash
 cp .env.production.example .env.production
-pnpm docker:prod:config
-pnpm docker:prod:build
-pnpm docker:prod:up
-pnpm db:deploy
-pnpm db:seed
+# edit .env.production
+pnpm deploy:prod
+```
+
+Useful deployment variants:
+
+```bash
+pnpm deploy:prod:dry-run
+pnpm deploy:prod:smoke
+pnpm deploy:prod -- --skip-build
+pnpm deploy:prod -- --graph
 ```
 
 Deployment checklist: [docs/demo/DEPLOYMENT_CHECKLIST.md](docs/demo/DEPLOYMENT_CHECKLIST.md)
@@ -285,8 +291,7 @@ pnpm db:validate
 For a deployable demo, also run:
 
 ```bash
-pnpm db:deploy
-pnpm db:seed
-pnpm demo:seed
+pnpm deploy:prod:dry-run
 pnpm provider:smoke
+pnpm demo:seed --reset --no-graph
 ```

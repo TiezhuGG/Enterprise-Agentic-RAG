@@ -41,6 +41,15 @@ export default [
     },
   },
   {
+    files: ['**/*.mjs'],
+    languageOptions: {
+      globals: {
+        ...globals.node,
+      },
+      sourceType: 'module',
+    },
+  },
+  {
     files: ['apps/frontend/**/*.{ts,tsx}'],
     plugins: {
       '@next/next': nextPlugin,

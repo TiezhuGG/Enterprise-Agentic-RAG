@@ -15,27 +15,25 @@
 - [ ] `pnpm lint`
 - [ ] `pnpm typecheck`
 - [ ] `pnpm build`
-- [ ] `pnpm docker:prod:config`
-- [ ] `pnpm docker:prod:build`
+- [ ] `pnpm deploy:prod:dry-run`
 
 ## 数据库
 
 - [ ] `pnpm db:validate`
-- [ ] `pnpm db:deploy`
-- [ ] `pnpm db:seed`
-- [ ] 确认 admin 登录可用。
+- [ ] `pnpm deploy:prod` 已在 backend 容器内执行 migration 和 seed。
+- [ ] 确认 `admin@example.com / Admin123!` 登录可用。
 
 ## 服务启动
 
-- [ ] `pnpm docker:prod:up`
+- [ ] `pnpm deploy:prod` 成功结束。
 - [ ] `GET /health` 返回 `ok`。
 - [ ] `GET /health/readiness` 返回 `ok` 或可解释的 `degraded`。
 - [ ] `GET /metrics` 可访问。
 
 ## Demo 数据
 
-- [ ] `pnpm demo:seed` 输出 `spaceId`、`documentId`、`conversationId`。
-- [ ] `pnpm provider:smoke` 生成报告。
+- [ ] `pnpm deploy:prod` 输出 demo Space、Document、Conversation 和 smoke command。
+- [ ] `pnpm deploy:prod:smoke` 可重复执行。
 - [ ] 前端 Workbench 可登录。
 - [ ] Pipeline Timeline 有事件。
 - [ ] Agent Debug 有 token streaming、citation、trace。
