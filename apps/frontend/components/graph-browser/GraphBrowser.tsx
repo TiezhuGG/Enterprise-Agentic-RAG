@@ -31,6 +31,12 @@ import {
 import { useObservabilityStore } from '@/store/observability.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
 import type { GraphBrowserScope, GraphEdge, GraphHopDepth, GraphNode } from '@/types/graph';
+import type {
+  IngestionOptions,
+  IngestionStatus,
+  PipelineEvent,
+  PipelineJob,
+} from '@/types/workbench';
 import { cn } from '@/lib/utils';
 
 const scopeLabels: Record<GraphBrowserScope, string> = {
@@ -44,9 +50,36 @@ const graphStatusLabels = {
   skipped: '跳过',
 } as const;
 
+type GraphExtractionState = 'failed' | 'not-run' | 'skipped' | 'success';
+
+interface GraphExtractionExplainability {
+  enabled: boolean;
+  entityCount: number | null;
+  errorMessage: string | null;
+  eventCreatedAt: string | null;
+  jobId: string | null;
+  reason: string | null;
+  relationCount: number | null;
+  sourceChunkCount: number | null;
+  status: GraphExtractionState;
+  typeDistribution: Record<string, number>;
+}
+
+const graphExtractionLabels: Record<GraphExtractionState, string> = {
+  failed: '抽取失败',
+  'not-run': '尚未运行',
+  skipped: '已跳过',
+  success: '抽取成功',
+};
+
 export function GraphBrowser() {
   const documents = useWorkbenchStore((state) => state.documents);
+  const ingestionOptions = useWorkbenchStore((state) => state.ingestionOptions);
+  const ingestionStatus = useWorkbenchStore((state) => state.ingestionStatus);
+  const pipelineEvents = useWorkbenchStore((state) => state.pipelineEvents);
+  const pipelineJobs = useWorkbenchStore((state) => state.pipelineJobs);
   const selectedDocumentId = useWorkbenchStore((state) => state.selectedDocumentId);
+  const selectedPipelineJobId = useWorkbenchStore((state) => state.selectedPipelineJobId);
   const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const selectDocument = useWorkbenchStore((state) => state.selectDocument);
   const setActiveSection = useWorkbenchStore((state) => state.setActiveSection);
@@ -90,6 +123,17 @@ export function GraphBrowser() {
   const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
   const selectedEdge = visibleView?.selectedEdge ?? null;
   const selectedNode = visibleView?.selectedNode ?? null;
+  const graphExplainability = useMemo(
+    () =>
+      createGraphExtractionExplainability({
+        ingestionOptions,
+        ingestionStatus,
+        pipelineEvents,
+        pipelineJobs,
+        selectedPipelineJobId,
+      }),
+    [ingestionOptions, ingestionStatus, pipelineEvents, pipelineJobs, selectedPipelineJobId],
+  );
   const canLoad = scope === 'space' ? Boolean(selectedSpaceId) : Boolean(selectedDocumentId);
 
   useEffect(() => {
@@ -274,6 +318,7 @@ export function GraphBrowser() {
         </Card>
 
         <div className="graph-browser__side">
+          <GraphExtractionExplainabilityPanel summary={graphExplainability} />
           <GraphSelectionPanel
             edge={selectedEdge}
             node={selectedNode}
@@ -393,6 +438,70 @@ function GraphCanvas({
         );
       })}
     </div>
+  );
+}
+
+function GraphExtractionExplainabilityPanel({
+  summary,
+}: {
+  summary: GraphExtractionExplainability;
+}) {
+  const typeEntries = Object.entries(summary.typeDistribution).sort(
+    ([, leftCount], [, rightCount]) => rightCount - leftCount,
+  );
+
+  return (
+    <Card>
+      <CardHeader>
+        <CardTitle>抽取解释</CardTitle>
+        <CardDescription>展示最近一次入库中的图谱抽取结果。</CardDescription>
+      </CardHeader>
+      <CardContent className="graph-explainability">
+        <div className="graph-explainability__top">
+          <Badge variant={toGraphExtractionBadge(summary.status)}>
+            {graphExtractionLabels[summary.status]}
+          </Badge>
+          <span>{summary.enabled ? '本次任务已启用图谱' : '本次任务未启用图谱'}</span>
+        </div>
+
+        <div className="graph-explainability__stats">
+          <div>
+            <span>实体</span>
+            <strong>{summary.entityCount ?? '-'}</strong>
+          </div>
+          <div>
+            <span>关系</span>
+            <strong>{summary.relationCount ?? '-'}</strong>
+          </div>
+          <div>
+            <span>来源分块</span>
+            <strong>{summary.sourceChunkCount ?? '-'}</strong>
+          </div>
+        </div>
+
+        {summary.reason ? <p className="graph-explainability__note">{summary.reason}</p> : null}
+        {summary.errorMessage ? (
+          <p className="graph-explainability__error">{summary.errorMessage}</p>
+        ) : null}
+
+        {typeEntries.length > 0 ? (
+          <div className="graph-explainability__types">
+            <span>实体类型分布</span>
+            {typeEntries.slice(0, 8).map(([type, count]) => (
+              <div key={type}>
+                <strong>{type}</strong>
+                <em>{count}</em>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="graph-browser__empty-mini">
+            <Network />
+            <span>暂无实体类型分布。</span>
+          </div>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -572,6 +681,133 @@ function GraphEmptyState({
           : (selectedDocumentTitle ?? '文档未选择')}
       </Badge>
     </div>
+  );
+}
+
+function createGraphExtractionExplainability(input: {
+  ingestionOptions: IngestionOptions;
+  ingestionStatus: IngestionStatus | null;
+  pipelineEvents: PipelineEvent[];
+  pipelineJobs: PipelineJob[];
+  selectedPipelineJobId: string | null;
+}): GraphExtractionExplainability {
+  const selectedJob =
+    input.pipelineJobs.find((job) => job.id === input.selectedPipelineJobId) ??
+    input.pipelineJobs[0] ??
+    null;
+  const event =
+    input.pipelineEvents
+      .filter((item) => item.stage === 'graph-extraction')
+      .sort(
+        (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
+      )[0] ?? null;
+  const metadata = event?.metadata ?? {};
+  const enabled =
+    readBoolean(selectedJob?.metadata.includeGraph) ?? input.ingestionOptions.includeGraph;
+  const status = toGraphExtractionState(event?.status);
+  const reason = toGraphExtractionReason(status, readString(metadata.reason), enabled);
+
+  return {
+    enabled,
+    entityCount:
+      readNumber(metadata.graphEntities) ?? input.ingestionStatus?.graphEntityCount ?? null,
+    errorMessage: event?.status === 'FAILED' ? event.errorMessage : null,
+    eventCreatedAt: event?.createdAt ?? null,
+    jobId: selectedJob?.id ?? null,
+    reason,
+    relationCount:
+      readNumber(metadata.graphRelations) ?? input.ingestionStatus?.graphRelationCount ?? null,
+    sourceChunkCount: readNumber(metadata.sourceChunkCount),
+    status,
+    typeDistribution: readNumberRecord(metadata.entityTypeDistribution),
+  };
+}
+
+function toGraphExtractionState(status: PipelineEvent['status'] | undefined): GraphExtractionState {
+  if (status === 'SUCCEEDED') {
+    return 'success';
+  }
+
+  if (status === 'FAILED') {
+    return 'failed';
+  }
+
+  if (status === 'SKIPPED') {
+    return 'skipped';
+  }
+
+  return 'not-run';
+}
+
+function toGraphExtractionReason(
+  status: GraphExtractionState,
+  reason: string | null,
+  enabled: boolean,
+): string | null {
+  if (reason === 'includeGraph=false') {
+    return '本次入库关闭了图谱抽取，基础 RAG 链路仍可用。';
+  }
+
+  if (reason === 'graph-extraction-failed') {
+    return '图谱增强阶段失败，文档仍会保留基础检索能力。';
+  }
+
+  if (reason) {
+    return reason;
+  }
+
+  if (status === 'not-run') {
+    return enabled ? '当前文档还没有可解释的图谱抽取记录。' : '当前入库选项默认不启用图谱抽取。';
+  }
+
+  if (status === 'skipped') {
+    return '图谱抽取被跳过。';
+  }
+
+  return null;
+}
+
+function toGraphExtractionBadge(
+  status: GraphExtractionState,
+): 'destructive' | 'secondary' | 'success' | 'warning' {
+  if (status === 'success') {
+    return 'success';
+  }
+
+  if (status === 'failed') {
+    return 'destructive';
+  }
+
+  if (status === 'skipped') {
+    return 'warning';
+  }
+
+  return 'secondary';
+}
+
+function readBoolean(value: unknown): boolean | null {
+  return typeof value === 'boolean' ? value : null;
+}
+
+function readNumber(value: unknown): number | null {
+  const numericValue = Number(value);
+
+  return Number.isFinite(numericValue) ? numericValue : null;
+}
+
+function readString(value: unknown): string | null {
+  return typeof value === 'string' && value.trim() ? value.trim() : null;
+}
+
+function readNumberRecord(value: unknown): Record<string, number> {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) {
+    return {};
+  }
+
+  return Object.fromEntries(
+    Object.entries(value as Record<string, unknown>)
+      .map(([key, item]) => [key, readNumber(item)] as const)
+      .filter((entry): entry is readonly [string, number] => entry[1] !== null),
   );
 }
 

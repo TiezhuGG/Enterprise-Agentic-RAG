@@ -2570,9 +2570,83 @@ textarea:disabled {
 }
 
 .graph-browser__details,
-.graph-browser__relations {
+.graph-browser__relations,
+.graph-explainability {
   display: grid;
   gap: 10px;
+}
+
+.graph-explainability__top {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+}
+
+.graph-explainability__top span,
+.graph-explainability__note {
+  color: var(--muted-foreground);
+  font-size: 13px;
+}
+
+.graph-explainability__stats {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.graph-explainability__stats div {
+  background: var(--panel-muted);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 3px;
+  padding: 10px;
+}
+
+.graph-explainability__stats span,
+.graph-explainability__types > span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.graph-explainability__stats strong {
+  font-size: 17px;
+}
+
+.graph-explainability__error {
+  background: #fef2f2;
+  border: 1px solid #fecaca;
+  border-radius: 8px;
+  color: #991b1b;
+  font-size: 13px;
+  margin: 0;
+  padding: 10px;
+}
+
+.graph-explainability__types {
+  display: grid;
+  gap: 7px;
+}
+
+.graph-explainability__types div {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 8px 10px;
+}
+
+.graph-explainability__types strong {
+  font-size: 13px;
+}
+
+.graph-explainability__types em {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-style: normal;
 }
 
 .graph-detail-card,

@@ -89,8 +89,10 @@ export class KnowledgeGraphService {
     await this.knowledgeGraphRepository.saveDocumentGraph(document.id, entities, relations);
 
     return {
+      chunkCount: chunks.length,
       documentId: document.id,
       entityCount: entities.length,
+      entityTypeDistribution: this.countEntityTypes(entities),
       relationCount: relations.length,
     };
   }
@@ -185,5 +187,15 @@ export class KnowledgeGraphService {
       spaceId,
       documentId,
     }));
+  }
+
+  private countEntityTypes(entities: GraphEntity[]): Record<string, number> {
+    return entities.reduce<Record<string, number>>((distribution, entity) => {
+      const type = entity.type.trim() || 'UNKNOWN';
+
+      distribution[type] = (distribution[type] ?? 0) + 1;
+
+      return distribution;
+    }, {});
   }
 }

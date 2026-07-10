@@ -169,23 +169,7 @@ export class IngestionService {
       }
 
       const graphCounts = options.includeGraph
-        ? await this.runStage(
-            context,
-            activeDocument,
-            stages,
-            pipelineJob,
-            'graph-extraction',
-            async () => {
-              const result = await this.knowledgeGraphService.extractDocumentGraph(
-                activeDocument.id,
-              );
-
-              return {
-                graphEntities: result.entityCount,
-                graphRelations: result.relationCount,
-              };
-            },
-          )
+        ? await this.runGraphExtractionStage(context, activeDocument, stages, pipelineJob)
         : await this.addSkippedStage(
             context,
             activeDocument,
@@ -400,6 +384,59 @@ export class IngestionService {
     return result.metadata ?? {};
   }
 
+  private async runGraphExtractionStage(
+    context: ExecutionContext,
+    document: DocumentEntity,
+    stages: IngestionStageResult[],
+    pipelineJob: PipelineJobEntity,
+  ): Promise<Record<string, unknown>> {
+    const startedAt = Date.now();
+
+    try {
+      const result = await this.knowledgeGraphService.extractDocumentGraph(document.id);
+      const metadata = {
+        entityTypeDistribution: result.entityTypeDistribution,
+        graphEntities: result.entityCount,
+        graphExtractionStatus: 'success',
+        graphRelations: result.relationCount,
+        sourceChunkCount: result.chunkCount,
+      };
+      const stageResult = this.createStageResult(
+        'graph-extraction',
+        'success',
+        startedAt,
+        metadata,
+      );
+
+      stages.push(stageResult);
+      this.recordStage(context, document, stageResult);
+      await this.recordPipelineStage(pipelineJob, stageResult);
+
+      return metadata;
+    } catch (error) {
+      const errorMessage = this.toSafeErrorMessage(error, 'Graph extraction failed');
+      const metadata = {
+        graphEntities: 0,
+        graphExtractionStatus: 'failed',
+        graphRelations: 0,
+        reason: 'graph-extraction-failed',
+      };
+      const stageResult: IngestionStageResult = {
+        durationMs: Date.now() - startedAt,
+        errorMessage,
+        metadata,
+        stage: 'graph-extraction',
+        status: 'failed',
+      };
+
+      stages.push(stageResult);
+      this.recordStage(context, document, stageResult, error);
+      await this.recordPipelineStage(pipelineJob, stageResult);
+
+      return metadata;
+    }
+  }
+
   private createStageResult(
     stage: IngestionStage,
     status: IngestionStageStatus,
@@ -606,5 +643,14 @@ export class IngestionService {
 
   private toErrorMessage(error: unknown): string {
     return toAppErrorMessage(error, 'Document ingestion failed');
+  }
+
+  private toSafeErrorMessage(error: unknown, fallback: string): string {
+    return toAppErrorMessage(error, fallback)
+      .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/gi, 'Bearer [redacted]')
+      .replace(/(api[-_]?key|authorization|secret|password)\s*[:=]\s*[^,\s}]+/gi, '$1=[redacted]')
+      .replace(/\s+/g, ' ')
+      .slice(0, 240)
+      .trim();
   }
 }

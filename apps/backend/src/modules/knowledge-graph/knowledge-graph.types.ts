@@ -66,7 +66,9 @@ export interface GraphContext {
 
 export interface GraphExtractionResult {
   documentId: string;
+  chunkCount: number;
   entityCount: number;
+  entityTypeDistribution: Record<string, number>;
   relationCount: number;
 }
 
