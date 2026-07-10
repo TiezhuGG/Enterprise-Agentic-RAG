@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { documentStatusLabels, ingestionStateLabels } from '@/lib/workbench-copy';
 import { useWorkbenchStore } from '@/store/workbench.store';
 
 export function IngestionPanel() {
@@ -14,16 +15,17 @@ export function IngestionPanel() {
     [documents, selectedDocumentId],
   );
   const result = ingestionState.result;
+  const documentStatus = ingestionStatus?.documentStatus ?? selectedDocument?.status;
 
   return (
     <section className="workbench-panel">
       <div className="workbench-panel__header">
         <div>
           <h2>Ingestion</h2>
-          <span>force · embedding · no graph</span>
+          <span>强制重建 | 向量化 | 默认跳过图谱</span>
         </div>
         <span className={`status-pill status-pill--${ingestionState.status}`}>
-          {ingestionState.status}
+          {ingestionStateLabels[ingestionState.status]}
         </span>
       </div>
 
@@ -34,7 +36,7 @@ export function IngestionPanel() {
         </div>
         <div>
           <span>Status</span>
-          <strong>{ingestionStatus?.documentStatus ?? selectedDocument?.status ?? '-'}</strong>
+          <strong>{documentStatus ? documentStatusLabels[documentStatus] : '-'}</strong>
         </div>
         <div>
           <span>Chunks</span>
@@ -46,13 +48,17 @@ export function IngestionPanel() {
         </div>
       </div>
 
+      {ingestionState.errorMessage ? (
+        <p className="workbench-error workbench-error--inline">{ingestionState.errorMessage}</p>
+      ) : null}
+
       <button
         className="workbench-button"
         disabled={!selectedDocument || ingestionState.status === 'running'}
         onClick={() => void ingestSelectedDocument()}
         type="button"
       >
-        Run Ingestion
+        {ingestionState.status === 'running' ? '处理中...' : '开始解析入库'}
       </button>
     </section>
   );

@@ -2,15 +2,16 @@
 
 import { useMemo } from 'react';
 import { DemoEmptyState } from '@/components/demo';
+import {
+  getPipelineEventErrorDetail,
+  getPipelineEventErrorMessage,
+  getPipelineStageDescription,
+  getPipelineStageLabel,
+  pipelineEventStatusLabels,
+  pipelineJobStatusLabels,
+} from '@/lib/workbench-copy';
 import { useWorkbenchStore } from '@/store/workbench.store';
-import type { PipelineEvent, PipelineJobStatus } from '@/types/workbench';
-
-const jobStatusLabel: Record<PipelineJobStatus, string> = {
-  CANCELED: 'Canceled',
-  FAILED: 'Failed',
-  RUNNING: 'Running',
-  SUCCEEDED: 'Succeeded',
-};
+import type { PipelineEvent } from '@/types/workbench';
 
 const formatDuration = (durationMs: number | null): string => {
   if (durationMs === null) {
@@ -57,7 +58,7 @@ export function PipelineTimeline() {
         </div>
         {selectedJob ? (
           <span className={`status-pill status-pill--${selectedJob.status.toLowerCase()}`}>
-            {jobStatusLabel[selectedJob.status]}
+            {pipelineJobStatusLabels[selectedJob.status]}
           </span>
         ) : null}
       </div>
@@ -73,7 +74,7 @@ export function PipelineTimeline() {
           >
             {pipelineJobs.map((job) => (
               <option key={job.id} value={job.id}>
-                {new Date(job.createdAt).toLocaleString()} · {job.status}
+                {new Date(job.createdAt).toLocaleString()} | {pipelineJobStatusLabels[job.status]}
               </option>
             ))}
           </select>
@@ -91,21 +92,30 @@ export function PipelineTimeline() {
       <div className="pipeline-timeline">
         {sortedEvents.map((event) => {
           const metadata = formatMetadata(event.metadata);
+          const errorMessage = event.errorMessage ? getPipelineEventErrorMessage(event) : '';
+          const errorDetail = event.errorMessage ? getPipelineEventErrorDetail(event) : '';
 
           return (
             <article className="pipeline-event" key={event.id}>
               <span className={`pipeline-event__marker pipeline-event__marker--${event.status}`} />
               <div className="pipeline-event__body">
                 <div className="pipeline-event__top">
-                  <strong>{event.stage}</strong>
-                  <span>{event.status}</span>
+                  <strong>{getPipelineStageLabel(event.stage)}</strong>
+                  <span>{pipelineEventStatusLabels[event.status]}</span>
                 </div>
                 <div className="pipeline-event__meta">
                   <span>{new Date(event.createdAt).toLocaleString()}</span>
                   <span>{formatDuration(event.durationMs)}</span>
+                  <span>{event.stage}</span>
                 </div>
+                <p className="pipeline-event__description">
+                  {getPipelineStageDescription(event.stage)}
+                </p>
                 {event.errorMessage ? (
-                  <p className="workbench-error workbench-error--inline">{event.errorMessage}</p>
+                  <div className="workbench-error workbench-error--inline">
+                    <strong>{errorMessage}</strong>
+                    {errorDetail ? <span>{errorDetail}</span> : null}
+                  </div>
                 ) : null}
                 {metadata ? (
                   <details className="pipeline-event__details">

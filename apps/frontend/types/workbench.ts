@@ -170,5 +170,6 @@ export interface IngestionOptions {
 
 export interface IngestionState {
   status: 'idle' | 'running' | 'success' | 'error';
+  errorMessage?: string;
   result?: IngestionResult;
 }

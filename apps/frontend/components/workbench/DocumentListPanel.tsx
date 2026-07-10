@@ -2,16 +2,9 @@
 
 import { useMemo } from 'react';
 import { DemoEmptyState } from '@/components/demo';
+import { documentStatusDescriptions, documentStatusLabels } from '@/lib/workbench-copy';
 import { useWorkbenchStore } from '@/store/workbench.store';
-import type { DocumentStatus, KnowledgeDocument } from '@/types/workbench';
-
-const statusLabels: Record<DocumentStatus, string> = {
-  ARCHIVED: 'Archived',
-  CREATED: 'Created',
-  FAILED: 'Failed',
-  PROCESSING: 'Processing',
-  READY: 'Ready',
-};
+import type { KnowledgeDocument } from '@/types/workbench';
 
 const formatSize = (size: number | null): string => {
   if (!size) {
@@ -28,7 +21,7 @@ const formatSize = (size: number | null): string => {
 const getDocumentSubtitle = (document: KnowledgeDocument): string =>
   [document.type, formatSize(document.size), new Date(document.updatedAt).toLocaleString()]
     .filter(Boolean)
-    .join(' · ');
+    .join(' | ');
 
 export function DocumentListPanel() {
   const deleteSelectedDocument = useWorkbenchStore((state) => state.deleteSelectedDocument);
@@ -94,7 +87,10 @@ export function DocumentListPanel() {
             <span className="document-row__title">{document.title}</span>
             <span className="document-row__meta">{getDocumentSubtitle(document)}</span>
             <span className={`status-pill status-pill--${document.status.toLowerCase()}`}>
-              {statusLabels[document.status]}
+              {documentStatusLabels[document.status]}
+            </span>
+            <span className="document-row__meta">
+              {documentStatusDescriptions[document.status]}
             </span>
           </button>
         ))}

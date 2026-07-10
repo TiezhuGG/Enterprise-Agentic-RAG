@@ -8,6 +8,7 @@ import { ingestionService } from '@/services/ingestion.service';
 import { knowledgeSpaceService } from '@/services/knowledge-space.service';
 import { pipelineService } from '@/services/pipeline.service';
 import { uploadService } from '@/services/upload.service';
+import { toUserFacingErrorMessage } from '@/lib/workbench-copy';
 import type {
   DocumentContentMetadata,
   IngestionResult,
@@ -91,7 +92,7 @@ const persistSelectedSpaceId = (spaceId: string | null): void => {
 };
 
 const toErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : 'Request failed';
+  toUserFacingErrorMessage(error, '请求失败，请稍后重试。');
 
 const sortDocuments = (documents: KnowledgeDocument[]): KnowledgeDocument[] =>
   [...documents].sort(
@@ -251,10 +252,6 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       }
 
       set({
-        ingestionState: {
-          result,
-          status: result.status === 'READY' ? 'success' : 'error',
-        },
         ingestionStatus,
       });
 
@@ -264,10 +261,32 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       if (result.pipelineJobId) {
         await get().loadPipeline(documentId, result.pipelineJobId);
       }
-    } catch (error) {
+
       set({
-        error: toErrorMessage(error),
-        ingestionState: { status: 'error' },
+        ingestionState: {
+          result,
+          status: result.status === 'READY' ? 'success' : 'error',
+        },
+        ingestionStatus,
+      });
+    } catch (error) {
+      const errorMessage = toErrorMessage(error);
+      let ingestionStatus: IngestionStatus | null = null;
+
+      try {
+        ingestionStatus = await ingestionService.getStatus(documentId);
+      } catch {
+        ingestionStatus = null;
+      }
+
+      await get().loadDocuments(spaceId);
+      await get().selectDocument(documentId);
+      await get().loadPipeline(documentId);
+
+      set({
+        error: errorMessage,
+        ingestionState: { errorMessage, status: 'error' },
+        ingestionStatus,
       });
     }
   },
@@ -541,7 +560,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     const spaceId = get().selectedSpaceId;
 
     if (!spaceId) {
-      set({ error: 'Please select a space first.' });
+      set({ error: '请先创建或选择知识空间。' });
       return;
     }
 

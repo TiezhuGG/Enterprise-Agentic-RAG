@@ -994,6 +994,23 @@ textarea:disabled {
   font-size: 12px;
 }
 
+.pipeline-event__description {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.pipeline-event .workbench-error--inline {
+  display: grid;
+  gap: 4px;
+}
+
+.pipeline-event .workbench-error--inline span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
 .pipeline-event__details summary {
   color: var(--muted-foreground);
   cursor: pointer;
