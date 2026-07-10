@@ -73,10 +73,10 @@ password: Admin123!
 
 ## 4. 准备 demo 数据
 
-推荐先用稳定路径，不启用 Graph extraction：
+推荐先用稳定路径，重建演示数据并不启用 Graph extraction：
 
 ```bash
-pnpm demo:seed
+pnpm demo:seed --reset --no-graph
 ```
 
 如需跳过入库，只创建样例 Space / Document / Conversation：
@@ -85,21 +85,36 @@ pnpm demo:seed
 pnpm demo:seed --no-ingest
 ```
 
+如需安全重置演示数据但不触发模型调用：
+
+```bash
+pnpm demo:reset
+```
+
 如需启用 Knowledge Graph：
 
 ```bash
-pnpm demo:seed --graph
+pnpm demo:seed --reset --graph
 ```
 
 输出会包含：
 
 ```json
 {
-  "userId": "...",
-  "spaceId": "...",
-  "documentId": "...",
-  "conversationId": "...",
-  "smokeCommand": "pnpm demo:smoke ..."
+  "login": {
+    "email": "admin@example.com",
+    "password": "Admin123!"
+  },
+  "space": {
+    "id": "..."
+  },
+  "documents": [],
+  "conversation": {
+    "id": "..."
+  },
+  "commands": {
+    "demoSmoke": "pnpm demo:smoke ..."
+  }
 }
 ```
 
@@ -202,7 +217,7 @@ EMBEDDING_DIMENSION
 本地演示可以先用：
 
 ```bash
-pnpm demo:seed
+pnpm demo:seed --reset --no-graph
 ```
 
 默认不启用 graph extraction。确认 Neo4j 和 LLM Graph provider 稳定后再使用 `--graph`。

@@ -1,6 +1,31 @@
 {
-  "name": "mvp-demo-sample-policy",
-  "document": "docs/demo/sample-policy.md",
+  "name": "mvp-demo-enterprise-policy-dataset",
+  "space": {
+    "name": "MVP Demo Space",
+    "description": "用于演示企业知识库入库、检索、Agent Trace、Citation 和 Observability 的样例空间。",
+    "visibility": "PRIVATE"
+  },
+  "conversationTitle": "MVP Demo Conversation",
+  "documents": [
+    {
+      "title": "企业费用报销制度",
+      "description": "覆盖报销范围、审批金额、材料补齐和财务复核要求。",
+      "path": "sample-policy.md",
+      "mimeType": "text/markdown"
+    },
+    {
+      "title": "企业知识库使用规范",
+      "description": "覆盖知识空间角色、文档入库、引用可信度和敏感信息管理。",
+      "path": "sample-knowledge-base-guide.md",
+      "mimeType": "text/markdown"
+    },
+    {
+      "title": "权限与审批流程说明",
+      "description": "覆盖部门审批、密级访问、跨部门共享和异常处理流程。",
+      "path": "sample-approval-workflow.md",
+      "mimeType": "text/markdown"
+    }
+  ],
   "questions": [
     {
       "question": "单笔超过10000元的报销需要谁审批？",
@@ -16,6 +41,11 @@
       "question": "材料不完整时财务部应该怎么处理？",
       "expectedAnswerHint": "财务部应退回申请并说明缺失项，员工应在 3 个工作日内补充材料。",
       "expectedCitationHint": "报销审批流程"
+    },
+    {
+      "question": "CONFIDENTIAL 文档默认谁可以读取？",
+      "expectedAnswerHint": "只有空间 OWNER、被授权部门或具备保密知识读取权限的用户可以读取。",
+      "expectedCitationHint": "密级访问策略"
     }
   ]
 }

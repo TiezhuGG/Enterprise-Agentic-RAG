@@ -21,7 +21,7 @@ pnpm docker:prod:up
 pnpm db:deploy
 pnpm db:seed
 pnpm provider:smoke
-pnpm demo:seed
+pnpm demo:seed --reset --no-graph
 ```
 
 ## 演示验收流程
