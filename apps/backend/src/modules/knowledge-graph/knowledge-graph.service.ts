@@ -1,7 +1,9 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { createHash } from 'node:crypto';
+import type { ExecutionContext } from '../../common';
 import { ChunkRepository } from '../chunk';
-import { DocumentRepository } from '../document';
+import { DocumentRepository, DocumentService } from '../document';
+import { KnowledgeSpaceService } from '../knowledge-space';
 import { EntityExtractor } from './extractors/entity.extractor';
 import { RelationExtractor } from './extractors/relation.extractor';
 import { KnowledgeGraphRepository } from './knowledge-graph.repository';
@@ -10,6 +12,7 @@ import type {
   GraphDocumentCounts,
   GraphEntity,
   GraphExtractionResult,
+  GraphView,
   GraphRelation,
 } from './knowledge-graph.types';
 
@@ -20,7 +23,9 @@ export class KnowledgeGraphService {
   constructor(
     private readonly chunkRepository: ChunkRepository,
     private readonly documentRepository: DocumentRepository,
+    private readonly documentService: DocumentService,
     private readonly entityExtractor: EntityExtractor,
+    private readonly knowledgeSpaceService: KnowledgeSpaceService,
     private readonly knowledgeGraphRepository: KnowledgeGraphRepository,
     private readonly relationExtractor: RelationExtractor,
   ) {}
@@ -100,6 +105,28 @@ export class KnowledgeGraphService {
     return this.knowledgeGraphRepository.countDocumentGraph(document.id);
   }
 
+  async getDocumentGraph(context: ExecutionContext, documentId: string): Promise<GraphView> {
+    const document = await this.documentService.getById(context, documentId);
+
+    return this.knowledgeGraphRepository.getDocumentGraph(document.id);
+  }
+
+  async getSpaceGraph(
+    context: ExecutionContext,
+    spaceId: string,
+    input: { limit?: number; query?: string },
+  ): Promise<GraphView> {
+    await this.knowledgeSpaceService.getById(context, spaceId);
+    const documents = await this.documentService.listBySpace(context, spaceId);
+
+    return this.knowledgeGraphRepository.getSpaceGraph({
+      documentIds: documents.map((document) => document.id),
+      limit: this.normalizeLimit(input.limit),
+      query: input.query,
+      spaceId,
+    });
+  }
+
   private createEntityId(spaceId: string, documentId: string, name: string): string {
     const digest = createHash('sha1')
       .update(`${spaceId}:${documentId}:${normalizeName(name)}`)
@@ -136,6 +163,14 @@ export class KnowledgeGraphService {
 
   private entityKey(name: string): string {
     return normalizeName(name);
+  }
+
+  private normalizeLimit(limit: number | undefined): number {
+    if (!limit || !Number.isFinite(limit)) {
+      return 80;
+    }
+
+    return Math.max(1, Math.min(200, Math.floor(limit)));
   }
 
   private toGraphEntities(

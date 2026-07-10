@@ -1,5 +1,7 @@
 import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { extname } from 'node:path';
 import type { ExecutionContext } from '../../common';
+import { StorageService } from '../../infrastructure/storage';
 import { AccessPolicyService } from '../access-policy';
 import {
   KnowledgeSpaceRepository,
@@ -20,12 +22,21 @@ export interface DocumentMetadataResponse {
   metadata: DocumentContentMetadata;
 }
 
+export interface DocumentFileResponse {
+  buffer: Buffer;
+  contentType: string;
+  document: DocumentEntity;
+  filename: string;
+  size: number;
+}
+
 @Injectable()
 export class DocumentService {
   constructor(
     private readonly accessPolicyService: AccessPolicyService,
     private readonly documentRepository: DocumentRepository,
     private readonly knowledgeSpaceRepository: KnowledgeSpaceRepository,
+    private readonly storageService: StorageService,
   ) {}
 
   async create(
@@ -101,6 +112,24 @@ export class DocumentService {
     return {
       documentId: document.id,
       metadata: content.metadata,
+    };
+  }
+
+  async getFile(context: ExecutionContext, id: string): Promise<DocumentFileResponse> {
+    const document = await this.getById(context, id);
+
+    if (!document.storageKey) {
+      throw new NotFoundException('Document file not found');
+    }
+
+    const storedObject = await this.storageService.getObject(document.storageKey);
+
+    return {
+      buffer: storedObject.buffer,
+      contentType: storedObject.contentType ?? document.mimeType ?? 'application/octet-stream',
+      document,
+      filename: this.resolveFilename(document),
+      size: storedObject.size,
     };
   }
 
@@ -193,5 +222,16 @@ export class DocumentService {
       spaceRole: memberRole,
       tenantId: space.tenantId,
     };
+  }
+
+  private resolveFilename(document: DocumentEntity): string {
+    const storageExtension = document.storageKey ? extname(document.storageKey) : '';
+    const titleExtension = extname(document.title);
+    const filename = titleExtension ? document.title : `${document.title}${storageExtension}`;
+
+    return filename
+      .replace(/[/\\]/g, '_')
+      .replace(/[\r\n"]/g, '_')
+      .trim() || `document-${document.id}`;
   }
 }

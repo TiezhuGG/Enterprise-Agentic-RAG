@@ -28,6 +28,7 @@ interface WorkbenchStore {
   activeSection: AppSection;
   activeTab: WorkbenchTab;
   authError: string | null;
+  authHydrated: boolean;
   authLoading: boolean;
   authToken: string;
   authUser: AuthenticatedUser | null;
@@ -62,8 +63,32 @@ interface WorkbenchStore {
   setActiveSection: (section: AppSection) => void;
   setAuthToken: (token: string) => Promise<void>;
   setIngestionOptions: (options: Partial<IngestionOptions>) => void;
+  setSelectedSpaceFromGlobalSwitcher: (spaceId: string) => Promise<void>;
   uploadDocument: (file: File) => Promise<void>;
 }
+
+const selectedSpaceStorageKey = 'enterprise-agentic-rag.selectedSpaceId';
+
+const getPersistedSpaceId = (): string | null => {
+  if (typeof window === 'undefined') {
+    return null;
+  }
+
+  return window.localStorage.getItem(selectedSpaceStorageKey);
+};
+
+const persistSelectedSpaceId = (spaceId: string | null): void => {
+  if (typeof window === 'undefined') {
+    return;
+  }
+
+  if (spaceId) {
+    window.localStorage.setItem(selectedSpaceStorageKey, spaceId);
+    return;
+  }
+
+  window.localStorage.removeItem(selectedSpaceStorageKey);
+};
 
 const toErrorMessage = (error: unknown): string =>
   error instanceof Error ? error.message : 'Request failed';
@@ -113,6 +138,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   activeSection: 'dashboard',
   activeTab: 'pipeline',
   authError: null,
+  authHydrated: false,
   authLoading: false,
   authToken: '',
   authUser: null,
@@ -141,9 +167,11 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
   clearAuth() {
     persistAuthToken('');
+    persistSelectedSpaceId(null);
     set({
       ...emptyWorkspaceState(),
       authError: null,
+      authHydrated: true,
       authLoading: false,
       authToken: '',
       authUser: null,
@@ -167,6 +195,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
         selectedSpaceId: space.id,
         spaces: [space, ...state.spaces.filter((item) => item.id !== space.id)],
       }));
+      persistSelectedSpaceId(space.id);
 
       await get().loadDocuments(space.id);
     } catch (error) {
@@ -248,12 +277,14 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
     set({
       authToken,
+      authHydrated: false,
       error: null,
     });
 
     if (!authToken) {
       set({
         ...emptyWorkspaceState(),
+        authHydrated: true,
         authToken: '',
       });
       return;
@@ -263,9 +294,18 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
     try {
       const spaces = await knowledgeSpaceService.list();
-      const selectedSpaceId = get().selectedSpaceId ?? spaces[0]?.id ?? null;
+      const persistedSpaceId = getPersistedSpaceId();
+      const selectedSpaceId =
+        get().selectedSpaceId ??
+        (persistedSpaceId && spaces.some((space) => space.id === persistedSpaceId)
+          ? persistedSpaceId
+          : null) ??
+        spaces[0]?.id ??
+        null;
+      persistSelectedSpaceId(selectedSpaceId);
 
       set({
+        authHydrated: true,
         loading: false,
         selectedSpaceId,
         spaces,
@@ -276,6 +316,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       }
     } catch (error) {
       set({
+        authHydrated: true,
         error: toErrorMessage(error),
         loading: false,
         spaces: [],
@@ -368,6 +409,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       set({
         ...emptyWorkspaceState(),
         authError: null,
+        authHydrated: true,
         authLoading: false,
         authToken: response.accessToken,
         authUser: response.user,
@@ -452,6 +494,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       selectedPipelineJobId: null,
       selectedSpaceId: spaceId,
     });
+    persistSelectedSpaceId(spaceId);
 
     await get().loadDocuments(spaceId);
   },
@@ -472,6 +515,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     set({
       ...emptyWorkspaceState(),
       authError: null,
+      authHydrated: true,
       authLoading: false,
       authToken: normalizedToken,
       authUser: null,
@@ -487,6 +531,10 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
         ...options,
       },
     }));
+  },
+
+  async setSelectedSpaceFromGlobalSwitcher(spaceId: string) {
+    await get().selectSpace(spaceId);
   },
 
   async uploadDocument(file: File) {

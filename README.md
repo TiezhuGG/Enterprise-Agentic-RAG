@@ -249,6 +249,7 @@ pnpm db:seed
 ```
 
 Deployment checklist: [docs/demo/DEPLOYMENT_CHECKLIST.md](docs/demo/DEPLOYMENT_CHECKLIST.md)
+Online demo deployment guide: [docs/demo/ONLINE_DEMO_DEPLOYMENT.md](docs/demo/ONLINE_DEMO_DEPLOYMENT.md)
 
 ## Demo Assets
 

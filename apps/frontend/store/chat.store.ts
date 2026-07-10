@@ -27,6 +27,7 @@ export interface ChatMessage {
   content: string;
   createdAt: string;
   attachments?: ChatMessageAttachment[];
+  citations?: AgentCitation[];
   status?: 'streaming' | 'done' | 'error';
 }
 
@@ -99,12 +100,12 @@ const createTraceItem = (
 });
 
 const traceLabels: Record<string, string> = {
-  answer: 'Answer',
-  graph: 'Graph Search',
-  memory: 'Memory',
-  planner: 'Planning',
-  retrieval: 'Retrieval',
-  verification: 'Verification',
+  answer: '生成回答',
+  graph: '图谱检索',
+  memory: '记忆上下文',
+  planner: '问题规划',
+  retrieval: '知识检索',
+  verification: '答案校验',
 };
 
 const mapTraceEntry = (entry: AgentTraceEntry): AgentTraceItem =>
@@ -383,7 +384,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
       messages: [...state.messages, userMessage],
       streaming: true,
       streamingMessage: assistantMessage,
-      trace: [createTraceItem('planner', 'Planning', 'running')],
+      trace: [createTraceItem('planner', '问题规划', 'running')],
     }));
 
     try {
@@ -428,12 +429,12 @@ const handleAgentEvent = (event: AgentEvent, set: ChatStoreSet): void => {
             state.trace,
             createTraceItem(
               'planner',
-              'Planning',
+              '问题规划',
               'success',
-              data.needsGraph ? 'Graph enabled' : 'Retrieval only',
+              data.needsGraph ? '已启用图谱检索' : '仅使用知识检索',
             ),
           ),
-          createTraceItem('retrieval', 'Retrieval', data.needsRetrieval ? 'running' : 'skipped'),
+          createTraceItem('retrieval', '知识检索', data.needsRetrieval ? 'running' : 'skipped'),
         ),
       }));
       break;
@@ -444,7 +445,7 @@ const handleAgentEvent = (event: AgentEvent, set: ChatStoreSet): void => {
       set((state) => ({
         trace: upsertTrace(
           state.trace,
-          createTraceItem('retrieval', 'Retrieval', 'success', `${data.count} chunks`),
+          createTraceItem('retrieval', '知识检索', 'success', `${data.count} 个片段`),
         ),
       }));
       break;
@@ -455,7 +456,7 @@ const handleAgentEvent = (event: AgentEvent, set: ChatStoreSet): void => {
       set((state) => ({
         trace: upsertTrace(
           state.trace,
-          createTraceItem('graph', 'Graph Search', 'success', `${data.count} relations`),
+          createTraceItem('graph', '图谱检索', 'success', `${data.count} 条关系`),
         ),
       }));
       break;
@@ -491,6 +492,7 @@ const handleAgentEvent = (event: AgentEvent, set: ChatStoreSet): void => {
               {
                 ...state.streamingMessage,
                 content: state.streamingMessage.content || data.answer,
+                citations: data.citations,
                 status: 'done',
               },
             ]

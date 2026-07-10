@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   Activity,
   BarChart3,
@@ -12,6 +13,8 @@ import {
   ChevronDown,
   CircleHelp,
   Database,
+  Download,
+  Eye,
   FileArchive,
   FileText,
   FolderOpen,
@@ -92,11 +95,14 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
+import { documentService, type DocumentFileBlob } from '@/services/document.service';
+import { graphService } from '@/services/graph.service';
 import { useChatStore, type AgentTraceItem, type ChatMessage } from '@/store/chat.store';
 import { useObservabilityStore } from '@/store/observability.store';
 import { useSearchStore } from '@/store/search.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
 import type { AgentCitation } from '@/types/agent';
+import type { GraphView } from '@/types/graph';
 import type { AppSection, DocumentStatus, DocumentType, KnowledgeDocument } from '@/types/workbench';
 import { cn } from '@/lib/utils';
 
@@ -221,10 +227,9 @@ const sectionSubNav: Record<AppSection, Array<{ label: string; icon: LucideIcon 
     { icon: KeyRound, label: '访问凭证' },
   ],
   search: [
-    { icon: Search, label: '全文检索' },
-    { icon: Sparkles, label: '语义检索' },
-    { icon: Database, label: '混合检索' },
-    { icon: FileText, label: '结果来源' },
+    { icon: Search, label: '智能搜索' },
+    { icon: FileText, label: '引用来源' },
+    { icon: Sparkles, label: '后续路线图' },
   ],
   system: [
     { icon: Gauge, label: '系统状态' },
@@ -275,6 +280,9 @@ const statusColor: Record<DocumentStatus, string> = {
   PROCESSING: '#f59e0b',
   READY: '#22c55e',
 };
+
+const previewableDocumentTypes = new Set<DocumentType>(['PDF', 'IMAGE', 'TXT', 'MARKDOWN']);
+const textPreviewDocumentTypes = new Set<DocumentType>(['TXT', 'MARKDOWN']);
 
 const formatDateTime = (value?: string | null): string => {
   if (!value) {
@@ -327,25 +335,16 @@ export function EnterpriseAdminApp() {
   const authUser = useWorkbenchStore((state) => state.authUser);
   const clearAuth = useWorkbenchStore((state) => state.clearAuth);
   const error = useWorkbenchStore((state) => state.error);
-  const initialize = useWorkbenchStore((state) => state.initialize);
   const loading = useWorkbenchStore((state) => state.loading);
   const setActiveSection = useWorkbenchStore((state) => state.setActiveSection);
   const initializeObservability = useObservabilityStore((state) => state.initialize);
   const refreshObservability = useObservabilityStore((state) => state.refresh);
 
   useEffect(() => {
-    void initialize();
-  }, [initialize]);
-
-  useEffect(() => {
     if (authToken) {
       void initializeObservability();
     }
   }, [authToken, initializeObservability]);
-
-  if (!authToken) {
-    return <LoginPage />;
-  }
 
   return (
     <TooltipProvider>
@@ -389,10 +388,14 @@ function TopBar({
   onRefresh: () => void;
 }) {
   const meta = sectionMeta[activeSection];
+  const createSpace = useWorkbenchStore((state) => state.createSpace);
   const search = useSearchStore((state) => state.search);
+  const selectSpace = useWorkbenchStore((state) => state.setSelectedSpaceFromGlobalSwitcher);
   const setSearchQuery = useSearchStore((state) => state.setQuery);
   const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
+  const spaces = useWorkbenchStore((state) => state.spaces);
   const [globalQuery, setGlobalQuery] = useState('');
+  const [newSpaceName, setNewSpaceName] = useState('');
 
   const handleGlobalSearch = (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -411,9 +414,21 @@ function TopBar({
     }
   };
 
+  const handleCreateSpace = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    const name = newSpaceName.trim();
+
+    if (!name) {
+      return;
+    }
+
+    await createSpace(name);
+    setNewSpaceName('');
+  };
+
   return (
     <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">
-      <div className="grid h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 sm:px-5 lg:grid-cols-[minmax(210px,0.7fr)_minmax(280px,560px)_auto] lg:px-6">
+      <div className="grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-5 lg:grid-cols-[minmax(190px,0.65fr)_minmax(260px,1fr)_minmax(220px,320px)_auto] lg:px-6">
         <div className="flex min-w-0 items-center gap-3">
           <Sheet>
             <SheetTrigger asChild>
@@ -451,7 +466,7 @@ function TopBar({
             <Input
               className="h-9 border-slate-200 bg-slate-50 pl-9 pr-16 shadow-none"
               onChange={(event) => setGlobalQuery(event.target.value)}
-              placeholder="搜索文档、知识空间、标签和问答记录"
+              placeholder="搜索文档、问答记录"
               value={globalQuery}
             />
             <span className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] text-muted-foreground xl:inline">
@@ -459,6 +474,61 @@ function TopBar({
             </span>
           </div>
         </form>
+
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button className="hidden min-w-0 justify-between gap-2 px-3 lg:flex" variant="outline">
+              <Database className="size-4 text-muted-foreground" />
+              <span className="min-w-0 truncate">
+                {spaces.find((space) => space.id === selectedSpaceId)?.name ?? '选择知识空间'}
+              </span>
+              <ChevronDown className="size-4 text-muted-foreground" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-80">
+            <DropdownMenuLabel>当前知识空间</DropdownMenuLabel>
+            <div className="px-2 pb-2 text-xs leading-5 text-muted-foreground">
+              知识空间用于隔离部门、项目或业务线知识，并决定文档、搜索、问答和图谱的范围。
+            </div>
+            <DropdownMenuSeparator />
+            {spaces.length === 0 ? (
+              <div className="px-2 py-3 text-sm text-muted-foreground">暂无知识空间</div>
+            ) : (
+              spaces.map((space) => (
+                <DropdownMenuItem
+                  className="items-start gap-2"
+                  key={space.id}
+                  onClick={() => void selectSpace(space.id)}
+                >
+                  <Database className="mt-0.5 size-4" />
+                  <span className="min-w-0">
+                    <span className="block truncate">{space.name}</span>
+                    <span className="block text-xs text-muted-foreground">
+                      {space.visibility === 'PRIVATE'
+                        ? '私有空间'
+                        : space.visibility === 'PUBLIC'
+                          ? '公开空间'
+                          : '内部空间'}
+                    </span>
+                  </span>
+                  {space.id === selectedSpaceId ? <CheckCircle2 className="ml-auto size-4 text-emerald-600" /> : null}
+                </DropdownMenuItem>
+              ))
+            )}
+            <DropdownMenuSeparator />
+            <form className="grid gap-2 p-2" onSubmit={handleCreateSpace}>
+              <Input
+                onChange={(event) => setNewSpaceName(event.target.value)}
+                placeholder="新建知识空间"
+                value={newSpaceName}
+              />
+              <Button disabled={!newSpaceName.trim()} size="sm" type="submit">
+                <Plus />
+                创建空间
+              </Button>
+            </form>
+          </DropdownMenuContent>
+        </DropdownMenu>
 
         <div className="ml-auto flex items-center gap-1">
           <Tooltip>
@@ -580,25 +650,24 @@ function PageSideNav({
         <p className="px-2 pb-2 text-[11px] font-medium uppercase text-muted-foreground">
           {sectionMeta[activeSection].title}
         </p>
-        <nav className="grid gap-1">
+        <div className="grid gap-1">
           {items.map((item, index) => {
           const Icon = item.icon;
 
           return (
-            <button
+            <div
               className={cn(
-                'flex items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground',
+                'flex items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm text-muted-foreground',
                 index === 0 && 'bg-accent text-primary',
               )}
               key={item.label}
-              type="button"
             >
               <Icon className="size-4 shrink-0" />
               <span className="truncate">{item.label}</span>
-            </button>
+            </div>
           );
         })}
-      </nav>
+      </div>
       </div>
 
       <div className="mt-auto border-t p-3">
@@ -646,18 +715,46 @@ function SectionContent({ activeSection }: { activeSection: AppSection }) {
   }
 }
 
-function LoginPage() {
+export function LoginPage() {
   const authError = useWorkbenchStore((state) => state.authError);
+  const authHydrated = useWorkbenchStore((state) => state.authHydrated);
   const authLoading = useWorkbenchStore((state) => state.authLoading);
+  const authToken = useWorkbenchStore((state) => state.authToken);
+  const initialize = useWorkbenchStore((state) => state.initialize);
   const login = useWorkbenchStore((state) => state.login);
+  const router = useRouter();
   const [email, setEmail] = useState('admin@example.com');
   const [password, setPassword] = useState('Admin123!');
+
+  useEffect(() => {
+    if (!authHydrated) {
+      void initialize();
+    }
+  }, [authHydrated, initialize]);
+
+  useEffect(() => {
+    if (authHydrated && authToken) {
+      router.replace('/console');
+    }
+  }, [authHydrated, authToken, router]);
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await login(email, password);
     setPassword('');
+
+    if (useWorkbenchStore.getState().authToken) {
+      router.replace('/console');
+    }
   };
+
+  if (!authHydrated) {
+    return (
+      <main className="grid min-h-screen place-items-center bg-background">
+        <WorkspaceSkeleton />
+      </main>
+    );
+  }
 
   return (
     <main className="grid min-h-screen bg-background lg:grid-cols-[minmax(420px,0.9fr)_1fr]">
@@ -820,6 +917,31 @@ function DashboardPage() {
           value={readiness?.status === 'ok' ? '正常' : '待检查'}
         />
       </div>
+
+      <Card>
+        <CardHeader>
+          <CardTitle>演示流程</CardTitle>
+          <CardDescription>按这个顺序操作，可以完整讲清企业知识库全链路。</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
+          {[
+            ['选择空间', '确定部门、项目或业务线范围'],
+            ['上传文档', '把 PDF、Word、文本等资料放入空间'],
+            ['解析入库', '执行分块、向量化、索引和可选图谱抽取'],
+            ['智能搜索', '用自然语言查找制度和资料'],
+            ['AI 问答', '获得带引用来源的知识回答'],
+            ['图谱与状态', '查看关系图谱和系统健康'],
+          ].map(([title, description], index) => (
+            <div className="rounded-md border bg-slate-50 p-3 text-sm" key={title}>
+              <div className="mb-2 flex size-6 items-center justify-center rounded-md bg-slate-900 text-xs font-medium text-white">
+                {index + 1}
+              </div>
+              <p className="font-medium">{title}</p>
+              <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+            </div>
+          ))}
+        </CardContent>
+      </Card>
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1.4fr)_minmax(340px,0.8fr)]">
         <Card>
@@ -984,8 +1106,15 @@ function DocumentsPage() {
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [createSpaceName, setCreateSpaceName] = useState('');
   const [detailOpen, setDetailOpen] = useState(false);
+  const [documentActionError, setDocumentActionError] = useState<string | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [keyword, setKeyword] = useState('');
+  const [previewDocument, setPreviewDocument] = useState<KnowledgeDocument | null>(null);
+  const [previewError, setPreviewError] = useState<string | null>(null);
+  const [previewFile, setPreviewFile] = useState<DocumentFileBlob | null>(null);
+  const [previewLoading, setPreviewLoading] = useState(false);
+  const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewText, setPreviewText] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'ALL'>('ALL');
   const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
   const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
@@ -1022,6 +1151,56 @@ function DocumentsPage() {
     setCreateSpaceName('');
   };
 
+  const clearPreview = () => {
+    if (previewFile) {
+      URL.revokeObjectURL(previewFile.url);
+    }
+
+    setPreviewDocument(null);
+    setPreviewError(null);
+    setPreviewFile(null);
+    setPreviewLoading(false);
+    setPreviewText(null);
+  };
+
+  const handlePreview = async (document: KnowledgeDocument) => {
+    clearPreview();
+    setDocumentActionError(null);
+    setPreviewDocument(document);
+    setPreviewOpen(true);
+
+    if (!previewableDocumentTypes.has(document.type)) {
+      setPreviewError('当前文件类型暂不支持在线预览，请下载原文件查看。解析完成后可在元数据中查看文本处理信息。');
+      return;
+    }
+
+    setPreviewLoading(true);
+
+    try {
+      const fileBlob = await documentService.preview(document);
+
+      setPreviewFile(fileBlob);
+
+      if (textPreviewDocumentTypes.has(document.type)) {
+        setPreviewText(await fileBlob.blob.text());
+      }
+    } catch (error) {
+      setPreviewError(error instanceof Error ? error.message : '文档预览失败');
+    } finally {
+      setPreviewLoading(false);
+    }
+  };
+
+  const handleDownload = async (document: KnowledgeDocument) => {
+    setDocumentActionError(null);
+
+    try {
+      await documentService.download(document);
+    } catch (error) {
+      setDocumentActionError(error instanceof Error ? error.message : '文档下载失败');
+    }
+  };
+
   return (
     <div className="grid gap-4">
       <PageHeader
@@ -1042,6 +1221,7 @@ function DocumentsPage() {
         description="选择知识空间、上传文档、开始解析，完成知识入库。"
         title="文档中心"
       />
+      {documentActionError ? <ErrorBanner message={documentActionError} /> : null}
 
       <Card>
         <CardContent className="grid gap-3 p-4 md:grid-cols-3">
@@ -1215,6 +1395,24 @@ function DocumentsPage() {
                             <DropdownMenuItem
                               onClick={(event) => {
                                 event.stopPropagation();
+                                void handlePreview(document);
+                              }}
+                            >
+                              <Eye className="size-4" />
+                              在线预览
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(event) => {
+                                event.stopPropagation();
+                                void handleDownload(document);
+                              }}
+                            >
+                              <Download className="size-4" />
+                              下载原文件
+                            </DropdownMenuItem>
+                            <DropdownMenuItem
+                              onClick={(event) => {
+                                event.stopPropagation();
                                 void selectDocument(document.id).then(() => ingestSelectedDocument());
                               }}
                             >
@@ -1276,6 +1474,16 @@ function DocumentsPage() {
                   <FileText />
                   查看元数据
                 </Button>
+                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                  <Button onClick={() => void handlePreview(selectedDocument)} variant="outline">
+                    <Eye />
+                    在线预览
+                  </Button>
+                  <Button onClick={() => void handleDownload(selectedDocument)} variant="outline">
+                    <Download />
+                    下载原文件
+                  </Button>
+                </div>
                 <Separator />
                 <div className="text-xs leading-6 text-muted-foreground">
                   默认会执行文本解析、分块、向量化和索引。图谱抽取会调用现有入库参数，不会新增后端接口。
@@ -1310,6 +1518,69 @@ function DocumentsPage() {
           )}
           <DialogFooter>
             <Button onClick={() => setDetailOpen(false)}>关闭</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        onOpenChange={(open) => {
+          setPreviewOpen(open);
+
+          if (!open) {
+            clearPreview();
+          }
+        }}
+        open={previewOpen}
+      >
+        <DialogContent className="max-w-5xl">
+          <DialogHeader>
+            <DialogTitle>文档预览</DialogTitle>
+            <DialogDescription>{previewDocument?.title ?? '暂无文档'}</DialogDescription>
+          </DialogHeader>
+          <div className="min-h-[420px] overflow-hidden rounded-md border bg-slate-50">
+            {previewLoading ? (
+              <div className="grid h-[420px] place-items-center text-sm text-muted-foreground">
+                正在加载文档...
+              </div>
+            ) : previewError ? (
+              <div className="grid h-[420px] place-items-center p-6 text-center">
+                <div>
+                  <FileText className="mx-auto mb-3 size-9 text-slate-400" />
+                  <p className="font-medium">暂不能在线预览</p>
+                  <p className="mt-2 max-w-md text-sm text-muted-foreground">{previewError}</p>
+                  {previewDocument ? (
+                    <Button className="mt-4" onClick={() => void handleDownload(previewDocument)} variant="outline">
+                      <Download />
+                      下载原文件
+                    </Button>
+                  ) : null}
+                </div>
+              </div>
+            ) : previewDocument?.type === 'PDF' && previewFile ? (
+              <iframe className="h-[70vh] w-full bg-white" src={previewFile.url} title={previewDocument.title} />
+            ) : previewDocument?.type === 'IMAGE' && previewFile ? (
+              <div className="grid max-h-[70vh] place-items-center overflow-auto p-4">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img alt={previewDocument.title} className="max-h-[66vh] max-w-full rounded-md" src={previewFile.url} />
+              </div>
+            ) : textPreviewDocumentTypes.has(previewDocument?.type ?? 'TXT') && previewText !== null ? (
+              <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap bg-white p-4 text-sm leading-7">
+                {previewText}
+              </pre>
+            ) : (
+              <div className="grid h-[420px] place-items-center text-sm text-muted-foreground">
+                请选择文档后预览。
+              </div>
+            )}
+          </div>
+          <DialogFooter>
+            {previewDocument ? (
+              <Button onClick={() => void handleDownload(previewDocument)} variant="outline">
+                <Download />
+                下载原文件
+              </Button>
+            ) : null}
+            <Button onClick={() => setPreviewOpen(false)}>关闭</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
@@ -1427,39 +1698,51 @@ function SearchPage() {
               ) : filteredCitations.length === 0 ? (
                 <EmptyState description="当前没有可展示的引用来源。" icon={FileText} title="暂无结果" />
               ) : (
-                filteredCitations.map((citation, index) => (
-                  <CitationResultCard citation={citation} index={index + 1} key={`${citation.documentId}-${citation.chunkId}-${index}`} />
-                ))
+                <CitationDocumentReferences citations={filteredCitations} />
               )}
             </CardContent>
           </Card>
         </div>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>搜索历史</CardTitle>
-            <CardDescription>最近 10 次搜索记录</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-2">
-            {history.length === 0 ? (
-              <EmptyState description="搜索完成后会保存在这里。" icon={History} title="暂无历史" />
-            ) : (
-              history.map((item) => (
-                <button
-                  className="rounded-md border p-3 text-left text-sm transition hover:bg-muted"
-                  key={item.id}
-                  onClick={() => setQuery(item.query)}
-                  type="button"
-                >
-                  <div className="line-clamp-2 font-medium">{item.query}</div>
-                  <div className="mt-1 text-xs text-muted-foreground">
-                    {formatDateTime(item.createdAt)} · {item.citations.length} 条来源
-                  </div>
-                </button>
-              ))
-            )}
-          </CardContent>
-        </Card>
+        <div className="grid gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle>搜索历史</CardTitle>
+              <CardDescription>最近 10 次搜索记录</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-2">
+              {history.length === 0 ? (
+                <EmptyState description="搜索完成后会保存在这里。" icon={History} title="暂无历史" />
+              ) : (
+                history.map((item) => (
+                  <button
+                    className="rounded-md border p-3 text-left text-sm transition hover:bg-muted"
+                    key={item.id}
+                    onClick={() => setQuery(item.query)}
+                    type="button"
+                  >
+                    <div className="line-clamp-2 font-medium">{item.query}</div>
+                    <div className="mt-1 text-xs text-muted-foreground">
+                      {formatDateTime(item.createdAt)} · {item.citations.length} 条来源
+                    </div>
+                  </button>
+                ))
+              )}
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle>检索能力路线图</CardTitle>
+              <CardDescription>当前页面先提供可用的智能搜索闭环</CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-3 text-sm">
+              <RoadmapItem title="全文检索" description="后续提供独立 BM25 命中文档列表。" />
+              <RoadmapItem title="语义检索" description="后续提供独立向量召回结果列表。" />
+              <RoadmapItem title="混合检索" description="后续提供关键词 + 向量 + 重排的纯检索页。" />
+            </CardContent>
+          </Card>
+        </div>
       </div>
     </div>
   );
@@ -1635,9 +1918,7 @@ function AssistantPage() {
                 {citations.length === 0 ? (
                   <EmptyState description="发送问题后会显示引用来源。" icon={FileText} title="暂无引用" />
                 ) : (
-                  citations.map((citation, index) => (
-                    <CitationResultCard citation={citation} index={index + 1} key={`${citation.documentId}-${citation.chunkId}`} />
-                  ))
+                  <CitationDocumentReferences citations={citations} />
                 )}
               </TabsContent>
               <TabsContent className="grid gap-2" value="trace">
@@ -1658,46 +1939,151 @@ function AssistantPage() {
 function GraphPage() {
   const documents = useWorkbenchStore((state) => state.documents);
   const ingestionStatus = useWorkbenchStore((state) => state.ingestionStatus);
+  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const selectedDocumentId = useWorkbenchStore((state) => state.selectedDocumentId);
+  const selectDocument = useWorkbenchStore((state) => state.selectDocument);
+  const spaces = useWorkbenchStore((state) => state.spaces);
   const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
   const readiness = useObservabilityStore((state) => state.readiness);
-  const searchHistory = useSearchStore((state) => state.history);
   const graphCheck = readiness?.checks.find((check) => check.name === 'graph');
-  const graphCitations = searchHistory.flatMap((item) =>
-    item.citations.filter((citation) => citation.chunkId.startsWith('graph:') || Boolean(citation.metadata.graphSource)),
-  );
-  const graphRelations = graphCitations.slice(0, 6);
+  const currentSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
+  const [graphError, setGraphError] = useState<string | null>(null);
+  const [graphLoading, setGraphLoading] = useState(false);
+  const [graphQuery, setGraphQuery] = useState('');
+  const [graphScope, setGraphScope] = useState<'document' | 'space'>('space');
+  const [graphView, setGraphView] = useState<GraphView | null>(null);
+  const [submittedGraphQuery, setSubmittedGraphQuery] = useState('');
+
+  useEffect(() => {
+    let canceled = false;
+
+    const loadGraph = async () => {
+      setGraphError(null);
+
+      if (graphScope === 'document' && !selectedDocumentId) {
+        setGraphView(null);
+        return;
+      }
+
+      if (graphScope === 'space' && !selectedSpaceId) {
+        setGraphView(null);
+        return;
+      }
+
+      setGraphLoading(true);
+
+      try {
+        const view =
+          graphScope === 'document' && selectedDocumentId
+            ? await graphService.getDocumentGraph(selectedDocumentId)
+            : await graphService.getSpaceGraph(selectedSpaceId as string, {
+                limit: 120,
+                query: submittedGraphQuery,
+              });
+
+        if (!canceled) {
+          setGraphView(view);
+        }
+      } catch (error) {
+        if (!canceled) {
+          setGraphError(error instanceof Error ? error.message : '图谱加载失败');
+          setGraphView(null);
+        }
+      } finally {
+        if (!canceled) {
+          setGraphLoading(false);
+        }
+      }
+    };
+
+    void loadGraph();
+
+    return () => {
+      canceled = true;
+    };
+  }, [graphScope, selectedDocumentId, selectedSpaceId, submittedGraphQuery]);
 
   return (
     <div className="grid gap-4">
-      <PageHeader description="第一版展示图谱状态、图谱计数和问答中返回的关系引用。" title="知识图谱" />
+      <PageHeader
+        description="浏览当前知识空间或选中文档中抽取出的实体关系。"
+        title="知识图谱"
+      />
 
       <div className="grid gap-4 md:grid-cols-4">
         <StatCard icon={Network} label="图谱服务" tone={graphCheck?.status === 'ok' ? 'success' : 'warning'} value={graphCheck?.status === 'ok' ? '正常' : '待检查'} />
-        <StatCard icon={FileText} label="当前文档" value={selectedDocument ? '已选择' : '未选择'} />
-        <StatCard icon={Sparkles} label="图谱实体" value={ingestionStatus?.graphEntityCount ?? 0} />
-        <StatCard icon={GitBranch} label="图谱关系" value={ingestionStatus?.graphRelationCount ?? 0} />
+        <StatCard icon={Database} label="当前空间" value={currentSpace?.name ?? '未选择'} />
+        <StatCard icon={Sparkles} label="实体数量" value={graphView?.counts.nodes ?? ingestionStatus?.graphEntityCount ?? 0} />
+        <StatCard icon={GitBranch} label="关系数量" value={graphView?.counts.edges ?? ingestionStatus?.graphRelationCount ?? 0} />
       </div>
+
+      <Card>
+        <CardContent className="grid gap-3 p-4 lg:grid-cols-[180px_240px_minmax(0,1fr)_auto]">
+          <Select onValueChange={(value) => setGraphScope(value as 'document' | 'space')} value={graphScope}>
+            <SelectTrigger>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value="space">按空间浏览</SelectItem>
+              <SelectItem value="document">按文档浏览</SelectItem>
+            </SelectContent>
+          </Select>
+          <Select
+            disabled={documents.length === 0}
+            onValueChange={(value) => void selectDocument(value)}
+            value={selectedDocumentId ?? ''}
+          >
+            <SelectTrigger>
+              <SelectValue placeholder="选择文档" />
+            </SelectTrigger>
+            <SelectContent>
+              {documents.map((document) => (
+                <SelectItem key={document.id} value={document.id}>
+                  {document.title}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <Input
+            disabled={graphScope === 'document'}
+            onChange={(event) => setGraphQuery(event.target.value)}
+            placeholder="按实体、关系关键词筛选空间图谱"
+            value={graphQuery}
+          />
+          <Button onClick={() => setSubmittedGraphQuery(graphQuery)} variant="outline">
+            <Search />
+            查询图谱
+          </Button>
+        </CardContent>
+      </Card>
+
+      {graphError ? <ErrorBanner message={graphError} /> : null}
 
       <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_320px]">
         <Card>
           <CardHeader>
-            <CardTitle>关系图谱预览</CardTitle>
+            <CardTitle>关系图谱</CardTitle>
             <CardDescription>
-              {selectedDocument ? `当前文档：${selectedDocument.title}` : '选择文档并启用图谱抽取后查看关系'}
+              {graphScope === 'document'
+                ? selectedDocument
+                  ? `当前文档：${selectedDocument.title}`
+                  : '请选择文档'
+                : currentSpace
+                  ? `当前空间：${currentSpace.name}`
+                  : '请选择知识空间'}
             </CardDescription>
           </CardHeader>
           <CardContent>
-            {graphRelations.length > 0 ? (
-              <div className="relative min-h-96 overflow-hidden rounded-md border bg-[#f8fbff] p-8">
-                <GraphPreview citations={graphRelations} />
-              </div>
+            {graphLoading ? (
+              <div className="grid h-96 place-items-center text-sm text-muted-foreground">正在加载图谱...</div>
+            ) : graphView && graphView.nodes.length > 0 ? (
+              <GraphViewCanvas view={graphView} />
             ) : (
               <EmptyState
-                action={<Badge variant="info">待接入节点浏览 API</Badge>}
-                description="当前后端尚未提供图谱节点浏览接口。启用图谱抽取并发起相关问答后，这里会展示返回的关系引用。"
+                action={<Badge variant="info">待抽取图谱数据</Badge>}
+                description="请在文档中心选择文档，勾选“解析时抽取知识图谱”，然后开始解析。"
                 icon={Network}
-                title="暂无可视化关系"
+                title="暂无图谱数据"
               />
             )}
           </CardContent>
@@ -1705,29 +2091,104 @@ function GraphPage() {
 
         <Card>
           <CardHeader>
-            <CardTitle>图谱洞察统计</CardTitle>
-            <CardDescription>基于现有状态与引用来源汇总</CardDescription>
+            <CardTitle>关系明细</CardTitle>
+            <CardDescription>当前视图中的实体关系</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-4">
             <MetricLine label="当前图谱状态" value={graphCheck?.status === 'ok' ? '可用' : '未就绪'} />
-            <MetricLine label="最近图谱引用" value={graphCitations.length} />
-            <MetricLine label="文档图谱实体" value={ingestionStatus?.graphEntityCount ?? '-'} />
-            <MetricLine label="文档图谱关系" value={ingestionStatus?.graphRelationCount ?? '-'} />
+            <MetricLine label="实体数量" value={graphView?.counts.nodes ?? 0} />
+            <MetricLine label="关系数量" value={graphView?.counts.edges ?? 0} />
+            <MetricLine label="数据范围" value={graphView?.source === 'document' ? '当前文档' : '当前空间'} />
             <Separator />
             <div className="grid gap-2">
-              <p className="text-sm font-medium">最近关系引用</p>
-              {graphCitations.slice(0, 4).length === 0 ? (
-                <p className="text-sm text-muted-foreground">暂无图谱引用。</p>
+              <p className="text-sm font-medium">关系列表</p>
+              {!graphView || graphView.edges.length === 0 ? (
+                <p className="text-sm text-muted-foreground">暂无关系。</p>
               ) : (
-                graphCitations.slice(0, 4).map((citation, index) => (
-                  <div className="rounded-md border p-2 text-xs" key={`${citation.chunkId}-${index}`}>
-                    {String(citation.metadata.graphSource ?? '实体')} → {String(citation.metadata.graphTarget ?? '实体')}
-                  </div>
-                ))
+                graphView.edges.slice(0, 12).map((edge) => {
+                  const source = graphView.nodes.find((node) => node.id === edge.sourceId);
+                  const target = graphView.nodes.find((node) => node.id === edge.targetId);
+
+                  return (
+                    <div className="rounded-md border p-2 text-xs leading-5" key={edge.id}>
+                      <div className="font-medium">
+                        {source?.name ?? '实体'} → {target?.name ?? '实体'}
+                      </div>
+                      <div className="text-muted-foreground">{edge.type}</div>
+                    </div>
+                  );
+                })
               )}
             </div>
+            {graphView && graphView.edges.length > 12 ? (
+              <p className="text-xs text-muted-foreground">已显示前 12 条关系，可通过关键词缩小范围。</p>
+            ) : null}
           </CardContent>
         </Card>
+      </div>
+    </div>
+  );
+}
+
+function GraphViewCanvas({ view }: { view: GraphView }) {
+  const nodePositions = useMemo(() => {
+    const radius = 38;
+
+    return new Map(
+      view.nodes.map((node, index) => {
+        const angle = (index / Math.max(view.nodes.length, 1)) * Math.PI * 2 - Math.PI / 2;
+
+        return [
+          node.id,
+          {
+            x: 50 + Math.cos(angle) * radius,
+            y: 50 + Math.sin(angle) * radius,
+          },
+        ] as const;
+      }),
+    );
+  }, [view.nodes]);
+
+  return (
+    <div className="relative h-[560px] overflow-hidden rounded-md border bg-slate-50">
+      <svg className="absolute inset-0 h-full w-full" role="img">
+        {view.edges.map((edge) => {
+          const source = nodePositions.get(edge.sourceId);
+          const target = nodePositions.get(edge.targetId);
+
+          if (!source || !target) {
+            return null;
+          }
+
+          return (
+            <line
+              key={edge.id}
+              stroke="#cbd5e1"
+              strokeWidth="1.5"
+              x1={`${source.x}%`}
+              x2={`${target.x}%`}
+              y1={`${source.y}%`}
+              y2={`${target.y}%`}
+            />
+          );
+        })}
+      </svg>
+      {view.nodes.map((node) => {
+        const position = nodePositions.get(node.id) ?? { x: 50, y: 50 };
+
+        return (
+          <div
+            className="absolute z-10 w-36 -translate-x-1/2 -translate-y-1/2 rounded-md border bg-white px-3 py-2 text-center shadow-sm"
+            key={node.id}
+            style={{ left: `${position.x}%`, top: `${position.y}%` }}
+          >
+            <div className="truncate text-sm font-medium">{node.name}</div>
+            <div className="mt-1 truncate text-xs text-muted-foreground">{node.type}</div>
+          </div>
+        );
+      })}
+      <div className="absolute bottom-3 left-3 rounded-md border bg-white/90 px-3 py-2 text-xs text-muted-foreground">
+        {view.counts.nodes} 个实体 · {view.counts.edges} 条关系
       </div>
     </div>
   );
@@ -2050,6 +2511,126 @@ function MetricLine({ label, value }: { label: string; value: ReactNode }) {
   );
 }
 
+function RoadmapItem({ description, title }: { description: string; title: string }) {
+  return (
+    <div className="rounded-md border bg-slate-50 p-3">
+      <div className="flex items-center justify-between gap-2">
+        <span className="font-medium">{title}</span>
+        <Badge variant="secondary">待接入</Badge>
+      </div>
+      <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+interface CitationDocumentGroup {
+  citations: AgentCitation[];
+  document?: KnowledgeDocument;
+  documentId: string;
+  graphCount: number;
+  maxScore: number;
+}
+
+function CitationDocumentReferences({ citations }: { citations: AgentCitation[] }) {
+  const documents = useWorkbenchStore((state) => state.documents);
+  const [extraDocuments, setExtraDocuments] = useState<Record<string, KnowledgeDocument>>({});
+  const documentById = useMemo(() => {
+    const entries = [...documents, ...Object.values(extraDocuments)].map((document) => [
+      document.id,
+      document,
+    ] as const);
+
+    return new Map(entries);
+  }, [documents, extraDocuments]);
+  const groups = useMemo(
+    () => buildCitationDocumentGroups(citations, documentById),
+    [citations, documentById],
+  );
+
+  useEffect(() => {
+    const missingDocumentIds = [
+      ...new Set(citations.map((citation) => citation.documentId).filter(Boolean)),
+    ].filter((documentId) => !documentById.has(documentId));
+
+    if (missingDocumentIds.length === 0) {
+      return;
+    }
+
+    let canceled = false;
+
+    void Promise.allSettled(missingDocumentIds.map((documentId) => documentService.get(documentId))).then(
+      (results) => {
+        if (canceled) {
+          return;
+        }
+
+        const loadedDocuments = results
+          .filter((result): result is PromiseFulfilledResult<KnowledgeDocument> => result.status === 'fulfilled')
+          .map((result) => result.value);
+
+        if (loadedDocuments.length === 0) {
+          return;
+        }
+
+        setExtraDocuments((current) => ({
+          ...current,
+          ...Object.fromEntries(loadedDocuments.map((document) => [document.id, document])),
+        }));
+      },
+    );
+
+    return () => {
+      canceled = true;
+    };
+  }, [citations, documentById]);
+
+  if (groups.length === 0) {
+    return <EmptyState description="回答完成后会显示引用过的文档。" icon={FileText} title="暂无引用文档" />;
+  }
+
+  return (
+    <div className="grid gap-3">
+      {groups.map((group) => (
+        <details className="rounded-md border bg-card p-3 text-sm" key={group.documentId}>
+          <summary className="cursor-pointer list-none">
+            <div className="flex min-w-0 items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="flex min-w-0 items-center gap-2">
+                  <FileText className="size-4 shrink-0 text-primary" />
+                  <span className="truncate font-medium">
+                    {group.document?.title ?? `文档 ${group.documentId.slice(0, 8)}`}
+                  </span>
+                </div>
+                <div className="mt-1 flex flex-wrap gap-2 text-xs text-muted-foreground">
+                  <span>{group.document ? typeLabel[group.document.type] : '知识来源'}</span>
+                  <span>{group.citations.length} 个片段</span>
+                  {group.graphCount > 0 ? <span>{group.graphCount} 条图谱关系</span> : null}
+                  <span>最高相关度 {group.maxScore.toFixed(3)}</span>
+                </div>
+              </div>
+              <Badge variant={group.graphCount > 0 ? 'info' : 'secondary'}>
+                {group.graphCount > 0 ? '含图谱' : '文档'}
+              </Badge>
+            </div>
+          </summary>
+          <div className="mt-3 grid gap-2">
+            {group.citations.map((citation, index) => (
+              <div className="rounded-md border bg-slate-50 p-3 text-xs leading-6" key={`${citation.chunkId}-${index}`}>
+                <div className="mb-1 flex flex-wrap gap-2 text-muted-foreground">
+                  <span>片段 {index + 1}</span>
+                  <span>相关度 {citation.score.toFixed(3)}</span>
+                  {citation.metadata.sectionTitle ? <span>{String(citation.metadata.sectionTitle)}</span> : null}
+                </div>
+                <p className="line-clamp-4 text-foreground">{citation.content}</p>
+              </div>
+            ))}
+          </div>
+        </details>
+      ))}
+    </div>
+  );
+}
+
 function ErrorBanner({ message }: { message: string }) {
   return (
     <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -2108,28 +2689,6 @@ function DocumentTypeIcon({ type }: { type: DocumentType }) {
   return <Icon className={cn(iconClass, color)} />;
 }
 
-function CitationResultCard({ citation, index }: { citation: AgentCitation; index: number }) {
-  const isGraph = citation.chunkId.startsWith('graph:') || Boolean(citation.metadata.graphSource);
-
-  return (
-    <article className="rounded-md border border-border bg-card p-4 text-sm transition hover:border-slate-300 hover:bg-slate-50">
-      <div className="flex flex-wrap items-center gap-2">
-        <Badge variant={isGraph ? 'info' : 'secondary'}>{isGraph ? '图谱关系' : '文档引用'}</Badge>
-        <span className="font-medium">结果 {index}</span>
-        <span className="text-xs text-muted-foreground">相关度 {citation.score.toFixed(3)}</span>
-      </div>
-      <h3 className="mt-3 line-clamp-1 font-semibold">
-        {String(citation.metadata.sectionTitle ?? citation.metadata.documentType ?? '知识来源')}
-      </h3>
-      <p className="mt-2 line-clamp-3 leading-6 text-muted-foreground">{citation.content}</p>
-      <div className="mt-3 flex flex-wrap gap-2 text-xs text-muted-foreground">
-        <span>{citation.documentId}</span>
-        <span>{citation.chunkId}</span>
-      </div>
-    </article>
-  );
-}
-
 function ChatMessageBubble({ message }: { message: ChatMessage }) {
   const roleLabel = message.role === 'assistant' ? 'AI 助手' : message.role === 'user' ? '我' : '系统';
 
@@ -2155,6 +2714,12 @@ function ChatMessageBubble({ message }: { message: ChatMessage }) {
           </div>
         ) : null}
         <div className="prose-text">{renderPlainMarkdown(message.content)}</div>
+        {message.role === 'assistant' && message.citations?.length ? (
+          <div className="mt-3 border-t pt-3">
+            <p className="mb-2 text-xs font-medium text-muted-foreground">本次回答引用文档</p>
+            <CitationDocumentReferences citations={message.citations} />
+          </div>
+        ) : null}
       </div>
     </article>
   );
@@ -2186,49 +2751,6 @@ function TraceItem({ item }: { item: AgentTraceItem }) {
   );
 }
 
-function GraphPreview({ citations }: { citations: AgentCitation[] }) {
-  const relations = citations.map((citation, index) => ({
-    source: String(citation.metadata.graphSource ?? `实体${index + 1}`),
-    target: String(citation.metadata.graphTarget ?? `关联${index + 1}`),
-    type: String(citation.metadata.graphType ?? '关联'),
-  }));
-  const center = relations[0]?.source ?? '企业知识';
-
-  return (
-    <div className="relative mx-auto h-80 max-w-3xl">
-      <div className="absolute left-1/2 top-1/2 z-10 flex size-20 -translate-x-1/2 -translate-y-1/2 items-center justify-center rounded-lg bg-primary text-center text-sm font-medium text-primary-foreground shadow">
-        {center}
-      </div>
-      {relations.map((relation, index) => {
-        const angle = (index / Math.max(relations.length, 1)) * Math.PI * 2;
-        const x = 50 + Math.cos(angle) * 34;
-        const y = 50 + Math.sin(angle) * 34;
-
-        return (
-          <div key={`${relation.source}-${relation.target}-${index}`}>
-            <div
-              className="absolute h-px origin-left bg-blue-200"
-              style={{
-                left: '50%',
-                top: '50%',
-                transform: `rotate(${angle}rad)`,
-                width: '32%',
-              }}
-            />
-            <div
-              className="absolute z-20 min-w-28 rounded-lg border bg-white px-3 py-2 text-center text-xs shadow-sm"
-              style={{ left: `${x}%`, top: `${y}%`, transform: 'translate(-50%, -50%)' }}
-            >
-              <div className="font-medium">{relation.target}</div>
-              <div className="mt-1 text-muted-foreground">{relation.type}</div>
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
 function buildDailyDocumentData(documents: KnowledgeDocument[]) {
   const today = new Date();
   const days = Array.from({ length: 7 }).map((_, index) => {
@@ -2253,6 +2775,35 @@ function buildStatusData(documents: KnowledgeDocument[]) {
   }));
 
   return entries.some((entry) => entry.value > 0) ? entries : [{ color: '#dbeafe', name: '暂无数据', value: 1 }];
+}
+
+function buildCitationDocumentGroups(
+  citations: AgentCitation[],
+  documentById: Map<string, KnowledgeDocument>,
+): CitationDocumentGroup[] {
+  const groups = new Map<string, CitationDocumentGroup>();
+
+  citations.forEach((citation) => {
+    const existing = groups.get(citation.documentId);
+    const isGraph = citation.chunkId.startsWith('graph:') || Boolean(citation.metadata.graphSource);
+
+    if (!existing) {
+      groups.set(citation.documentId, {
+        citations: [citation],
+        document: documentById.get(citation.documentId),
+        documentId: citation.documentId,
+        graphCount: isGraph ? 1 : 0,
+        maxScore: citation.score,
+      });
+      return;
+    }
+
+    existing.citations.push(citation);
+    existing.graphCount += isGraph ? 1 : 0;
+    existing.maxScore = Math.max(existing.maxScore, citation.score);
+  });
+
+  return [...groups.values()].sort((left, right) => right.maxScore - left.maxScore);
 }
 
 function renderPlainMarkdown(content: string) {

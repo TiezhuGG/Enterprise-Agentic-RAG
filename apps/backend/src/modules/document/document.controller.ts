@@ -1,10 +1,26 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Patch,
+  Post,
+  Query,
+  Res,
+  StreamableFile,
+  UseGuards,
+} from '@nestjs/common';
 import { RequestContextService, type ExecutionContext } from '../../common';
 import { CurrentUser, JwtAuthGuard, type AuthenticatedUser } from '../auth';
 import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import type { DocumentEntity } from './entities/document.entity';
 import { DocumentService, type DocumentMetadataResponse } from './document.service';
+
+interface FileResponse {
+  setHeader(name: string, value: string | number): void;
+}
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -41,6 +57,29 @@ export class DocumentController {
     @Param('id') id: string,
   ): Promise<DocumentMetadataResponse> {
     return this.documentService.getMetadata(this.createExecutionContext(user), id);
+  }
+
+  @Get('documents/:id/file')
+  async getFile(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Query('disposition') disposition: 'inline' | 'attachment' | undefined,
+    @Res({ passthrough: true }) response: FileResponse,
+  ): Promise<StreamableFile> {
+    const file = await this.documentService.getFile(this.createExecutionContext(user), id);
+    const normalizedDisposition = disposition === 'attachment' ? 'attachment' : 'inline';
+    const asciiFilename = file.filename.replace(/[^\x20-\x7E]/g, '_');
+
+    response.setHeader('Content-Type', file.contentType);
+    response.setHeader('Content-Length', file.size);
+    response.setHeader(
+      'Content-Disposition',
+      `${normalizedDisposition}; filename="${asciiFilename}"; filename*=UTF-8''${encodeURIComponent(
+        file.filename,
+      )}`,
+    );
+
+    return new StreamableFile(file.buffer);
   }
 
   @Get('documents/:id')
