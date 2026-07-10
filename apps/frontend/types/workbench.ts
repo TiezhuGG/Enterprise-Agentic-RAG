@@ -1,4 +1,12 @@
 export type SpaceMemberRole = 'OWNER' | 'EDITOR' | 'VIEWER';
+export type AppSection =
+  | 'dashboard'
+  | 'documents'
+  | 'search'
+  | 'assistant'
+  | 'graph'
+  | 'profile'
+  | 'system';
 export type WorkbenchTab = 'pipeline' | 'observability' | 'agent-debug' | 'assistant';
 
 export interface SpaceMember {
@@ -160,6 +168,10 @@ export interface PipelineJobDetail extends PipelineJob {
 export interface UploadState {
   status: 'idle' | 'uploading' | 'success' | 'error';
   filename?: string;
+}
+
+export interface IngestionOptions {
+  includeGraph: boolean;
 }
 
 export interface IngestionState {

@@ -1,5 +1,5 @@
-import { DemoWorkbench } from '@/components/workbench';
+import { EnterpriseAdminApp } from '@/components/admin/EnterpriseAdminApp';
 
 export default function HomePage() {
-  return <DemoWorkbench />;
+  return <EnterpriseAdminApp />;
 }

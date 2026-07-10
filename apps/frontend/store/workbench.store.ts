@@ -11,6 +11,7 @@ import { uploadService } from '@/services/upload.service';
 import type {
   DocumentContentMetadata,
   IngestionResult,
+  IngestionOptions,
   IngestionState,
   IngestionStatus,
   KnowledgeDocument,
@@ -19,10 +20,12 @@ import type {
   PipelineJob,
   UploadState,
   WorkbenchTab,
+  AppSection,
 } from '@/types/workbench';
 import type { AuthenticatedUser } from '@/types/auth';
 
 interface WorkbenchStore {
+  activeSection: AppSection;
   activeTab: WorkbenchTab;
   authError: string | null;
   authLoading: boolean;
@@ -32,6 +35,7 @@ interface WorkbenchStore {
   documents: KnowledgeDocument[];
   error: string | null;
   ingestionState: IngestionState;
+  ingestionOptions: IngestionOptions;
   ingestionStatus: IngestionStatus | null;
   loading: boolean;
   loadingDocuments: boolean;
@@ -55,7 +59,9 @@ interface WorkbenchStore {
   selectPipelineJob: (jobId: string) => Promise<void>;
   selectSpace: (spaceId: string) => Promise<void>;
   setActiveTab: (tab: WorkbenchTab) => void;
+  setActiveSection: (section: AppSection) => void;
   setAuthToken: (token: string) => Promise<void>;
+  setIngestionOptions: (options: Partial<IngestionOptions>) => void;
   uploadDocument: (file: File) => Promise<void>;
 }
 
@@ -85,6 +91,9 @@ const emptyWorkspaceState = () => ({
   ingestionState: {
     status: 'idle' as const,
   },
+  ingestionOptions: {
+    includeGraph: false,
+  },
   ingestionStatus: null,
   loading: false,
   loadingDocuments: false,
@@ -101,6 +110,7 @@ const emptyWorkspaceState = () => ({
 });
 
 export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
+  activeSection: 'dashboard',
   activeTab: 'pipeline',
   authError: null,
   authLoading: false,
@@ -111,6 +121,9 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   error: null,
   ingestionState: {
     status: 'idle',
+  },
+  ingestionOptions: {
+    includeGraph: false,
   },
   ingestionStatus: null,
   loading: false,
@@ -197,7 +210,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       const result: IngestionResult = await ingestionService.ingestDocument(documentId, {
         force: true,
         includeEmbedding: true,
-        includeGraph: false,
+        includeGraph: get().ingestionOptions.includeGraph,
       });
 
       let ingestionStatus: IngestionStatus | null = null;
@@ -447,6 +460,10 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     set({ activeTab: tab });
   },
 
+  setActiveSection(section: AppSection) {
+    set({ activeSection: section });
+  },
+
   async setAuthToken(token: string) {
     const normalizedToken = token.trim();
 
@@ -461,6 +478,15 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     });
 
     await get().initialize();
+  },
+
+  setIngestionOptions(options: Partial<IngestionOptions>) {
+    set((state) => ({
+      ingestionOptions: {
+        ...state.ingestionOptions,
+        ...options,
+      },
+    }));
   },
 
   async uploadDocument(file: File) {
