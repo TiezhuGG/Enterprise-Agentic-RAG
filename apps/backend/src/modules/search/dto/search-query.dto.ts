@@ -14,6 +14,14 @@ export class SearchQueryDto {
   spaceId?: string;
 
   @IsOptional()
+  @IsString()
+  categoryId?: string;
+
+  @IsOptional()
+  @IsString()
+  tagId?: string;
+
+  @IsOptional()
   @IsIn(documentTypes)
   documentType?: DocumentType;
 

@@ -36,6 +36,7 @@ const toDocumentEntity = (document: DocumentModel): DocumentEntity => ({
   type: document.type,
   status: document.status,
   accessScope: normalizeDocumentAccessScope(document.accessScope),
+  categoryId: document.categoryId,
   storageKey: document.storageKey,
   mimeType: document.mimeType,
   size: document.size,

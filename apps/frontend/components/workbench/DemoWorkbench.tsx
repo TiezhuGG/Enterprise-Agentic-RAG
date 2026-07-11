@@ -14,6 +14,7 @@ import { DocumentAccessScopePanel } from './DocumentAccessScopePanel';
 import { DocumentListPanel } from './DocumentListPanel';
 import { DocumentMetadataPanel } from './DocumentMetadataPanel';
 import { DocumentPreviewPanel } from './DocumentPreviewPanel';
+import { DocumentTaxonomyPanel } from './DocumentTaxonomyPanel';
 import { DocumentUploadPanel } from './DocumentUploadPanel';
 import { DocumentVersionPanel } from './DocumentVersionPanel';
 import { IngestionPanel } from './IngestionPanel';
@@ -121,6 +122,7 @@ export function DemoWorkbench() {
             <div className="workbench-column">
               <DocumentPreviewPanel />
               <DocumentVersionPanel />
+              <DocumentTaxonomyPanel />
               <DocumentAccessScopePanel />
               <DocumentMetadataPanel />
             </div>

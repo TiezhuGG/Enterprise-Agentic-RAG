@@ -62,6 +62,7 @@ const stageLabels: Record<string, string> = {
 
 export function SearchCenter({ title = '搜索中心' }: SearchCenterProps) {
   const {
+    categoryId,
     documentType,
     error,
     history,
@@ -74,17 +75,22 @@ export function SearchCenter({ title = '搜索中心' }: SearchCenterProps) {
     query,
     response,
     search,
+    setCategoryId,
     setDocumentType,
     setLimit,
     setMode,
     setQuery,
     setSort,
+    setTagId,
     sort,
+    tagId,
     useHistoryItem,
   } = useSearchStore();
   const authToken = useWorkbenchStore((state) => state.authToken);
+  const categories = useWorkbenchStore((state) => state.categories);
   const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const spaces = useWorkbenchStore((state) => state.spaces);
+  const tags = useWorkbenchStore((state) => state.tags);
   const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
   const canSearch = Boolean(authToken && selectedSpaceId && query.trim() && !loading);
 
@@ -133,6 +139,30 @@ export function SearchCenter({ title = '搜索中心' }: SearchCenterProps) {
             </div>
 
             <div className="search-center__filters">
+              <label className="search-center__field">
+                <span>Category</span>
+                <select onChange={(event) => setCategoryId(event.target.value)} value={categoryId}>
+                  <option value="">All categories</option>
+                  {categories.map((category) => (
+                    <option key={category.id} value={category.id}>
+                      {category.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
+              <label className="search-center__field">
+                <span>Tag</span>
+                <select onChange={(event) => setTagId(event.target.value)} value={tagId}>
+                  <option value="">All tags</option>
+                  {tags.map((tag) => (
+                    <option key={tag.id} value={tag.id}>
+                      {tag.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+
               <SegmentedControl<SearchMode>
                 label="模式"
                 onChange={setMode}

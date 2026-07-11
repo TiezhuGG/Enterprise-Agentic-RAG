@@ -15,7 +15,9 @@ export const searchService = {
 
     appendParam(params, 'q', request.q);
     appendParam(params, 'spaceId', request.spaceId);
+    appendParam(params, 'categoryId', request.categoryId);
     appendParam(params, 'documentType', request.documentType);
+    appendParam(params, 'tagId', request.tagId);
     appendParam(params, 'limit', request.limit);
     appendParam(params, 'offset', request.offset);
     appendParam(params, 'sort', request.sort);

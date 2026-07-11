@@ -7,12 +7,17 @@ import { documentService } from '@/services/document.service';
 import { ingestionService } from '@/services/ingestion.service';
 import { knowledgeSpaceService } from '@/services/knowledge-space.service';
 import { pipelineService } from '@/services/pipeline.service';
+import { taxonomyService } from '@/services/taxonomy.service';
 import { uploadService } from '@/services/upload.service';
 import { toUserFacingErrorMessage } from '@/lib/workbench-copy';
 import type {
   DocumentAccessScope,
+  DocumentCategory,
   DocumentContentMetadata,
   DocumentPreviewResponse,
+  DocumentTag,
+  DocumentTaxonomy,
+  UpdateDocumentTaxonomyRequest,
   DocumentVersion,
   IngestionResult,
   IngestionOptions,
@@ -40,11 +45,14 @@ interface WorkbenchStore {
   authLoading: boolean;
   authToken: string;
   authUser: AuthenticatedUser | null;
+  categories: DocumentCategory[];
   documentAccessScope: DocumentAccessScope | null;
   documentAccessScopeError: string | null;
   documentMetadata: DocumentContentMetadata | null;
   documentPreview: DocumentPreviewResponse | null;
   documentPreviewError: string | null;
+  documentTaxonomy: DocumentTaxonomy | null;
+  documentTaxonomyError: string | null;
   documentVersions: DocumentVersion[];
   documentVersionsError: string | null;
   documents: KnowledgeDocument[];
@@ -54,6 +62,7 @@ interface WorkbenchStore {
   ingestionStatus: IngestionStatus | null;
   loading: boolean;
   loadingDocumentPreview: boolean;
+  loadingDocumentTaxonomy: boolean;
   loadingDocumentVersions: boolean;
   loadingDocuments: boolean;
   loadingPipeline: boolean;
@@ -66,6 +75,8 @@ interface WorkbenchStore {
   spaceMembers: SpaceMemberDetail[];
   spaceMembersError: string | null;
   spaces: KnowledgeSpace[];
+  tags: DocumentTag[];
+  taxonomyError: string | null;
   uploadState: UploadState;
   uploadingDocumentVersion: boolean;
   clearAuth: () => void;
@@ -73,14 +84,18 @@ interface WorkbenchStore {
     name: string,
     profile?: { metadata?: KnowledgeSpaceMetadata; type?: KnowledgeSpaceType },
   ) => Promise<void>;
+  createCategory: (name: string) => Promise<void>;
+  createTag: (name: string) => Promise<void>;
   deleteSelectedDocument: () => Promise<void>;
   addSpaceMember: (email: string, role: SpaceMemberRole) => Promise<void>;
   ingestSelectedDocument: () => Promise<void>;
   initialize: () => Promise<void>;
   loadDocumentPreview: (documentId?: string) => Promise<void>;
+  loadDocumentTaxonomy: (documentId?: string) => Promise<void>;
   loadDocumentVersions: (documentId?: string) => Promise<void>;
   loadDocuments: (spaceId?: string) => Promise<void>;
   loadSpaceMembers: (spaceId?: string) => Promise<void>;
+  loadTaxonomy: (spaceId?: string) => Promise<void>;
   loadPipeline: (documentId: string, preferredJobId?: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   selectDocument: (documentId: string | null) => Promise<void>;
@@ -92,6 +107,7 @@ interface WorkbenchStore {
   setAuthToken: (token: string) => Promise<void>;
   setIngestionOptions: (options: Partial<IngestionOptions>) => void;
   setSelectedSpaceFromGlobalSwitcher: (spaceId: string) => Promise<void>;
+  updateDocumentTaxonomy: (input: UpdateDocumentTaxonomyRequest) => Promise<void>;
   updateDocumentAccessScope: (accessScope: DocumentAccessScope) => Promise<void>;
   updateSelectedSpaceProfile: (profile: {
     metadata?: KnowledgeSpaceMetadata;
@@ -147,11 +163,14 @@ const isMetadataUnavailable = (error: unknown): boolean => {
 };
 
 const emptyWorkspaceState = () => ({
+  categories: [],
   documentAccessScope: null,
   documentAccessScopeError: null,
   documentMetadata: null,
   documentPreview: null,
   documentPreviewError: null,
+  documentTaxonomy: null,
+  documentTaxonomyError: null,
   documentVersions: [],
   documentVersionsError: null,
   documents: [],
@@ -165,6 +184,7 @@ const emptyWorkspaceState = () => ({
   ingestionStatus: null,
   loading: false,
   loadingDocumentPreview: false,
+  loadingDocumentTaxonomy: false,
   loadingDocumentVersions: false,
   loadingDocuments: false,
   loadingPipeline: false,
@@ -177,6 +197,8 @@ const emptyWorkspaceState = () => ({
   spaceMembers: [],
   spaceMembersError: null,
   spaces: [],
+  tags: [],
+  taxonomyError: null,
   uploadState: {
     status: 'idle' as const,
   },
@@ -191,11 +213,14 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   authLoading: false,
   authToken: '',
   authUser: null,
+  categories: [],
   documentAccessScope: null,
   documentAccessScopeError: null,
   documentMetadata: null,
   documentPreview: null,
   documentPreviewError: null,
+  documentTaxonomy: null,
+  documentTaxonomyError: null,
   documentVersions: [],
   documentVersionsError: null,
   documents: [],
@@ -209,6 +234,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   ingestionStatus: null,
   loading: false,
   loadingDocumentPreview: false,
+  loadingDocumentTaxonomy: false,
   loadingDocumentVersions: false,
   loadingDocuments: false,
   loadingPipeline: false,
@@ -221,6 +247,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   spaceMembers: [],
   spaceMembersError: null,
   spaces: [],
+  tags: [],
+  taxonomyError: null,
   uploadState: {
     status: 'idle',
   },
@@ -267,8 +295,57 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
       await get().loadDocuments(space.id);
       await get().loadSpaceMembers(space.id);
+      await get().loadTaxonomy(space.id);
     } catch (error) {
       set({ error: toErrorMessage(error), loading: false });
+    }
+  },
+
+  async createCategory(name: string) {
+    const spaceId = get().selectedSpaceId;
+    const trimmedName = name.trim();
+
+    if (!spaceId || !trimmedName) {
+      return;
+    }
+
+    set({ taxonomyError: null });
+
+    try {
+      const category = await taxonomyService.createCategory(spaceId, {
+        name: trimmedName,
+      });
+
+      set((state) => ({
+        categories: [...state.categories, category].sort((left, right) =>
+          left.name.localeCompare(right.name),
+        ),
+      }));
+    } catch (error) {
+      set({ taxonomyError: toErrorMessage(error) });
+    }
+  },
+
+  async createTag(name: string) {
+    const spaceId = get().selectedSpaceId;
+    const trimmedName = name.trim();
+
+    if (!spaceId || !trimmedName) {
+      return;
+    }
+
+    set({ taxonomyError: null });
+
+    try {
+      const tag = await taxonomyService.createTag(spaceId, {
+        name: trimmedName,
+      });
+
+      set((state) => ({
+        tags: [...state.tags, tag].sort((left, right) => left.name.localeCompare(right.name)),
+      }));
+    } catch (error) {
+      set({ taxonomyError: toErrorMessage(error) });
     }
   },
 
@@ -431,6 +508,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       if (selectedSpaceId) {
         await get().loadDocuments(selectedSpaceId);
         await get().loadSpaceMembers(selectedSpaceId);
+        await get().loadTaxonomy(selectedSpaceId);
       }
     } catch (error) {
       set({
@@ -445,11 +523,14 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   async loadDocuments(spaceId = get().selectedSpaceId ?? undefined) {
     if (!spaceId) {
       set({
+        categories: [],
         documentAccessScope: null,
         documentAccessScopeError: null,
         documentMetadata: null,
         documentPreview: null,
         documentPreviewError: null,
+        documentTaxonomy: null,
+        documentTaxonomyError: null,
         documentVersions: [],
         documentVersionsError: null,
         documents: [],
@@ -457,6 +538,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
         pipelineJobs: [],
         selectedDocumentId: null,
         selectedPipelineJobId: null,
+        tags: [],
+        taxonomyError: null,
       });
       return;
     }
@@ -486,6 +569,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
           documentMetadata: null,
           documentPreview: null,
           documentPreviewError: null,
+          documentTaxonomy: null,
+          documentTaxonomyError: null,
           documentVersions: [],
           documentVersionsError: null,
           ingestionStatus: null,
@@ -526,6 +611,37 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
         documentPreview: null,
         documentPreviewError: toErrorMessage(error),
         loadingDocumentPreview: false,
+      });
+    }
+  },
+
+  async loadDocumentTaxonomy(documentId = get().selectedDocumentId ?? undefined) {
+    if (!documentId) {
+      set({
+        documentTaxonomy: null,
+        documentTaxonomyError: null,
+        loadingDocumentTaxonomy: false,
+      });
+      return;
+    }
+
+    set({
+      documentTaxonomyError: null,
+      loadingDocumentTaxonomy: true,
+    });
+
+    try {
+      const documentTaxonomy = await taxonomyService.getDocumentTaxonomy(documentId);
+
+      set({
+        documentTaxonomy,
+        loadingDocumentTaxonomy: false,
+      });
+    } catch (error) {
+      set({
+        documentTaxonomy: null,
+        documentTaxonomyError: toErrorMessage(error),
+        loadingDocumentTaxonomy: false,
       });
     }
   },
@@ -585,6 +701,37 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
         loadingSpaceMembers: false,
         spaceMembers: [],
         spaceMembersError: toErrorMessage(error),
+      });
+    }
+  },
+
+  async loadTaxonomy(spaceId = get().selectedSpaceId ?? undefined) {
+    if (!spaceId) {
+      set({
+        categories: [],
+        tags: [],
+        taxonomyError: null,
+      });
+      return;
+    }
+
+    set({ taxonomyError: null });
+
+    try {
+      const [categories, tags] = await Promise.all([
+        taxonomyService.listCategories(spaceId),
+        taxonomyService.listTags(spaceId),
+      ]);
+
+      set({
+        categories,
+        tags,
+      });
+    } catch (error) {
+      set({
+        categories: [],
+        tags: [],
+        taxonomyError: toErrorMessage(error),
       });
     }
   },
@@ -651,6 +798,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       documentMetadata: null,
       documentPreview: null,
       documentPreviewError: null,
+      documentTaxonomy: null,
+      documentTaxonomyError: null,
       documentVersions: [],
       documentVersionsError: null,
       ingestionState: { status: 'idle' },
@@ -706,7 +855,11 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       set({ error: toErrorMessage(error) });
     }
 
-    await Promise.all([get().loadPipeline(documentId), get().loadDocumentVersions(documentId)]);
+    await Promise.all([
+      get().loadPipeline(documentId),
+      get().loadDocumentVersions(documentId),
+      get().loadDocumentTaxonomy(documentId),
+    ]);
   },
 
   async selectPipelineJob(jobId: string) {
@@ -758,11 +911,14 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
   async selectSpace(spaceId: string) {
     set({
+      categories: [],
       documentAccessScope: null,
       documentAccessScopeError: null,
       documentMetadata: null,
       documentPreview: null,
       documentPreviewError: null,
+      documentTaxonomy: null,
+      documentTaxonomyError: null,
       documentVersions: [],
       documentVersionsError: null,
       error: null,
@@ -775,10 +931,16 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       selectedSpaceId: spaceId,
       spaceMembers: [],
       spaceMembersError: null,
+      tags: [],
+      taxonomyError: null,
     });
     persistSelectedSpaceId(spaceId);
 
-    await Promise.all([get().loadDocuments(spaceId), get().loadSpaceMembers(spaceId)]);
+    await Promise.all([
+      get().loadDocuments(spaceId),
+      get().loadSpaceMembers(spaceId),
+      get().loadTaxonomy(spaceId),
+    ]);
   },
 
   setActiveTab(tab: WorkbenchTab) {
@@ -817,6 +979,41 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
   async setSelectedSpaceFromGlobalSwitcher(spaceId: string) {
     await get().selectSpace(spaceId);
+  },
+
+  async updateDocumentTaxonomy(input: UpdateDocumentTaxonomyRequest) {
+    const documentId = get().selectedDocumentId;
+
+    if (!documentId) {
+      return;
+    }
+
+    set({
+      documentTaxonomyError: null,
+      loadingDocumentTaxonomy: true,
+    });
+
+    try {
+      const documentTaxonomy = await taxonomyService.updateDocumentTaxonomy(documentId, input);
+
+      set((state) => ({
+        documentTaxonomy,
+        documents: state.documents.map((document) =>
+          document.id === documentId
+            ? {
+                ...document,
+                categoryId: documentTaxonomy.category?.id ?? null,
+              }
+            : document,
+        ),
+        loadingDocumentTaxonomy: false,
+      }));
+    } catch (error) {
+      set({
+        documentTaxonomyError: toErrorMessage(error),
+        loadingDocumentTaxonomy: false,
+      });
+    }
   },
 
   async updateSpaceMemberRole(userId: string, role: SpaceMemberRole) {

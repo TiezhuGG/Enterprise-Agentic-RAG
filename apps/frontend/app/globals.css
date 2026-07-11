@@ -1536,6 +1536,115 @@ textarea:disabled {
   padding: 12px;
 }
 
+.document-taxonomy-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.document-taxonomy-panel__header {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.document-taxonomy-panel__summary {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.document-taxonomy-panel__summary div {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted-foreground);
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.document-taxonomy-panel__summary svg {
+  color: #7c3aed;
+  flex: 0 0 auto;
+  height: 16px;
+  width: 16px;
+}
+
+.document-taxonomy-panel__summary span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-taxonomy-panel__field {
+  display: grid;
+  gap: 7px;
+}
+
+.document-taxonomy-panel__field > span {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.document-taxonomy-panel__field select {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--foreground);
+  min-height: 38px;
+  padding: 0 10px;
+}
+
+.document-taxonomy-panel__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.document-taxonomy-panel__tags label {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 6px;
+  padding: 5px 9px;
+}
+
+.document-taxonomy-panel__tags span,
+.document-taxonomy-panel__tags small,
+.document-taxonomy-panel__empty {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.document-taxonomy-panel__create-grid {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.document-taxonomy-panel__create-grid form {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.document-taxonomy-panel__empty {
+  background: #f8fafc;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
 .status-pill {
   align-items: center;
   background: #edf2f7;

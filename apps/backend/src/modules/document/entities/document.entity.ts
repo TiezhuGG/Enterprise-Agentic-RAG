@@ -21,6 +21,7 @@ export interface DocumentEntity {
   type: DocumentType;
   status: DocumentStatus;
   accessScope: DocumentAccessScope;
+  categoryId: string | null;
   storageKey: string | null;
   mimeType: string | null;
   size: number | null;

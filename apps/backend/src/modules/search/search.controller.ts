@@ -52,12 +52,14 @@ export class SearchController {
 
   private toRequest(query: SearchQueryDto): SearchRequest {
     return {
+      categoryId: query.categoryId,
       documentType: query.documentType,
       limit: query.limit,
       offset: query.offset,
       query: query.q,
       sort: query.sort,
       spaceId: query.spaceId,
+      tagId: query.tagId,
     };
   }
 }

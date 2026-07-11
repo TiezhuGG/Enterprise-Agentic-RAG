@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { ExecutionContext } from '../../common';
 import { DocumentRepository, type DocumentEntity } from '../document';
 import { RetrievalService, type ContextChunk, type RetrievalMode } from '../retrieval';
+import { TaxonomyRepository } from '../taxonomy';
 import type {
   SearchDocumentSource,
   SearchMode,
@@ -19,6 +20,7 @@ export class SearchApiService {
   constructor(
     private readonly documentRepository: DocumentRepository,
     private readonly retrievalService: RetrievalService,
+    private readonly taxonomyRepository: TaxonomyRepository,
   ) {}
 
   searchFulltext(context: ExecutionContext, request: SearchRequest): Promise<SearchResponse> {
@@ -53,7 +55,8 @@ export class SearchApiService {
       query: request.query,
       vectorLimit: candidateLimit,
     });
-    const chunks = this.filterByDocumentType(retrieval.chunks, request.documentType);
+    const documentTypeChunks = this.filterByDocumentType(retrieval.chunks, request.documentType);
+    const chunks = await this.filterByTaxonomy(documentTypeChunks, request);
     const documentsById = await this.loadDocumentsById(chunks);
     const sortedResults = this.sortResults(this.toResults(chunks, documentsById), sort);
     const total = sortedResults.length;
@@ -85,6 +88,37 @@ export class SearchApiService {
     }
 
     return chunks.filter((chunk) => chunk.metadata.documentType === documentType);
+  }
+
+  private async filterByTaxonomy(
+    chunks: ContextChunk[],
+    request: Pick<SearchRequest, 'categoryId' | 'tagId'>,
+  ): Promise<ContextChunk[]> {
+    if (!request.categoryId && !request.tagId) {
+      return chunks;
+    }
+
+    const taxonomyByDocumentId = await this.taxonomyRepository.listTaxonomiesByDocumentIds(
+      chunks.map((chunk) => chunk.documentId),
+    );
+
+    return chunks.filter((chunk) => {
+      const taxonomy = taxonomyByDocumentId.get(chunk.documentId);
+
+      if (!taxonomy) {
+        return false;
+      }
+
+      if (request.categoryId && taxonomy.category?.id !== request.categoryId) {
+        return false;
+      }
+
+      if (request.tagId && !taxonomy.tags.some((tag) => tag.id === request.tagId)) {
+        return false;
+      }
+
+      return true;
+    });
   }
 
   private async loadDocumentsById(

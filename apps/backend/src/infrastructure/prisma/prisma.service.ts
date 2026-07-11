@@ -56,6 +56,18 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.document;
   }
 
+  get documentCategory() {
+    return this.client.documentCategory;
+  }
+
+  get documentTag() {
+    return this.client.documentTag;
+  }
+
+  get documentTagAssignment() {
+    return this.client.documentTagAssignment;
+  }
+
   get documentVersion() {
     return this.client.documentVersion;
   }

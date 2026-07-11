@@ -260,9 +260,11 @@ model KnowledgeSpace {
   createdAt   DateTime                 @default(now()) @map("created_at")
   updatedAt   DateTime                 @updatedAt @map("updated_at")
   documents   Document[]
+  categories  DocumentCategory[]
   members     SpaceMember[]
   owner       User                     @relation("KnowledgeSpaceOwner", fields: [ownerId], references: [id], onDelete: Restrict)
   pipelineJobs PipelineJob[]
+  tags        DocumentTag[]
   tenant      Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
 
   @@index([ownerId])
@@ -291,6 +293,7 @@ model Document {
   type        DocumentType
   status      DocumentStatus   @default(CREATED)
   accessScope Json             @default("{}") @map("access_scope")
+  categoryId  String?          @map("category_id")
   storageKey  String?          @map("storage_key")
   mimeType    String?          @map("mime_type")
   size        Int?
@@ -298,16 +301,68 @@ model Document {
   createdAt   DateTime         @default(now()) @map("created_at")
   updatedAt   DateTime         @updatedAt @map("updated_at")
   chunks      Chunk[]
+  category    DocumentCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   content     DocumentContent?
   creator     User             @relation("DocumentCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  tagAssignments DocumentTagAssignment[]
   versions    DocumentVersion[]
   pipelineJobs PipelineJob[]
   space       KnowledgeSpace   @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 
   @@index([spaceId])
+  @@index([categoryId])
   @@index([createdBy])
   @@index([status])
   @@map("documents")
+}
+
+model DocumentCategory {
+  id          String             @id @default(cuid())
+  spaceId     String             @map("space_id")
+  name        String
+  description String?
+  color       String?
+  parentId    String?            @map("parent_id")
+  metadata    Json               @default("{}")
+  createdAt   DateTime           @default(now()) @map("created_at")
+  updatedAt   DateTime           @updatedAt @map("updated_at")
+  children    DocumentCategory[] @relation("DocumentCategoryHierarchy")
+  documents   Document[]
+  parent      DocumentCategory?  @relation("DocumentCategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  space       KnowledgeSpace     @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, name])
+  @@index([spaceId])
+  @@index([parentId])
+  @@map("document_categories")
+}
+
+model DocumentTag {
+  id          String                  @id @default(cuid())
+  spaceId     String                  @map("space_id")
+  name        String
+  color       String?
+  metadata    Json                    @default("{}")
+  createdAt   DateTime                @default(now()) @map("created_at")
+  updatedAt   DateTime                @updatedAt @map("updated_at")
+  assignments DocumentTagAssignment[]
+  space       KnowledgeSpace          @relation(fields: [spaceId], references: [id], onDelete: Cascade)
+
+  @@unique([spaceId, name])
+  @@index([spaceId])
+  @@map("document_tags")
+}
+
+model DocumentTagAssignment {
+  documentId String      @map("document_id")
+  tagId      String      @map("tag_id")
+  assignedAt DateTime    @default(now()) @map("assigned_at")
+  document   Document    @relation(fields: [documentId], references: [id], onDelete: Cascade)
+  tag        DocumentTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@id([documentId, tagId])
+  @@index([tagId])
+  @@map("document_tag_assignments")
 }
 
 model DocumentVersion {

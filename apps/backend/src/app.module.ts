@@ -21,6 +21,7 @@ import { MultimodalModule } from './modules/multimodal';
 import { PipelineModule } from './modules/pipeline';
 import { RerankerModule } from './modules/reranker';
 import { RetrievalModule } from './modules/retrieval';
+import { TaxonomyModule } from './modules/taxonomy';
 import { UploadModule } from './modules/upload';
 import { UserModule } from './modules/user';
 import { SearchModule as InfrastructureSearchModule } from './infrastructure/search';
@@ -53,6 +54,7 @@ import { KnowledgeSearchModule } from './modules/search';
     RetrievalModule,
     InfrastructureSearchModule,
     KnowledgeSearchModule,
+    TaxonomyModule,
     UploadModule,
   ],
 })

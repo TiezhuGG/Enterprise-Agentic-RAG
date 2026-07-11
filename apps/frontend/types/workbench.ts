@@ -57,6 +57,39 @@ export interface DocumentAccessScope {
   securityLevel: DocumentSecurityLevel;
 }
 
+export interface DocumentCategory {
+  id: string;
+  spaceId: string;
+  name: string;
+  description: string | null;
+  color: string | null;
+  parentId: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DocumentTag {
+  id: string;
+  spaceId: string;
+  name: string;
+  color: string | null;
+  metadata: Record<string, unknown>;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface DocumentTaxonomy {
+  category: DocumentCategory | null;
+  documentId: string;
+  tags: DocumentTag[];
+}
+
+export interface UpdateDocumentTaxonomyRequest {
+  categoryId?: string | null;
+  tagIds?: string[];
+}
+
 export interface KnowledgeDocument {
   id: string;
   spaceId: string;
@@ -65,6 +98,7 @@ export interface KnowledgeDocument {
   type: DocumentType;
   status: DocumentStatus;
   accessScope: DocumentAccessScope;
+  categoryId: string | null;
   storageKey: string | null;
   mimeType: string | null;
   size: number | null;

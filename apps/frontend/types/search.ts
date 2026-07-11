@@ -5,7 +5,9 @@ export type SearchMode = 'fulltext' | 'semantic' | 'hybrid';
 export type SearchSort = 'relevance' | 'updatedAt';
 
 export interface SearchRequest {
+  categoryId?: string;
   documentType?: DocumentType;
+  tagId?: string;
   limit?: number;
   offset?: number;
   q: string;
@@ -69,6 +71,7 @@ export interface SearchResponse {
 
 export interface SearchHistoryItem {
   citations: AgentCitation[];
+  categoryId?: string;
   createdAt: string;
   documentType?: DocumentType;
   id: string;
@@ -77,4 +80,5 @@ export interface SearchHistoryItem {
   resultCount: number;
   sort: SearchSort;
   spaceId?: string;
+  tagId?: string;
 }

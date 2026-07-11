@@ -16,6 +16,7 @@ import { useWorkbenchStore } from './workbench.store';
 
 interface SearchState {
   answer: string;
+  categoryId: string;
   citations: AgentCitation[];
   documentType: DocumentType | 'ALL';
   error: string | null;
@@ -28,15 +29,18 @@ interface SearchState {
   response: SearchResponse | null;
   running: boolean;
   sort: SearchSort;
+  tagId: string;
   nextPage: () => Promise<void>;
   previousPage: () => Promise<void>;
   reset: () => void;
   search: (options?: { offset?: number }) => Promise<void>;
+  setCategoryId: (categoryId: string) => void;
   setDocumentType: (documentType: DocumentType | 'ALL') => void;
   setLimit: (limit: number) => void;
   setMode: (mode: SearchMode) => void;
   setQuery: (query: string) => void;
   setSort: (sort: SearchSort) => void;
+  setTagId: (tagId: string) => void;
   useHistoryItem: (item: SearchHistoryItem) => void;
 }
 
@@ -54,20 +58,26 @@ const toErrorMessage = (error: unknown): string =>
 const normalizeLimit = (limit: number): number => Math.max(1, Math.min(50, Math.round(limit)));
 
 const createRequest = (
-  state: Pick<SearchState, 'documentType' | 'limit' | 'offset' | 'query' | 'sort'>,
+  state: Pick<
+    SearchState,
+    'categoryId' | 'documentType' | 'limit' | 'offset' | 'query' | 'sort' | 'tagId'
+  >,
   spaceId: string | null,
 ): SearchRequest => ({
+  categoryId: state.categoryId || undefined,
   documentType: state.documentType === 'ALL' ? undefined : state.documentType,
   limit: state.limit,
   offset: state.offset,
   q: state.query.trim(),
   sort: state.sort,
   spaceId: spaceId ?? undefined,
+  tagId: state.tagId || undefined,
 });
 
 export const useSearchStore = create<SearchState>((set, get) => ({
   documentType: 'ALL',
   answer: '',
+  categoryId: '',
   citations: [],
   error: null,
   history: [],
@@ -79,6 +89,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
   response: null,
   running: false,
   sort: 'relevance',
+  tagId: '',
 
   async nextPage() {
     const state = get();
@@ -132,6 +143,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
       const request = createRequest({ ...state, offset, query }, selectedSpaceId);
       const response = await searchService.search(state.mode, request);
       const historyItem: SearchHistoryItem = {
+        categoryId: request.categoryId,
         createdAt: new Date().toISOString(),
         citations: [],
         documentType: request.documentType,
@@ -141,6 +153,7 @@ export const useSearchStore = create<SearchState>((set, get) => ({
         resultCount: response.results.length,
         sort: state.sort,
         spaceId: selectedSpaceId ?? undefined,
+        tagId: request.tagId,
       };
 
       set((current) => ({
@@ -157,6 +170,10 @@ export const useSearchStore = create<SearchState>((set, get) => ({
         running: false,
       });
     }
+  },
+
+  setCategoryId(categoryId) {
+    set({ categoryId, offset: 0 });
   },
 
   setDocumentType(documentType) {
@@ -179,13 +196,19 @@ export const useSearchStore = create<SearchState>((set, get) => ({
     set({ offset: 0, sort });
   },
 
+  setTagId(tagId) {
+    set({ offset: 0, tagId });
+  },
+
   useHistoryItem(item) {
     set({
+      categoryId: item.categoryId ?? '',
       documentType: item.documentType ?? 'ALL',
       mode: item.mode,
       offset: 0,
       query: item.query,
       sort: item.sort,
+      tagId: item.tagId ?? '',
     });
   },
 }));

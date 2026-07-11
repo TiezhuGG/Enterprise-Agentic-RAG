@@ -8,7 +8,9 @@ export const searchSorts = ['relevance', 'updatedAt'] as const;
 export type SearchSort = (typeof searchSorts)[number];
 
 export interface SearchRequest {
+  categoryId?: string;
   documentType?: DocumentType;
+  tagId?: string;
   limit?: number;
   offset?: number;
   query: string;
