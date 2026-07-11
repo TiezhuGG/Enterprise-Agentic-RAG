@@ -37,6 +37,13 @@ export interface KnowledgeSpace {
 
 export type DocumentType = 'PDF' | 'WORD' | 'TXT' | 'MARKDOWN' | 'IMAGE' | 'AUDIO' | 'VIDEO';
 export type DocumentStatus = 'CREATED' | 'PROCESSING' | 'READY' | 'FAILED' | 'ARCHIVED';
+export type DocumentSecurityLevel = 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL';
+
+export interface DocumentAccessScope {
+  allowedDepartmentIds?: string[];
+  departmentId?: string;
+  securityLevel: DocumentSecurityLevel;
+}
 
 export interface KnowledgeDocument {
   id: string;
@@ -45,6 +52,7 @@ export interface KnowledgeDocument {
   description: string | null;
   type: DocumentType;
   status: DocumentStatus;
+  accessScope: DocumentAccessScope;
   storageKey: string | null;
   mimeType: string | null;
   size: number | null;
@@ -74,6 +82,8 @@ export interface DocumentContentOcrMetadata extends Record<string, unknown> {
 }
 
 export interface DocumentContentMetadata extends Record<string, unknown> {
+  allowedDepartmentIds?: string[];
+  departmentId?: string;
   documentId: string;
   spaceId: string;
   documentType: DocumentType;
@@ -81,7 +91,7 @@ export interface DocumentContentMetadata extends Record<string, unknown> {
   size?: number;
   storageKey?: string;
   language: 'zh' | 'en' | 'mixed' | 'unknown';
-  securityLevel: 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL';
+  securityLevel: DocumentSecurityLevel;
   sourceHash: string;
   contentHash: string;
   contentLength: number;
@@ -95,6 +105,11 @@ export interface DocumentContentMetadata extends Record<string, unknown> {
 export interface DocumentMetadataResponse {
   documentId: string;
   metadata: DocumentContentMetadata;
+}
+
+export interface DocumentAccessScopeResponse {
+  accessScope: DocumentAccessScope;
+  documentId: string;
 }
 
 export type IngestionStage =

@@ -1,10 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma';
-import type { DocumentEntity } from '../document';
+import { normalizeDocumentAccessScope, type DocumentEntity } from '../document';
 import type { SpaceMemberRole } from '../knowledge-space';
 import type { DocumentAccessRecord, IngestionStatusRecord } from './ingestion.types';
 
-type DocumentModel = DocumentEntity;
+type DocumentModel = Omit<DocumentEntity, 'accessScope'> & {
+  accessScope: unknown;
+};
 
 type DocumentWithMembership = DocumentModel & {
   space: {
@@ -33,6 +35,7 @@ const toDocumentEntity = (document: DocumentModel): DocumentEntity => ({
   description: document.description,
   type: document.type,
   status: document.status,
+  accessScope: normalizeDocumentAccessScope(document.accessScope),
   storageKey: document.storageKey,
   mimeType: document.mimeType,
   size: document.size,

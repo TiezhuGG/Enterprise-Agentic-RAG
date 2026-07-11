@@ -279,6 +279,7 @@ model Document {
   description String?
   type        DocumentType
   status      DocumentStatus   @default(CREATED)
+  accessScope Json             @default("{}") @map("access_scope")
   storageKey  String?          @map("storage_key")
   mimeType    String?          @map("mime_type")
   size        Int?

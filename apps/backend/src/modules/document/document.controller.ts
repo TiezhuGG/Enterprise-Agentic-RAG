@@ -14,9 +14,14 @@ import {
 import { RequestContextService, type ExecutionContext } from '../../common';
 import { CurrentUser, JwtAuthGuard, type AuthenticatedUser } from '../auth';
 import { CreateDocumentDto } from './dto/create-document.dto';
+import { UpdateDocumentAccessScopeDto } from './dto/update-document-access-scope.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import type { DocumentEntity } from './entities/document.entity';
-import { DocumentService, type DocumentMetadataResponse } from './document.service';
+import {
+  DocumentService,
+  type DocumentAccessScopeResponse,
+  type DocumentMetadataResponse,
+} from './document.service';
 
 interface FileResponse {
   setHeader(name: string, value: string | number): void;
@@ -57,6 +62,27 @@ export class DocumentController {
     @Param('id') id: string,
   ): Promise<DocumentMetadataResponse> {
     return this.documentService.getMetadata(this.createExecutionContext(user), id);
+  }
+
+  @Get('documents/:id/access-scope')
+  getAccessScope(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<DocumentAccessScopeResponse> {
+    return this.documentService.getAccessScope(this.createExecutionContext(user), id);
+  }
+
+  @Patch('documents/:id/access-scope')
+  updateAccessScope(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() updateDocumentAccessScopeDto: UpdateDocumentAccessScopeDto,
+  ): Promise<DocumentAccessScopeResponse> {
+    return this.documentService.updateAccessScope(
+      this.createExecutionContext(user),
+      id,
+      updateDocumentAccessScopeDto,
+    );
   }
 
   @Get('documents/:id/file')

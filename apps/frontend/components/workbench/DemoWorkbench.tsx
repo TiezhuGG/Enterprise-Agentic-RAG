@@ -10,6 +10,7 @@ import { useDemoStore } from '@/store/demo.store';
 import { useObservabilityStore } from '@/store/observability.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
 import { AuthPanel } from './AuthPanel';
+import { DocumentAccessScopePanel } from './DocumentAccessScopePanel';
 import { DocumentListPanel } from './DocumentListPanel';
 import { DocumentMetadataPanel } from './DocumentMetadataPanel';
 import { DocumentUploadPanel } from './DocumentUploadPanel';
@@ -114,6 +115,7 @@ export function DemoWorkbench() {
               <PipelineTimeline />
             </div>
             <div className="workbench-column">
+              <DocumentAccessScopePanel />
               <DocumentMetadataPanel />
             </div>
           </div>

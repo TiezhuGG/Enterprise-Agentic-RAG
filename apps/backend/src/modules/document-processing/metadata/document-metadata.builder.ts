@@ -26,7 +26,7 @@ export class DocumentMetadataBuilder {
       spaceId: document.spaceId,
       documentType: document.type,
       language: this.languageDetector.detect(cleanedContent),
-      securityLevel: 'INTERNAL',
+      securityLevel: document.accessScope.securityLevel,
       sourceHash: this.sha256(object.buffer),
       contentHash: this.sha256(cleanedContent),
       contentLength: cleanedContent.length,
@@ -50,6 +50,14 @@ export class DocumentMetadataBuilder {
 
     if (typeof size === 'number' && Number.isFinite(size)) {
       metadata.size = size;
+    }
+
+    if (document.accessScope.departmentId) {
+      metadata.departmentId = document.accessScope.departmentId;
+    }
+
+    if (document.accessScope.allowedDepartmentIds?.length) {
+      metadata.allowedDepartmentIds = document.accessScope.allowedDepartmentIds;
     }
 
     return metadata;

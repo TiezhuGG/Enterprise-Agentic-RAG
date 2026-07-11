@@ -6,13 +6,20 @@ import {
   type DocumentContentEntity,
   type DocumentContentMetadata,
 } from './entities/document-content.entity';
-import type { DocumentEntity, DocumentStatus, DocumentType } from './entities/document.entity';
+import type {
+  DocumentAccessScope,
+  DocumentEntity,
+  DocumentStatus,
+  DocumentType,
+} from './entities/document.entity';
+import { normalizeDocumentAccessScope } from './entities/document.entity';
 
 export interface CreateDocumentInput {
   spaceId: string;
   title: string;
   description?: string;
   type: DocumentType;
+  accessScope?: DocumentAccessScope;
   storageKey?: string;
   mimeType?: string;
   size?: number;
@@ -24,12 +31,15 @@ export interface UpdateDocumentInput {
   description?: string;
   type?: DocumentType;
   status?: DocumentStatus;
+  accessScope?: DocumentAccessScope;
   storageKey?: string;
   mimeType?: string;
   size?: number;
 }
 
-type DocumentModel = DocumentEntity;
+type DocumentModel = Omit<DocumentEntity, 'accessScope'> & {
+  accessScope: unknown;
+};
 type DocumentContentModel = Omit<DocumentContentEntity, 'metadata'> & {
   metadata: unknown;
 };
@@ -47,6 +57,7 @@ const toDocumentEntity = (document: DocumentModel): DocumentEntity => ({
   description: document.description,
   type: document.type,
   status: document.status,
+  accessScope: normalizeDocumentAccessScope(document.accessScope),
   storageKey: document.storageKey,
   mimeType: document.mimeType,
   size: document.size,
@@ -114,6 +125,23 @@ const toPrismaDocumentContentMetadata = (
   return json as Prisma.InputJsonObject;
 };
 
+const toPrismaDocumentAccessScope = (scope: DocumentAccessScope): Prisma.InputJsonObject => {
+  const normalized = normalizeDocumentAccessScope(scope);
+  const json: Record<string, Prisma.InputJsonValue> = {
+    securityLevel: normalized.securityLevel,
+  };
+
+  if (normalized.departmentId) {
+    json.departmentId = normalized.departmentId;
+  }
+
+  if (normalized.allowedDepartmentIds?.length) {
+    json.allowedDepartmentIds = normalized.allowedDepartmentIds;
+  }
+
+  return json as Prisma.InputJsonObject;
+};
+
 @Injectable()
 export class DocumentRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -125,6 +153,7 @@ export class DocumentRepository {
         title: input.title,
         description: input.description,
         type: input.type,
+        accessScope: input.accessScope ? toPrismaDocumentAccessScope(input.accessScope) : undefined,
         storageKey: input.storageKey,
         mimeType: input.mimeType,
         size: input.size,
@@ -184,7 +213,23 @@ export class DocumentRepository {
       where: {
         id,
       },
-      data: input,
+      data: {
+        ...input,
+        accessScope: input.accessScope ? toPrismaDocumentAccessScope(input.accessScope) : undefined,
+      },
+    });
+
+    return toDocumentEntity(document);
+  }
+
+  async updateAccessScope(id: string, accessScope: DocumentAccessScope): Promise<DocumentEntity> {
+    const document = await this.prisma.document.update({
+      where: {
+        id,
+      },
+      data: {
+        accessScope: toPrismaDocumentAccessScope(accessScope),
+      },
     });
 
     return toDocumentEntity(document);

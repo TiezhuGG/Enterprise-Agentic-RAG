@@ -1,4 +1,9 @@
-import type { DocumentMetadataResponse, KnowledgeDocument } from '@/types/workbench';
+import type {
+  DocumentAccessScope,
+  DocumentAccessScopeResponse,
+  DocumentMetadataResponse,
+  KnowledgeDocument,
+} from '@/types/workbench';
 import { createApiUrl, createJsonHeaders, getAuthToken, readApiError } from './api-client';
 
 export type DocumentFileDisposition = 'inline' | 'attachment';
@@ -103,6 +108,36 @@ export const documentService = {
     }
 
     return (await response.json()) as DocumentMetadataResponse;
+  },
+
+  async getAccessScope(documentId: string): Promise<DocumentAccessScopeResponse> {
+    const response = await fetch(createApiUrl(`/documents/${documentId}/access-scope`), {
+      headers: createJsonHeaders(),
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      throw await readApiError(response);
+    }
+
+    return (await response.json()) as DocumentAccessScopeResponse;
+  },
+
+  async updateAccessScope(
+    documentId: string,
+    accessScope: DocumentAccessScope,
+  ): Promise<DocumentAccessScopeResponse> {
+    const response = await fetch(createApiUrl(`/documents/${documentId}/access-scope`), {
+      body: JSON.stringify(accessScope),
+      headers: createJsonHeaders(),
+      method: 'PATCH',
+    });
+
+    if (!response.ok) {
+      throw await readApiError(response);
+    }
+
+    return (await response.json()) as DocumentAccessScopeResponse;
   },
 
   async delete(documentId: string): Promise<KnowledgeDocument> {

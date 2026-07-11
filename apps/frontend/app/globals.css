@@ -1216,6 +1216,74 @@ textarea:disabled {
   width: 112px;
 }
 
+.document-access-scope {
+  display: grid;
+  gap: 14px;
+}
+
+.document-access-scope__header {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.document-access-scope__summary {
+  display: grid;
+  gap: 10px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.document-access-scope__summary div {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--muted-foreground);
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.document-access-scope__summary svg {
+  color: #0f766e;
+  flex: 0 0 auto;
+  height: 16px;
+  width: 16px;
+}
+
+.document-access-scope__field {
+  display: grid;
+  gap: 7px;
+}
+
+.document-access-scope__field span {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.document-access-scope__field small,
+.document-access-scope__hint,
+.document-access-scope__empty {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.document-access-scope__empty {
+  background: #f8fafc;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
+.document-access-scope__hint {
+  margin: 0;
+}
+
 .status-pill {
   align-items: center;
   background: #edf2f7;
@@ -3280,6 +3348,7 @@ textarea:disabled {
   .search-center__query-row,
   .answer-preview-layout,
   .metrics-breakdown,
+  .document-access-scope__summary,
   .space-members-panel__form,
   .space-members-panel__member,
   .execution-detail-grid {

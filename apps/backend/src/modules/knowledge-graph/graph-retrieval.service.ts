@@ -144,18 +144,27 @@ export class GraphRetrievalService {
     graphContexts: GraphContext[],
   ): Promise<Record<string, KnowledgeResourceMetadata | undefined>> {
     const documentIds = [...new Set(graphContexts.map((graphContext) => graphContext.documentId))];
-    const contents = await this.documentRepository.findContentsByDocumentIds(documentIds);
+    const [contents, documents] = await Promise.all([
+      this.documentRepository.findContentsByDocumentIds(documentIds),
+      this.documentRepository.findActiveByIds(documentIds),
+    ]);
+    const contentByDocumentId = new Map(contents.map((content) => [content.documentId, content]));
 
     return Object.fromEntries(
-      contents.map((content) => [
-        content.documentId,
-        {
-          allowedDepartmentIds: content.metadata.allowedDepartmentIds,
-          departmentId: content.metadata.departmentId,
-          securityLevel: content.metadata.securityLevel,
-          spaceId: content.metadata.spaceId,
-        },
-      ]),
+      documents.map((document) => {
+        const content = contentByDocumentId.get(document.id);
+
+        return [
+          document.id,
+          {
+            allowedDepartmentIds:
+              document.accessScope.allowedDepartmentIds ?? content?.metadata.allowedDepartmentIds,
+            departmentId: document.accessScope.departmentId ?? content?.metadata.departmentId,
+            securityLevel: document.accessScope.securityLevel ?? content?.metadata.securityLevel,
+            spaceId: content?.metadata.spaceId ?? document.spaceId,
+          },
+        ];
+      }),
     );
   }
 

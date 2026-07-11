@@ -8,10 +8,12 @@ import {
   type KnowledgeSpaceEntity,
   type SpaceMemberRole,
 } from '../knowledge-space';
+import type { UpdateDocumentAccessScopeDto } from './dto/update-document-access-scope.dto';
 import type { CreateDocumentDto } from './dto/create-document.dto';
 import type { UpdateDocumentDto } from './dto/update-document.dto';
 import type { DocumentContentMetadata } from './entities/document-content.entity';
-import type { DocumentEntity } from './entities/document.entity';
+import type { DocumentAccessScope, DocumentEntity } from './entities/document.entity';
+import { normalizeDocumentAccessScope } from './entities/document.entity';
 import { DocumentRepository } from './document.repository';
 
 const readRoles: SpaceMemberRole[] = ['OWNER', 'EDITOR', 'VIEWER'];
@@ -20,6 +22,11 @@ const writeRoles: SpaceMemberRole[] = ['OWNER', 'EDITOR'];
 export interface DocumentMetadataResponse {
   documentId: string;
   metadata: DocumentContentMetadata;
+}
+
+export interface DocumentAccessScopeResponse {
+  accessScope: DocumentAccessScope;
+  documentId: string;
 }
 
 export interface DocumentFileResponse {
@@ -73,6 +80,7 @@ export class DocumentService {
             ...this.toPolicyResource(
               access.space,
               access.memberRole,
+              document,
               contentByDocumentId.get(document.id)?.metadata,
             ),
             spaceId: document.spaceId,
@@ -88,7 +96,7 @@ export class DocumentService {
 
     this.accessPolicyService.assertCanReadKnowledgeResource(
       this.accessPolicyService.toSubject(context),
-      this.toPolicyResource(access.space, access.memberRole, content?.metadata),
+      this.toPolicyResource(access.space, access.memberRole, document, content?.metadata),
     );
 
     return document;
@@ -106,12 +114,31 @@ export class DocumentService {
 
     this.accessPolicyService.assertCanReadKnowledgeResource(
       this.accessPolicyService.toSubject(context),
-      this.toPolicyResource(access.space, access.memberRole, content.metadata),
+      this.toPolicyResource(access.space, access.memberRole, document, content.metadata),
     );
 
     return {
       documentId: document.id,
-      metadata: content.metadata,
+      metadata: this.mergeMetadataWithAccessScope(document, content.metadata),
+    };
+  }
+
+  async getAccessScope(
+    context: ExecutionContext,
+    id: string,
+  ): Promise<DocumentAccessScopeResponse> {
+    const document = await this.findActiveDocument(id);
+    const access = await this.ensureSpaceRole(context, document.spaceId, readRoles);
+    const content = await this.documentRepository.findContentByDocumentId(document.id);
+
+    this.accessPolicyService.assertCanReadKnowledgeResource(
+      this.accessPolicyService.toSubject(context),
+      this.toPolicyResource(access.space, access.memberRole, document, content?.metadata),
+    );
+
+    return {
+      accessScope: document.accessScope,
+      documentId: document.id,
     };
   }
 
@@ -146,6 +173,24 @@ export class DocumentService {
     );
 
     return this.documentRepository.update(id, input);
+  }
+
+  async updateAccessScope(
+    context: ExecutionContext,
+    id: string,
+    input: UpdateDocumentAccessScopeDto,
+  ): Promise<DocumentAccessScopeResponse> {
+    const document = await this.findActiveDocument(id);
+    await this.ensureSpaceRole(context, document.spaceId, writeRoles);
+    const updatedDocument = await this.documentRepository.updateAccessScope(
+      id,
+      normalizeDocumentAccessScope(input),
+    );
+
+    return {
+      accessScope: updatedDocument.accessScope,
+      documentId: updatedDocument.id,
+    };
   }
 
   async delete(context: ExecutionContext, id: string): Promise<DocumentEntity> {
@@ -212,15 +257,29 @@ export class DocumentService {
   private toPolicyResource(
     space: KnowledgeSpaceEntity,
     memberRole: SpaceMemberRole,
+    document: DocumentEntity,
     metadata: DocumentContentMetadata | undefined,
   ) {
     return {
-      allowedDepartmentIds: metadata?.allowedDepartmentIds,
-      departmentId: metadata?.departmentId,
-      securityLevel: metadata?.securityLevel,
-      spaceId: metadata?.spaceId ?? space.id,
+      allowedDepartmentIds:
+        document.accessScope.allowedDepartmentIds ?? metadata?.allowedDepartmentIds,
+      departmentId: document.accessScope.departmentId ?? metadata?.departmentId,
+      securityLevel: document.accessScope.securityLevel ?? metadata?.securityLevel,
+      spaceId: metadata?.spaceId ?? document.spaceId ?? space.id,
       spaceRole: memberRole,
       tenantId: space.tenantId,
+    };
+  }
+
+  private mergeMetadataWithAccessScope(
+    document: DocumentEntity,
+    metadata: DocumentContentMetadata,
+  ): DocumentContentMetadata {
+    return {
+      ...metadata,
+      allowedDepartmentIds: document.accessScope.allowedDepartmentIds,
+      departmentId: document.accessScope.departmentId,
+      securityLevel: document.accessScope.securityLevel,
     };
   }
 

@@ -10,6 +10,7 @@ import { pipelineService } from '@/services/pipeline.service';
 import { uploadService } from '@/services/upload.service';
 import { toUserFacingErrorMessage } from '@/lib/workbench-copy';
 import type {
+  DocumentAccessScope,
   DocumentContentMetadata,
   IngestionResult,
   IngestionOptions,
@@ -35,6 +36,8 @@ interface WorkbenchStore {
   authLoading: boolean;
   authToken: string;
   authUser: AuthenticatedUser | null;
+  documentAccessScope: DocumentAccessScope | null;
+  documentAccessScopeError: string | null;
   documentMetadata: DocumentContentMetadata | null;
   documents: KnowledgeDocument[];
   error: string | null;
@@ -73,6 +76,7 @@ interface WorkbenchStore {
   setAuthToken: (token: string) => Promise<void>;
   setIngestionOptions: (options: Partial<IngestionOptions>) => void;
   setSelectedSpaceFromGlobalSwitcher: (spaceId: string) => Promise<void>;
+  updateDocumentAccessScope: (accessScope: DocumentAccessScope) => Promise<void>;
   updateSpaceMemberRole: (userId: string, role: SpaceMemberRole) => Promise<void>;
   uploadDocument: (file: File) => Promise<void>;
 }
@@ -120,6 +124,8 @@ const isMetadataUnavailable = (error: unknown): boolean => {
 };
 
 const emptyWorkspaceState = () => ({
+  documentAccessScope: null,
+  documentAccessScopeError: null,
   documentMetadata: null,
   documents: [],
   error: null,
@@ -155,6 +161,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   authLoading: false,
   authToken: '',
   authUser: null,
+  documentAccessScope: null,
+  documentAccessScopeError: null,
   documentMetadata: null,
   documents: [],
   error: null,
@@ -393,6 +401,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   async loadDocuments(spaceId = get().selectedSpaceId ?? undefined) {
     if (!spaceId) {
       set({
+        documentAccessScope: null,
+        documentAccessScopeError: null,
         documentMetadata: null,
         documents: [],
         pipelineEvents: [],
@@ -423,6 +433,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
         await get().selectDocument(selectedDocumentId);
       } else {
         set({
+          documentAccessScope: null,
+          documentAccessScopeError: null,
           documentMetadata: null,
           ingestionStatus: null,
           pipelineEvents: [],
@@ -520,6 +532,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
   async selectDocument(documentId: string | null) {
     set({
+      documentAccessScope: null,
+      documentAccessScopeError: null,
       documentMetadata: null,
       ingestionState: { status: 'idle' },
       ingestionStatus: null,
@@ -535,22 +549,34 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
     try {
       const selectedDocument = get().documents.find((document) => document.id === documentId);
+      const accessScopeRequest = documentService.getAccessScope(documentId);
       const metadataRequest =
         selectedDocument?.status === 'READY'
           ? documentService.getMetadata(documentId)
           : Promise.resolve(null);
-      const [metadataResponse, ingestionStatus] = await Promise.allSettled([
+      const [accessScopeResponse, metadataResponse, ingestionStatus] = await Promise.allSettled([
+        accessScopeRequest,
         metadataRequest,
         ingestionService.getStatus(documentId),
       ]);
 
       set({
+        documentAccessScope:
+          accessScopeResponse.status === 'fulfilled' ? accessScopeResponse.value.accessScope : null,
+        documentAccessScopeError:
+          accessScopeResponse.status === 'rejected'
+            ? toErrorMessage(accessScopeResponse.reason)
+            : null,
         documentMetadata:
           metadataResponse.status === 'fulfilled'
             ? (metadataResponse.value?.metadata ?? null)
             : null,
         ingestionStatus: ingestionStatus.status === 'fulfilled' ? ingestionStatus.value : null,
       });
+
+      if (accessScopeResponse.status === 'rejected') {
+        set({ error: toErrorMessage(accessScopeResponse.reason) });
+      }
 
       if (
         metadataResponse.status === 'rejected' &&
@@ -614,6 +640,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
   async selectSpace(spaceId: string) {
     set({
+      documentAccessScope: null,
+      documentAccessScopeError: null,
       documentMetadata: null,
       error: null,
       ingestionState: { status: 'idle' },
@@ -693,6 +721,46 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       set({
         loadingSpaceMembers: false,
         spaceMembersError: toErrorMessage(error),
+      });
+    }
+  },
+
+  async updateDocumentAccessScope(accessScope: DocumentAccessScope) {
+    const documentId = get().selectedDocumentId;
+
+    if (!documentId) {
+      return;
+    }
+
+    set({ documentAccessScopeError: null, loadingDocuments: true });
+
+    try {
+      const response = await documentService.updateAccessScope(documentId, accessScope);
+
+      set((state) => ({
+        documentAccessScope: response.accessScope,
+        documentMetadata: state.documentMetadata
+          ? {
+              ...state.documentMetadata,
+              allowedDepartmentIds: response.accessScope.allowedDepartmentIds,
+              departmentId: response.accessScope.departmentId,
+              securityLevel: response.accessScope.securityLevel,
+            }
+          : state.documentMetadata,
+        documents: state.documents.map((document) =>
+          document.id === documentId
+            ? {
+                ...document,
+                accessScope: response.accessScope,
+              }
+            : document,
+        ),
+        loadingDocuments: false,
+      }));
+    } catch (error) {
+      set({
+        documentAccessScopeError: toErrorMessage(error),
+        loadingDocuments: false,
       });
     }
   },
