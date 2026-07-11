@@ -21,7 +21,6 @@ import type {
   DocumentTaxonomy,
   UpdateDocumentTaxonomyRequest,
   DocumentVersion,
-  IngestionResult,
   IngestionOptions,
   IngestionState,
   IngestionStatus,
@@ -34,14 +33,12 @@ import type {
   SpaceMemberDetail,
   SpaceMemberRole,
   UploadState,
-  WorkbenchTab,
   AppSection,
 } from '@/types/workbench';
 import type { AuthenticatedUser } from '@/types/auth';
 
 interface WorkbenchStore {
   activeSection: AppSection;
-  activeTab: WorkbenchTab;
   authError: string | null;
   authHydrated: boolean;
   authLoading: boolean;
@@ -106,15 +103,16 @@ interface WorkbenchStore {
   loadTaxonomy: (spaceId?: string) => Promise<void>;
   loadPipeline: (documentId: string, preferredJobId?: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
+  pollIngestionJob: (documentId: string, pipelineJobId: string) => void;
   selectDocument: (documentId: string | null) => Promise<void>;
   selectPipelineJob: (jobId: string) => Promise<void>;
   selectSpace: (spaceId: string) => Promise<void>;
   removeSpaceMember: (userId: string) => Promise<void>;
-  setActiveTab: (tab: WorkbenchTab) => void;
   setActiveSection: (section: AppSection) => void;
   setAuthToken: (token: string) => Promise<void>;
   setIngestionOptions: (options: Partial<IngestionOptions>) => void;
   setSelectedSpaceFromGlobalSwitcher: (spaceId: string) => Promise<void>;
+  stopIngestionPolling: () => void;
   toggleDocumentSelection: (documentId: string) => void;
   updateDocumentTaxonomy: (input: UpdateDocumentTaxonomyRequest) => Promise<void>;
   updateDocumentAccessScope: (accessScope: DocumentAccessScope) => Promise<void>;
@@ -151,6 +149,8 @@ const persistSelectedSpaceId = (spaceId: string | null): void => {
 
   window.localStorage.removeItem(selectedSpaceStorageKey);
 };
+
+let ingestionPollingTimer: ReturnType<typeof setInterval> | null = null;
 
 const toErrorMessage = (error: unknown): string =>
   toUserFacingErrorMessage(error, '请求失败，请稍后重试。');
@@ -220,7 +220,6 @@ const emptyWorkspaceState = () => ({
 
 export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   activeSection: 'dashboard',
-  activeTab: 'pipeline',
   authError: null,
   authHydrated: false,
   authLoading: false,
@@ -396,6 +395,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   },
 
   clearAuth() {
+    get().stopIngestionPolling();
     persistAuthToken('');
     persistSelectedSpaceId(null);
     set({
@@ -554,43 +554,35 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
     set({
       error: null,
-      ingestionState: { status: 'running' },
+      ingestionState: { status: 'queued' },
       ingestionStatus: null,
     });
 
     try {
-      const result: IngestionResult = await ingestionService.ingestDocument(documentId, {
+      const job = await ingestionService.enqueueDocumentIngestion(documentId, {
         force: true,
         includeEmbedding: true,
         includeGraph: get().ingestionOptions.includeGraph,
       });
 
-      let ingestionStatus: IngestionStatus | null = null;
-
-      try {
-        ingestionStatus = await ingestionService.getStatus(documentId);
-      } catch {
-        ingestionStatus = null;
-      }
-
-      set({
-        ingestionStatus,
-      });
-
-      await get().loadDocuments(spaceId);
-      await get().selectDocument(documentId);
-
-      if (result.pipelineJobId) {
-        await get().loadPipeline(documentId, result.pipelineJobId);
-      }
-
-      set({
+      set((state) => ({
+        documents: state.documents.map((document) =>
+          document.id === documentId
+            ? {
+                ...document,
+                status: 'PROCESSING',
+              }
+            : document,
+        ),
         ingestionState: {
-          result,
-          status: result.status === 'READY' ? 'success' : 'error',
+          pipelineJobId: job.pipelineJobId,
+          status: 'queued',
         },
-        ingestionStatus,
-      });
+        selectedPipelineJobId: job.pipelineJobId,
+      }));
+
+      await get().loadPipeline(documentId, job.pipelineJobId);
+      get().pollIngestionJob(documentId, job.pipelineJobId);
     } catch (error) {
       const errorMessage = toErrorMessage(error);
       let ingestionStatus: IngestionStatus | null = null;
@@ -942,7 +934,119 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     }
   },
 
+  pollIngestionJob(documentId: string, pipelineJobId: string) {
+    get().stopIngestionPolling();
+
+    const poll = async () => {
+      const spaceId = get().selectedSpaceId;
+
+      if (!spaceId) {
+        get().stopIngestionPolling();
+        return;
+      }
+
+      try {
+        const [jobDetail, jobs, ingestionStatus] = await Promise.all([
+          pipelineService.getJob(pipelineJobId),
+          pipelineService.listDocumentJobs(documentId),
+          ingestionService.getStatus(documentId).catch(() => null),
+        ]);
+        const nextStatus =
+          jobDetail.status === 'QUEUED'
+            ? 'queued'
+            : jobDetail.status === 'RUNNING'
+              ? 'running'
+              : get().ingestionState.status;
+
+        set({
+          ingestionState: {
+            pipelineJobId,
+            status: nextStatus,
+          },
+          ingestionStatus,
+          loadingPipeline: false,
+          pipelineEvents: jobDetail.events,
+          pipelineJobs: sortJobs(jobs),
+          selectedPipelineJobId: pipelineJobId,
+        });
+
+        if (jobDetail.status === 'SUCCEEDED') {
+          get().stopIngestionPolling();
+          await get().loadDocuments(spaceId);
+          await get().selectDocument(documentId);
+          const latestStatus = await ingestionService.getStatus(documentId).catch(() => null);
+
+          set({
+            ingestionState: {
+              pipelineJobId,
+              result: latestStatus
+                ? {
+                    counts: {
+                      chunks: latestStatus.chunkCount,
+                      embeddings: latestStatus.embeddingCount,
+                      graphEntities: latestStatus.graphEntityCount,
+                      graphRelations: latestStatus.graphRelationCount,
+                    },
+                    documentId,
+                    pipelineJobId,
+                    readyForRetrieval: latestStatus.readyForRetrieval,
+                    spaceId,
+                    stages: [],
+                    status: 'READY',
+                  }
+                : undefined,
+              status: 'success',
+            },
+            ingestionStatus: latestStatus,
+          });
+        }
+
+        if (jobDetail.status === 'FAILED' || jobDetail.status === 'CANCELED') {
+          const failedEvent = [...jobDetail.events].reverse().find((event) => event.errorMessage);
+          const errorMessage = failedEvent?.errorMessage
+            ? toErrorMessage(failedEvent.errorMessage)
+            : jobDetail.status === 'CANCELED'
+              ? '解析任务已取消'
+              : '解析任务失败';
+
+          get().stopIngestionPolling();
+          await get().loadDocuments(spaceId);
+          await get().selectDocument(documentId);
+
+          set({
+            error: errorMessage,
+            ingestionState: {
+              errorMessage,
+              pipelineJobId,
+              status: 'error',
+            },
+          });
+        }
+      } catch (error) {
+        const errorMessage = toErrorMessage(error);
+
+        get().stopIngestionPolling();
+        set({
+          error: errorMessage,
+          ingestionState: {
+            errorMessage,
+            pipelineJobId,
+            status: 'error',
+          },
+          loadingPipeline: false,
+        });
+      }
+    };
+
+    ingestionPollingTimer = setInterval(() => {
+      void poll();
+    }, 2000);
+
+    void poll();
+  },
+
   async selectDocument(documentId: string | null) {
+    get().stopIngestionPolling();
     set({
       documentAccessScope: null,
       documentAccessScopeError: null,
@@ -1061,6 +1165,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   },
 
   async selectSpace(spaceId: string) {
+    get().stopIngestionPolling();
     set({
       categories: [],
       documentAccessScope: null,
@@ -1095,10 +1200,6 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     ]);
   },
 
-  setActiveTab(tab: WorkbenchTab) {
-    set({ activeTab: tab });
-  },
-
   setActiveSection(section: AppSection) {
     set({ activeSection: section });
   },
@@ -1131,6 +1232,13 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
   async setSelectedSpaceFromGlobalSwitcher(spaceId: string) {
     await get().selectSpace(spaceId);
+  },
+
+  stopIngestionPolling() {
+    if (ingestionPollingTimer) {
+      clearInterval(ingestionPollingTimer);
+      ingestionPollingTimer = null;
+    }
   },
 
   toggleDocumentSelection(documentId: string) {

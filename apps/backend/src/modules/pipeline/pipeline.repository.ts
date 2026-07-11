@@ -73,6 +73,7 @@ export class PipelineRepository {
         metadata: toPrismaMetadata(input.metadata),
         requestId: input.requestId,
         spaceId: input.spaceId,
+        status: input.status,
         triggeredBy: input.triggeredBy,
       },
     });
@@ -92,6 +93,45 @@ export class PipelineRepository {
     });
 
     return toPipelineJobEntity(job);
+  }
+
+  async claimNextQueuedJob(): Promise<PipelineJobEntity | null> {
+    const queuedJob = await this.prisma.pipelineJob.findFirst({
+      orderBy: {
+        createdAt: 'asc',
+      },
+      where: {
+        status: 'QUEUED',
+      },
+    });
+
+    if (!queuedJob) {
+      return null;
+    }
+
+    const result = await this.prisma.pipelineJob.updateMany({
+      data: {
+        finishedAt: null,
+        startedAt: new Date(),
+        status: 'RUNNING',
+      },
+      where: {
+        id: queuedJob.id,
+        status: 'QUEUED',
+      },
+    });
+
+    if (result.count === 0) {
+      return null;
+    }
+
+    const job = await this.prisma.pipelineJob.findUnique({
+      where: {
+        id: queuedJob.id,
+      },
+    });
+
+    return job ? toPipelineJobEntity(job) : null;
   }
 
   async createEvent(input: CreatePipelineEventInput): Promise<PipelineEventEntity> {
@@ -163,5 +203,19 @@ export class PipelineRepository {
     });
 
     return events.map(toPipelineEventEntity);
+  }
+
+  async listRunningJobs(limit: number): Promise<PipelineJobEntity[]> {
+    const jobs = await this.prisma.pipelineJob.findMany({
+      orderBy: {
+        startedAt: 'asc',
+      },
+      take: limit,
+      where: {
+        status: 'RUNNING',
+      },
+    });
+
+    return jobs.map(toPipelineJobEntity);
   }
 }

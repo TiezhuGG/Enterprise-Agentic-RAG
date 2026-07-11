@@ -21,10 +21,10 @@ const numericFields: Array<{
   max: number;
   min: number;
 }> = [
-  { key: 'limit', label: 'Limit', max: 20, min: 1 },
-  { key: 'vectorLimit', label: 'Vector', max: 200, min: 1 },
-  { key: 'keywordLimit', label: 'Keyword', max: 200, min: 1 },
-  { key: 'maxContextTokens', label: 'Context', max: 12000, min: 1 },
+  { key: 'limit', label: '结果数', max: 20, min: 1 },
+  { key: 'vectorLimit', label: '向量召回', max: 200, min: 1 },
+  { key: 'keywordLimit', label: '全文召回', max: 200, min: 1 },
+  { key: 'maxContextTokens', label: '上下文', max: 12000, min: 1 },
 ];
 
 export function AgentRunForm({
@@ -47,7 +47,7 @@ export function AgentRunForm({
     <form className="agent-debug-form" onSubmit={handleSubmit}>
       <div className="agent-debug-form__top">
         <label className="workbench-field" htmlFor="agent-debug-conversation">
-          <span>Conversation</span>
+          <span>会话</span>
           <select
             className="workbench-select"
             disabled={disabled || conversations.length === 0}
@@ -55,10 +55,10 @@ export function AgentRunForm({
             onChange={(event) => onConversationChange(event.target.value)}
             value={conversationId ?? ''}
           >
-            {conversations.length === 0 ? <option value="">No conversations</option> : null}
+            {conversations.length === 0 ? <option value="">暂无会话</option> : null}
             {conversations.map((conversation) => (
               <option key={conversation.id} value={conversation.id}>
-                {conversation.title || 'Debug Session'} ·{' '}
+                {conversation.title || '调试会话'} ·{' '}
                 {new Date(conversation.updatedAt).toLocaleDateString()}
               </option>
             ))}
@@ -87,12 +87,12 @@ export function AgentRunForm({
       </div>
 
       <label className="agent-debug-question" htmlFor="agent-debug-question">
-        <span>Question</span>
+        <span>问题</span>
         <textarea
           disabled={disabled}
           id="agent-debug-question"
           onChange={(event) => onQuestionChange(event.target.value)}
-          placeholder="Ask a question and inspect the Agent execution..."
+          placeholder="输入一个问题，用于检查智能体执行链路"
           rows={5}
           value={question}
         />
@@ -104,7 +104,7 @@ export function AgentRunForm({
           disabled={disabled || !conversationId || !question.trim()}
           type="submit"
         >
-          Run Agent
+          运行智能体
         </button>
       </div>
     </form>

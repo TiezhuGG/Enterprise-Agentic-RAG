@@ -1,7 +1,7 @@
 'use client';
 
 import type { AgentTraceEntry } from '@/types/agent';
-import { DemoEmptyState } from '@/components/demo';
+import { AgentDebugEmptyState } from './AgentDebugEmptyState';
 
 interface AgentTraceTimelineProps {
   trace: AgentTraceEntry[];
@@ -26,13 +26,13 @@ export function AgentTraceTimeline({ trace }: AgentTraceTimelineProps) {
     <section className="workbench-panel agent-debug-trace-panel">
       <div className="workbench-panel__header">
         <div>
-          <h2>Trace Timeline</h2>
-          <span>{trace.length} nodes</span>
+          <h2>链路时间线</h2>
+          <span>{trace.length} 个节点</span>
         </div>
       </div>
 
       {trace.length === 0 ? (
-        <DemoEmptyState title="No Trace" action="Trace is available after the done event." />
+        <AgentDebugEmptyState title="暂无链路" action="执行完成后会显示节点耗时。" />
       ) : null}
 
       <ol className="agent-debug-trace">

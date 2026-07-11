@@ -21,7 +21,7 @@ export const documentStatusLabels: Record<DocumentStatus, string> = {
 export const documentStatusDescriptions: Record<DocumentStatus, string> = {
   ARCHIVED: '文档已归档，不参与检索。',
   CREATED: '文档已创建，等待上传或入库处理。',
-  FAILED: '文档处理失败，请查看 Pipeline 失败阶段。',
+  FAILED: '文档处理失败，请查看入库失败阶段。',
   PROCESSING: '文档已上传，等待或正在解析入库。',
   READY: '文档已完成处理，可以进入搜索和问答。',
 };
@@ -29,6 +29,7 @@ export const documentStatusDescriptions: Record<DocumentStatus, string> = {
 export const ingestionStateLabels: Record<IngestionState['status'], string> = {
   error: '处理失败',
   idle: '等待操作',
+  queued: '排队中',
   running: '处理中',
   success: '处理完成',
 };
@@ -36,6 +37,7 @@ export const ingestionStateLabels: Record<IngestionState['status'], string> = {
 export const pipelineJobStatusLabels: Record<PipelineJobStatus, string> = {
   CANCELED: '已取消',
   FAILED: '失败',
+  QUEUED: '排队中',
   RUNNING: '运行中',
   SUCCEEDED: '成功',
 };

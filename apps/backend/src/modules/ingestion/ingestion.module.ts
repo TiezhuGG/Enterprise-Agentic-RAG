@@ -9,6 +9,7 @@ import { EmbeddingModule } from '../embedding';
 import { KnowledgeGraphModule } from '../knowledge-graph';
 import { PipelineModule } from '../pipeline';
 import { IngestionController } from './ingestion.controller';
+import { IngestionQueueService } from './ingestion-queue.service';
 import { IngestionRepository } from './ingestion.repository';
 import { IngestionService } from './ingestion.service';
 
@@ -25,7 +26,7 @@ import { IngestionService } from './ingestion.service';
     RequestContextModule,
   ],
   controllers: [IngestionController],
-  providers: [IngestionRepository, IngestionService],
+  providers: [IngestionQueueService, IngestionRepository, IngestionService],
   exports: [IngestionService],
 })
 export class IngestionModule {}

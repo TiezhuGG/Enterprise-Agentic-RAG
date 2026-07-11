@@ -14,10 +14,10 @@ const trustLabels: Record<AnswerTrustLevel, string> = {
 };
 
 const retrievalSourceLabels: Record<string, string> = {
-  graph: 'Graph',
-  hybrid: 'Hybrid',
-  keyword: 'Keyword',
-  vector: 'Vector',
+  graph: '图谱召回',
+  hybrid: '混合检索',
+  keyword: '全文召回',
+  vector: '向量召回',
 };
 
 export const calculateAnswerTrust = ({
@@ -99,7 +99,7 @@ export const getCitationSourceLabel = (citation: AgentCitation): string => {
         ? citation.metadata.retrievalSource
         : sources[0];
 
-  return source ? (retrievalSourceLabels[source] ?? source) : 'Document';
+  return source ? (retrievalSourceLabels[source] ?? source) : '文档来源';
 };
 
 export const getGraphCitationPath = (citation: AgentCitation): GraphReasoningPath | null => {

@@ -1,11 +1,11 @@
 'use client';
 
-interface DemoEmptyStateProps {
+interface AgentDebugEmptyStateProps {
   action?: string;
   title: string;
 }
 
-export function DemoEmptyState({ action, title }: DemoEmptyStateProps) {
+export function AgentDebugEmptyState({ action, title }: AgentDebugEmptyStateProps) {
   return (
     <div className="demo-empty-state">
       <strong>{title}</strong>

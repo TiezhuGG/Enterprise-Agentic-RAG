@@ -20,6 +20,7 @@ import { IngestionRepository } from './ingestion.repository';
 import type {
   GraphCountRecord,
   IngestionResult,
+  IngestionJobResponse,
   IngestionStage,
   IngestionStageResult,
   IngestionStageStatus,
@@ -64,35 +65,78 @@ export class IngestionService {
     input: IngestDocumentDto = {},
   ): Promise<IngestionResult> {
     const options = this.normalizeOptions(input);
-    const stages: IngestionStageResult[] = [];
-    const startedAt = Date.now();
-    let document: DocumentEntity | null = null;
-    let enteredProcessing = false;
-    let pipelineJob: PipelineJobEntity | null = null;
+    this.observabilityService.ensureRequestId(context);
+    this.observabilityService.ensureExecutionId(context);
+
+    const activeDocument = await this.findWritableDocument(context, documentId);
+    const pipelineJob = await this.pipelineService.startDocumentJob(context, activeDocument, {
+      force: options.force,
+      includeEmbedding: options.includeEmbedding,
+      includeGraph: options.includeGraph,
+    });
+
+    return this.executeDocumentIngestion(context, activeDocument, options, pipelineJob);
+  }
+
+  async enqueueDocumentIngestion(
+    context: ExecutionContext,
+    documentId: string,
+    input: IngestDocumentDto = {},
+  ): Promise<IngestionJobResponse> {
+    const options = this.normalizeOptions(input);
+    this.observabilityService.ensureRequestId(context);
+    this.observabilityService.ensureExecutionId(context);
+
+    const activeDocument = await this.findWritableDocument(context, documentId);
+    const pipelineJob = await this.pipelineService.startQueuedDocumentJob(context, activeDocument, {
+      force: options.force,
+      includeEmbedding: options.includeEmbedding,
+      includeGraph: options.includeGraph,
+      ingestionAsync: true,
+      ingestionOptions: options,
+      executionContext: this.createExecutionContextSnapshot(context),
+    });
+
+    await this.pipelineService.recordStageEvent(pipelineJob, {
+      durationMs: 0,
+      metadata: {
+        message: '已加入解析队列',
+      },
+      stage: 'queue',
+      status: 'success',
+    });
+
+    return {
+      documentId: activeDocument.id,
+      pipelineJobId: pipelineJob.id,
+      spaceId: activeDocument.spaceId,
+      status: 'QUEUED',
+    };
+  }
+
+  async runQueuedDocumentIngestion(pipelineJob: PipelineJobEntity): Promise<void> {
+    const context = this.restoreExecutionContext(pipelineJob);
+    const options = this.readQueuedOptions(pipelineJob.metadata);
+    const activeDocument = await this.findWritableDocument(context, pipelineJob.documentId);
 
     this.observabilityService.ensureRequestId(context);
     this.observabilityService.ensureExecutionId(context);
 
+    await this.executeDocumentIngestion(context, activeDocument, options, pipelineJob);
+  }
+
+  private async executeDocumentIngestion(
+    context: ExecutionContext,
+    activeDocument: DocumentEntity,
+    options: NormalizedIngestionOptions,
+    pipelineJob: PipelineJobEntity,
+  ): Promise<IngestionResult> {
+    const stages: IngestionStageResult[] = [];
+    const startedAt = Date.now();
+    let enteredProcessing = false;
+    const document = activeDocument;
+
     try {
-      const access = await this.ingestionRepository.findDocumentAccessById(
-        documentId,
-        context.userId,
-        context.tenantId,
-      );
-
-      if (!access) {
-        throw new NotFoundException('Document not found');
-      }
-
-      document = access.document;
-      const activeDocument = document;
-      this.ensureWriteRole(access.memberRole);
-      pipelineJob = await this.pipelineService.startDocumentJob(context, activeDocument, {
-        force: options.force,
-        includeEmbedding: options.includeEmbedding,
-        includeGraph: options.includeGraph,
-      });
-
       const skipResult = await this.maybeSkipReadyDocument(
         context,
         activeDocument,
@@ -206,13 +250,11 @@ export class IngestionService {
         pipelineJob.id,
       );
     } catch (error) {
-      if (document && enteredProcessing) {
+      if (enteredProcessing) {
         await this.markDocumentFailed(document.id);
       }
 
-      if (pipelineJob) {
-        await this.finishPipelineJobSafely(pipelineJob, 'FAILED');
-      }
+      await this.finishPipelineJobSafely(pipelineJob, 'FAILED');
 
       this.recordIngestion(context, document, stages, startedAt, 'failed', error);
       throw error;
@@ -283,12 +325,99 @@ export class IngestionService {
     };
   }
 
+  private async findWritableDocument(
+    context: ExecutionContext,
+    documentId: string,
+  ): Promise<DocumentEntity> {
+    const access = await this.ingestionRepository.findDocumentAccessById(
+      documentId,
+      context.userId,
+      context.tenantId,
+    );
+
+    if (!access) {
+      throw new NotFoundException('Document not found');
+    }
+
+    this.ensureWriteRole(access.memberRole);
+
+    return access.document;
+  }
+
+  private createExecutionContextSnapshot(context: ExecutionContext): Record<string, unknown> {
+    return {
+      departmentId: context.departmentId,
+      metadata: {
+        executionId: this.readContextMetadataString(context, 'executionId'),
+        requestId: this.readContextMetadataString(context, 'requestId'),
+      },
+      organizationId: context.organizationId,
+      permissions: context.permissions,
+      roles: context.roles,
+      spaceIds: context.spaceIds,
+      tenantId: context.tenantId,
+      userId: context.userId,
+    };
+  }
+
+  private restoreExecutionContext(pipelineJob: PipelineJobEntity): ExecutionContext {
+    const snapshot = this.toRecord(pipelineJob.metadata.executionContext);
+    const userId = this.readString(snapshot.userId) ?? pipelineJob.triggeredBy;
+
+    if (!userId) {
+      throw new BadRequestException('异步入库任务缺少执行用户上下文，请重新解析');
+    }
+
+    return {
+      departmentId: this.readOptionalString(snapshot.departmentId),
+      metadata: this.toRecord(snapshot.metadata),
+      organizationId: this.readOptionalString(snapshot.organizationId),
+      permissions: this.readStringArray(snapshot.permissions),
+      roles: this.readStringArray(snapshot.roles),
+      spaceIds: this.readStringArray(snapshot.spaceIds),
+      tenantId: this.readOptionalString(snapshot.tenantId),
+      userId,
+    };
+  }
+
+  private readQueuedOptions(metadata: Record<string, unknown>): NormalizedIngestionOptions {
+    const options = this.toRecord(metadata.ingestionOptions);
+
+    return {
+      force: options.force === true,
+      includeEmbedding: options.includeEmbedding !== false,
+      includeGraph: options.includeGraph !== false,
+    };
+  }
+
   private normalizeOptions(input: IngestDocumentDto | IngestSpaceDto): NormalizedIngestionOptions {
     return {
       force: input.force ?? false,
       includeEmbedding: input.includeEmbedding ?? true,
       includeGraph: input.includeGraph ?? true,
     };
+  }
+
+  private toRecord(value: unknown): Record<string, unknown> {
+    return typeof value === 'object' && value !== null && !Array.isArray(value)
+      ? (value as Record<string, unknown>)
+      : {};
+  }
+
+  private readString(value: unknown): string | null {
+    return typeof value === 'string' && value.trim() ? value : null;
+  }
+
+  private readOptionalString(value: unknown): string | undefined {
+    return this.readString(value) ?? undefined;
+  }
+
+  private readStringArray(value: unknown): string[] {
+    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+  }
+
+  private readContextMetadataString(context: ExecutionContext, key: string): string | undefined {
+    return this.readOptionalString(context.metadata[key]);
   }
 
   private async maybeSkipReadyDocument(

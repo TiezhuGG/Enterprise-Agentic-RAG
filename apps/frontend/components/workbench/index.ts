@@ -1,1 +1,0 @@
-export { DemoWorkbench } from './DemoWorkbench';

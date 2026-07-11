@@ -34,7 +34,7 @@ export function AgentGraphReasoningPath({
     <section className="agent-debug-graph-path">
       <header>
         <div>
-          <h3>GraphRAG Path</h3>
+          <h3>图谱检索路径</h3>
           <span>展示图谱命中的实体、关系和来源文档。</span>
         </div>
         <Badge variant={graphState.variant}>{graphState.label}</Badge>
@@ -43,8 +43,8 @@ export function AgentGraphReasoningPath({
       {!usedGraph ? (
         <div className="agent-debug-empty-state">
           <Network />
-          <strong>GraphRAG 未使用</strong>
-          <span>Planner 未选择图谱检索，本次回答仅使用普通检索或其它上下文。</span>
+          <strong>未使用图谱检索</strong>
+          <span>计划节点未选择图谱检索，本次回答仅使用普通检索或其它上下文。</span>
         </div>
       ) : paths.length === 0 ? (
         <div className="agent-debug-empty-state">
@@ -52,8 +52,8 @@ export function AgentGraphReasoningPath({
           <strong>{running ? '等待图谱结果' : '未命中图谱路径'}</strong>
           <span>
             {running
-              ? 'Graph node 正在执行或尚未返回。'
-              : 'GraphRAG 已执行，但没有可展示的授权图谱路径。'}
+              ? '图谱节点正在执行或尚未返回。'
+              : '已执行图谱检索，但没有可展示的授权图谱路径。'}
           </span>
         </div>
       ) : (
@@ -73,8 +73,10 @@ export function AgentGraphReasoningPath({
                 <small>{path.target.type}</small>
               </div>
               <footer>
-                <span>documentId: {path.documentId}</span>
-                {typeof path.score === 'number' ? <span>score {path.score.toFixed(3)}</span> : null}
+                <span>文档 ID: {path.documentId}</span>
+                {typeof path.score === 'number' ? (
+                  <span>相关度 {path.score.toFixed(3)}</span>
+                ) : null}
               </footer>
             </article>
           ))}
@@ -97,27 +99,27 @@ const toGraphStateLabel = ({
 }): { label: string; variant: 'info' | 'secondary' | 'success' | 'warning' } => {
   if (!usedGraph) {
     return {
-      label: 'skipped',
+      label: '未使用',
       variant: 'secondary',
     };
   }
 
   if (paths.length > 0) {
     return {
-      label: `${paths.length} paths`,
+      label: `${paths.length} 条路径`,
       variant: 'success',
     };
   }
 
   if (running) {
     return {
-      label: 'running',
+      label: '执行中',
       variant: 'info',
     };
   }
 
   return {
-    label: `${graphCount ?? 0} results`,
+    label: `${graphCount ?? 0} 条结果`,
     variant: 'warning',
   };
 };

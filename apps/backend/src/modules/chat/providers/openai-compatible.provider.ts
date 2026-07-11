@@ -1,5 +1,9 @@
 import { Injectable } from '@nestjs/common';
-import { createAppServiceUnavailableException } from '../../../common';
+import {
+  createAppServiceUnavailableException,
+  postProvider,
+  postProviderJson,
+} from '../../../common';
 import { ConfigService } from '../../../config';
 import type { ChatMessage } from '../chat.types';
 import type { LlmProvider } from './llm.provider';
@@ -39,17 +43,12 @@ export class OpenAiCompatibleLlmProvider implements LlmProvider {
   }
 
   async chat(messages: ChatMessage[]): Promise<string> {
-    const response = await fetch(this.apiUrl, {
-      method: 'POST',
-      headers: this.createHeaders(),
-      body: JSON.stringify(this.createBody(messages, false)),
+    const payload = await postProviderJson<OpenAiChatCompletionResponse>({
+      apiKey: this.apiKey,
+      apiUrl: this.apiUrl,
+      body: this.createBody(messages, false),
+      errorCode: 'LLM_UNAVAILABLE',
     });
-
-    if (!response.ok) {
-      throw createAppServiceUnavailableException('LLM_UNAVAILABLE');
-    }
-
-    const payload = (await response.json()) as OpenAiChatCompletionResponse;
     const content = payload.choices?.[0]?.message?.content;
 
     if (typeof content !== 'string') {
@@ -60,13 +59,14 @@ export class OpenAiCompatibleLlmProvider implements LlmProvider {
   }
 
   async *stream(messages: ChatMessage[]): AsyncIterable<string> {
-    const response = await fetch(this.apiUrl, {
-      method: 'POST',
-      headers: this.createHeaders(),
-      body: JSON.stringify(this.createBody(messages, true)),
+    const response = await postProvider({
+      apiKey: this.apiKey,
+      apiUrl: this.apiUrl,
+      body: this.createBody(messages, true),
+      errorCode: 'LLM_UNAVAILABLE',
     });
 
-    if (!response.ok || !response.body) {
+    if (!response.body) {
       throw createAppServiceUnavailableException('LLM_UNAVAILABLE');
     }
 
@@ -96,13 +96,6 @@ export class OpenAiCompatibleLlmProvider implements LlmProvider {
         yield token;
       }
     }
-  }
-
-  private createHeaders(): Record<string, string> {
-    return {
-      authorization: `Bearer ${this.apiKey}`,
-      'content-type': 'application/json',
-    };
   }
 
   private createBody(messages: ChatMessage[], stream: boolean): Record<string, unknown> {

@@ -1,7 +1,7 @@
 'use client';
 
 import type { AgentDebugEventItem } from '@/store/agent-debug.store';
-import { DemoEmptyState } from '@/components/demo';
+import { AgentDebugEmptyState } from './AgentDebugEmptyState';
 
 interface AgentEventTimelineProps {
   events: AgentDebugEventItem[];
@@ -12,16 +12,13 @@ export function AgentEventTimeline({ events }: AgentEventTimelineProps) {
     <section className="workbench-panel agent-debug-event-panel">
       <div className="workbench-panel__header">
         <div>
-          <h2>Event Stream</h2>
-          <span>{events.length} events</span>
+          <h2>事件流</h2>
+          <span>{events.length} 个事件</span>
         </div>
       </div>
 
       {events.length === 0 ? (
-        <DemoEmptyState
-          title="No Agent Events"
-          action="Run a question to stream execution events."
-        />
+        <AgentDebugEmptyState title="暂无事件" action="运行一次问题后会显示执行事件。" />
       ) : null}
 
       <ol className="agent-debug-events">
@@ -33,7 +30,7 @@ export function AgentEventTimeline({ events }: AgentEventTimelineProps) {
             </div>
             <p>{event.summary}</p>
             <details>
-              <summary>payload</summary>
+              <summary>事件数据</summary>
               <pre>{event.payload}</pre>
             </details>
           </li>

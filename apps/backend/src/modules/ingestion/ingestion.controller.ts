@@ -1,10 +1,15 @@
-import { Body, Controller, Get, Param, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, Param, Post, UseGuards } from '@nestjs/common';
 import { RequestContextService, type ExecutionContext } from '../../common';
 import { CurrentUser, JwtAuthGuard, type AuthenticatedUser } from '../auth';
 import { IngestDocumentDto } from './dto/ingest-document.dto';
 import { IngestSpaceDto } from './dto/ingest-space.dto';
 import { IngestionService } from './ingestion.service';
-import type { IngestionResult, IngestionStatus, SpaceIngestionResult } from './ingestion.types';
+import type {
+  IngestionJobResponse,
+  IngestionResult,
+  IngestionStatus,
+  SpaceIngestionResult,
+} from './ingestion.types';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -21,6 +26,20 @@ export class IngestionController {
     @Body() input: IngestDocumentDto,
   ): Promise<IngestionResult> {
     return this.ingestionService.ingestDocument(this.createExecutionContext(user), id, input);
+  }
+
+  @Post('documents/:id/ingest/jobs')
+  @HttpCode(202)
+  enqueueDocumentIngestion(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() input: IngestDocumentDto,
+  ): Promise<IngestionJobResponse> {
+    return this.ingestionService.enqueueDocumentIngestion(
+      this.createExecutionContext(user),
+      id,
+      input,
+    );
   }
 
   @Get('documents/:id/ingest/status')

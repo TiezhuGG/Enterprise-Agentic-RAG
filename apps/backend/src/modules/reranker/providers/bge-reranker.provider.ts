@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { createAppServiceUnavailableException } from '../../../common';
+import { createAppServiceUnavailableException, postProviderJson } from '../../../common';
 import { ConfigService } from '../../../config';
 import type { RerankDocument, RerankScore } from '../reranker.types';
 import type { RerankerProvider } from './reranker.provider';
@@ -35,24 +35,16 @@ export class BgeRerankerProvider implements RerankerProvider {
       return [];
     }
 
-    const response = await fetch(this.apiUrl, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${this.apiKey}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
+    const payload = await postProviderJson<OpenAiCompatibleRerankResponse>({
+      apiKey: this.apiKey,
+      apiUrl: this.apiUrl,
+      body: {
+        documents: documents.map((document) => document.content),
         model: this.model,
         query,
-        documents: documents.map((document) => document.content),
-      }),
+      },
+      errorCode: 'RERANKER_UNAVAILABLE',
     });
-
-    if (!response.ok) {
-      throw createAppServiceUnavailableException('RERANKER_UNAVAILABLE');
-    }
-
-    const payload = (await response.json()) as OpenAiCompatibleRerankResponse;
     const rawScores = payload.data ?? payload.results;
 
     if (!Array.isArray(rawScores)) {

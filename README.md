@@ -1,10 +1,8 @@
 # Enterprise Agentic RAG
 
-Enterprise Agentic RAG 是一个面向企业知识库问答的 Agentic RAG MVP。项目采用 monorepo 结构，覆盖文档入库、混合检索、GraphRAG、Agent 编排、权限隔离、可观测性、评估与前端演示工作台。
+Enterprise Agentic RAG 是一个面向企业知识库问答的 Agentic RAG。项目采用 monorepo 结构，覆盖文档入库、混合检索、GraphRAG、Agent 编排、权限隔离、可观测性、评估与前端演示工作台。
 
-当前目标不是商业化完整平台，而是一个可部署、可演示、可写进简历并能解释架构取舍的工程化 MVP。
-
-## Demo Quick Start
+## Quick Start
 
 ```bash
 pnpm install

@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import { DemoQuestionBank } from '@/components/demo';
 import { useAgentDebugStore } from '@/store/agent-debug.store';
 import { useObservabilityStore } from '@/store/observability.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
@@ -9,6 +8,7 @@ import { AgentCitationInspector } from './AgentCitationInspector';
 import { AgentEventTimeline } from './AgentEventTimeline';
 import { AgentExecutionSummary } from './AgentExecutionSummary';
 import { AgentGraphReasoningPath } from './AgentGraphReasoningPath';
+import { AgentQuestionBank } from './AgentQuestionBank';
 import { AgentRunForm } from './AgentRunForm';
 import { AgentTokenStream } from './AgentTokenStream';
 import { AgentTraceTimeline } from './AgentTraceTimeline';
@@ -38,14 +38,14 @@ export function AgentDebugWorkbench() {
     updateRunConfig,
   } = useAgentDebugStore();
   const selectExecution = useObservabilityStore((state) => state.selectExecution);
-  const setActiveTab = useWorkbenchStore((state) => state.setActiveTab);
+  const setActiveSection = useWorkbenchStore((state) => state.setActiveSection);
 
   useEffect(() => {
     void initialize();
   }, [initialize]);
 
   const openTimeline = (targetExecutionId: string) => {
-    setActiveTab('observability');
+    setActiveSection('system');
     void selectExecution(targetExecutionId);
   };
 
@@ -65,7 +65,7 @@ export function AgentDebugWorkbench() {
         runConfig={runConfig}
       />
 
-      <DemoQuestionBank disabled={running} onSelect={setQuestion} />
+      <AgentQuestionBank disabled={running} onSelect={setQuestion} />
 
       <div className="agent-debug-grid">
         <div className="agent-debug-column">

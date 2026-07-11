@@ -1,4 +1,4 @@
-export const pipelineJobStatuses = ['RUNNING', 'SUCCEEDED', 'FAILED', 'CANCELED'] as const;
+export const pipelineJobStatuses = ['QUEUED', 'RUNNING', 'SUCCEEDED', 'FAILED', 'CANCELED'] as const;
 export type PipelineJobStatus = (typeof pipelineJobStatuses)[number];
 
 export const pipelineEventStatuses = ['STARTED', 'SUCCEEDED', 'FAILED', 'SKIPPED'] as const;
@@ -44,6 +44,7 @@ export interface CreatePipelineJobInput {
   executionId?: string;
   requestId?: string;
   triggeredBy?: string;
+  status?: PipelineJobStatus;
   metadata?: Record<string, unknown>;
 }
 

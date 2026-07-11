@@ -84,7 +84,7 @@ export function SearchCenter({ title = '搜索中心' }: SearchCenterProps) {
     setTagId,
     sort,
     tagId,
-    useHistoryItem,
+    useHistoryItem: applyHistoryItem,
   } = useSearchStore();
   const authToken = useWorkbenchStore((state) => state.authToken);
   const categories = useWorkbenchStore((state) => state.categories);
@@ -103,7 +103,7 @@ export function SearchCenter({ title = '搜索中心' }: SearchCenterProps) {
   };
 
   const handleHistoryClick = (item: SearchHistoryItem) => {
-    useHistoryItem(item);
+    applyHistoryItem(item);
   };
 
   return (
@@ -140,9 +140,9 @@ export function SearchCenter({ title = '搜索中心' }: SearchCenterProps) {
 
             <div className="search-center__filters">
               <label className="search-center__field">
-                <span>Category</span>
+                <span>分类</span>
                 <select onChange={(event) => setCategoryId(event.target.value)} value={categoryId}>
-                  <option value="">All categories</option>
+                  <option value="">全部分类</option>
                   {categories.map((category) => (
                     <option key={category.id} value={category.id}>
                       {category.name}
@@ -152,9 +152,9 @@ export function SearchCenter({ title = '搜索中心' }: SearchCenterProps) {
               </label>
 
               <label className="search-center__field">
-                <span>Tag</span>
+                <span>标签</span>
                 <select onChange={(event) => setTagId(event.target.value)} value={tagId}>
-                  <option value="">All tags</option>
+                  <option value="">全部标签</option>
                   {tags.map((tag) => (
                     <option key={tag.id} value={tag.id}>
                       {tag.name}
@@ -338,7 +338,7 @@ function SearchResultList({
   if (results.length === 0) {
     return (
       <SearchEmptyState
-        description="可尝试更换关键词，或确认文档已完成 Ingest 并处于 READY 状态。"
+        description="可尝试更换关键词，或确认文档已完成入库并处于可检索状态。"
         title="暂无搜索结果"
       />
     );
@@ -369,7 +369,7 @@ function SearchResultCard({ query, result }: { query: string; result: SearchResu
             {documentType} · {sectionTitle}
           </span>
         </div>
-        <Badge variant="secondary">score {formatScore(result.score)}</Badge>
+        <Badge variant="secondary">相关度 {formatScore(result.score)}</Badge>
       </header>
 
       <p className="search-result-card__content">
@@ -410,16 +410,16 @@ function SearchBreakdownPanel({
         {loading && !breakdown ? (
           <div className="search-center__loading search-center__loading--compact">
             <Loader2 className="animate-spin" />
-            <span>等待返回 breakdown</span>
+            <span>等待返回检索过程</span>
           </div>
         ) : null}
         {breakdown ? (
           <div className="search-breakdown">
             <div className="search-breakdown__stats">
-              <Metric label="Vector" value={breakdown.vectorCount} />
-              <Metric label="Keyword" value={breakdown.keywordCount} />
-              <Metric label="Graph" value={breakdown.graphCount} />
-              <Metric label="Rerank" value={breakdown.rerankedCount} />
+              <Metric label="向量召回" value={breakdown.vectorCount} />
+              <Metric label="全文召回" value={breakdown.keywordCount} />
+              <Metric label="图谱召回" value={breakdown.graphCount} />
+              <Metric label="重排序" value={breakdown.rerankedCount} />
             </div>
             <div className="search-breakdown__stages">
               {breakdown.stages.map((stage) => (

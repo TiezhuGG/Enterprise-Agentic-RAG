@@ -60,7 +60,7 @@ export function AnswerTrustPanel({
         <div>
           <strong>{summary.label}</strong>
           <p>{summary.description}</p>
-          {summary.maxScore !== null ? <span>max score {summary.maxScore.toFixed(4)}</span> : null}
+          {summary.maxScore !== null ? <span>最高相关度 {summary.maxScore.toFixed(4)}</span> : null}
         </div>
       </div>
 
@@ -86,7 +86,7 @@ export function AnswerTrustPanel({
                   <div>
                     <strong>{getCitationSectionTitle(citation)}</strong>
                     <span>
-                      {getCitationDocumentType(citation)} / score {citation.score.toFixed(4)}
+                      {getCitationDocumentType(citation)} / 相关度 {citation.score.toFixed(4)}
                     </span>
                   </div>
                   <Badge variant={isGraph ? 'info' : 'secondary'}>{sourceLabel}</Badge>

@@ -18,7 +18,7 @@ export function AgentCitationInspector({
     <section className="workbench-panel agent-debug-citation-panel">
       <AnswerTrustPanel
         citations={citations}
-        title="Citations"
+        title="引用来源"
         verificationResult={verificationResult}
         verified={verified}
       />

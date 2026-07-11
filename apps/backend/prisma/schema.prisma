@@ -75,6 +75,7 @@ enum MultimodalAttachmentStatus {
 }
 
 enum PipelineJobStatus {
+  QUEUED
   RUNNING
   SUCCEEDED
   FAILED

@@ -41,6 +41,49 @@ export class PipelineService {
     document: DocumentEntity,
     metadata: Record<string, unknown> = {},
   ): Promise<PipelineJobEntity> {
+    return this.createDocumentJob(context, document, 'RUNNING', metadata);
+  }
+
+  async startQueuedDocumentJob(
+    context: ExecutionContext,
+    document: DocumentEntity,
+    metadata: Record<string, unknown> = {},
+  ): Promise<PipelineJobEntity> {
+    return this.createDocumentJob(context, document, 'QUEUED', metadata);
+  }
+
+  async claimNextQueuedJob(): Promise<PipelineJobEntity | null> {
+    return this.pipelineRepository.claimNextQueuedJob();
+  }
+
+  async failStaleAsyncRunningJobs(errorMessage: string): Promise<number> {
+    const jobs = await this.pipelineRepository.listRunningJobs(maxJobListLimit);
+    const asyncJobs = jobs.filter((job) => job.metadata.ingestionAsync === true);
+
+    await Promise.all(
+      asyncJobs.map(async (job) => {
+        await this.recordStageEvent(job, {
+          durationMs: 0,
+          errorMessage,
+          metadata: {
+            reason: 'service-restarted',
+          },
+          stage: 'queue-worker',
+          status: 'failed',
+        });
+        await this.finishJob(job.id, 'FAILED');
+      }),
+    );
+
+    return asyncJobs.length;
+  }
+
+  private async createDocumentJob(
+    context: ExecutionContext,
+    document: DocumentEntity,
+    status: PipelineJobStatus,
+    metadata: Record<string, unknown> = {},
+  ): Promise<PipelineJobEntity> {
     return this.pipelineRepository.createJob({
       documentId: document.id,
       executionId: this.getMetadataString(context, 'executionId'),
@@ -51,6 +94,7 @@ export class PipelineService {
       }),
       requestId: this.getMetadataString(context, 'requestId'),
       spaceId: document.spaceId,
+      status,
       triggeredBy: context.userId,
     });
   }

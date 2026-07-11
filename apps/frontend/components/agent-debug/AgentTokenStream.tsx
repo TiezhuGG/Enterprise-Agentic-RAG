@@ -1,6 +1,6 @@
 'use client';
 
-import { DemoEmptyState } from '@/components/demo';
+import { AgentDebugEmptyState } from './AgentDebugEmptyState';
 
 interface AgentTokenStreamProps {
   answer: string;
@@ -12,8 +12,8 @@ export function AgentTokenStream({ answer, running }: AgentTokenStreamProps) {
     <section className="workbench-panel agent-debug-token-panel">
       <div className="workbench-panel__header">
         <div>
-          <h2>Answer Stream</h2>
-          <span>{running ? 'streaming' : `${answer.length} chars`}</span>
+          <h2>回答流</h2>
+          <span>{running ? '生成中' : `${answer.length} 字符`}</span>
         </div>
       </div>
 
@@ -21,7 +21,7 @@ export function AgentTokenStream({ answer, running }: AgentTokenStreamProps) {
         {answer ? (
           <p>{answer}</p>
         ) : (
-          <DemoEmptyState title="No Answer" action="Token output appears while the Agent runs." />
+          <AgentDebugEmptyState title="暂无回答" action="运行问题后会显示模型输出。" />
         )}
       </div>
     </section>

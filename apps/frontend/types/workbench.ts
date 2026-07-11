@@ -2,7 +2,6 @@ export type SpaceMemberRole = 'OWNER' | 'EDITOR' | 'VIEWER';
 export type KnowledgeSpaceType = 'GENERAL' | 'DEPARTMENT' | 'PROJECT' | 'CUSTOMER';
 export type AppSection =
   'dashboard' | 'documents' | 'search' | 'assistant' | 'graph' | 'profile' | 'system';
-export type WorkbenchTab = 'pipeline' | 'search' | 'observability' | 'agent-debug' | 'assistant';
 
 export interface SpaceMember {
   spaceId: string;
@@ -230,6 +229,13 @@ export interface IngestionResult {
   };
 }
 
+export interface IngestionJobResponse {
+  documentId: string;
+  pipelineJobId: string;
+  spaceId: string;
+  status: 'QUEUED';
+}
+
 export type BatchOperation = 'archive' | 'ingest' | 'taxonomy';
 export type BatchItemStatus = 'success' | 'failed';
 
@@ -267,7 +273,7 @@ export interface IngestionStatus {
   readyForRetrieval: boolean;
 }
 
-export type PipelineJobStatus = 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED';
+export type PipelineJobStatus = 'QUEUED' | 'RUNNING' | 'SUCCEEDED' | 'FAILED' | 'CANCELED';
 export type PipelineEventStatus = 'STARTED' | 'SUCCEEDED' | 'FAILED' | 'SKIPPED';
 
 export interface PipelineJob {
@@ -312,7 +318,8 @@ export interface IngestionOptions {
 }
 
 export interface IngestionState {
-  status: 'idle' | 'running' | 'success' | 'error';
+  status: 'idle' | 'queued' | 'running' | 'success' | 'error';
   errorMessage?: string;
   result?: IngestionResult;
+  pipelineJobId?: string;
 }

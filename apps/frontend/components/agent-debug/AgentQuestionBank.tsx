@@ -1,28 +1,28 @@
 'use client';
 
-interface DemoQuestionBankProps {
+interface AgentQuestionBankProps {
   disabled?: boolean;
   onSelect: (question: string) => void;
 }
 
-const demoQuestions = [
-  '单笔超过10000元的报销需要谁审批？',
-  '知识空间中 OWNER、EDITOR、VIEWER 分别能做什么？',
-  '如果报销材料不完整，财务部应该如何处理？',
+const suggestedQuestions = [
+  '单笔超过 10000 元的报销需要谁审批？',
+  '知识空间里的 OWNER、EDITOR、VIEWER 分别能做什么？',
+  '如果报销材料不完整，财务部门应该如何处理？',
 ];
 
-export function DemoQuestionBank({ disabled = false, onSelect }: DemoQuestionBankProps) {
+export function AgentQuestionBank({ disabled = false, onSelect }: AgentQuestionBankProps) {
   return (
     <section className="workbench-panel demo-question-bank">
       <div className="workbench-panel__header">
         <div>
-          <h2>Demo Questions</h2>
-          <span>sample-policy.md</span>
+          <h2>示例问题</h2>
+          <span>用于快速验证问答链路</span>
         </div>
       </div>
 
       <div className="demo-question-bank__list">
-        {demoQuestions.map((question) => (
+        {suggestedQuestions.map((question) => (
           <button
             className="demo-question-bank__item"
             disabled={disabled}

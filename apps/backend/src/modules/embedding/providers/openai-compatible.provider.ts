@@ -1,5 +1,5 @@
 import { Injectable } from '@nestjs/common';
-import { createAppServiceUnavailableException } from '../../../common';
+import { createAppServiceUnavailableException, postProviderJson } from '../../../common';
 import { ConfigService } from '../../../config';
 import type { EmbeddingProvider } from './embedding.provider';
 
@@ -26,23 +26,15 @@ export class OpenAiCompatibleEmbeddingProvider implements EmbeddingProvider {
   }
 
   async embed(text: string): Promise<number[]> {
-    const response = await fetch(this.apiUrl, {
-      method: 'POST',
-      headers: {
-        authorization: `Bearer ${this.apiKey}`,
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
+    const payload = await postProviderJson<OpenAiCompatibleEmbeddingResponse>({
+      apiKey: this.apiKey,
+      apiUrl: this.apiUrl,
+      body: {
         input: text,
         model: this.model,
-      }),
+      },
+      errorCode: 'EMBEDDING_UNAVAILABLE',
     });
-
-    if (!response.ok) {
-      throw createAppServiceUnavailableException('EMBEDDING_UNAVAILABLE');
-    }
-
-    const payload = (await response.json()) as OpenAiCompatibleEmbeddingResponse;
     const vector = payload.data?.[0]?.embedding;
 
     if (!Array.isArray(vector)) {

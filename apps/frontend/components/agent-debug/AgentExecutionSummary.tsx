@@ -18,7 +18,7 @@ const boolLabel = (value: boolean | undefined): string => {
     return '-';
   }
 
-  return value ? 'Yes' : 'No';
+  return value ? '是' : '否';
 };
 
 export function AgentExecutionSummary({
@@ -34,11 +34,11 @@ export function AgentExecutionSummary({
     <section className="workbench-panel agent-debug-summary">
       <div className="workbench-panel__header">
         <div>
-          <h2>Execution</h2>
-          <span>{executionId ?? 'waiting'}</span>
+          <h2>执行记录</h2>
+          <span>{executionId ?? '等待执行'}</span>
         </div>
         <span className={`status-pill status-pill--${running ? 'running' : 'idle'}`}>
-          {running ? 'running' : 'idle'}
+          {running ? '运行中' : '待执行'}
         </span>
       </div>
 
@@ -48,33 +48,33 @@ export function AgentExecutionSummary({
           onClick={() => onOpenTimeline(executionId)}
           type="button"
         >
-          Open Timeline
+          查看时间线
         </button>
       ) : null}
 
       <dl className="agent-debug-summary__grid">
         <div>
-          <dt>Retrieval</dt>
+          <dt>已检索</dt>
           <dd>{boolLabel(plannerDecision?.needsRetrieval)}</dd>
         </div>
         <div>
-          <dt>Graph</dt>
+          <dt>使用图谱</dt>
           <dd>{boolLabel(plannerDecision?.needsGraph)}</dd>
         </div>
         <div>
-          <dt>Chunks</dt>
+          <dt>引用片段</dt>
           <dd>{retrievalCount ?? '-'}</dd>
         </div>
         <div>
-          <dt>Graph Context</dt>
+          <dt>图谱上下文</dt>
           <dd>{graphCount ?? '-'}</dd>
         </div>
         <div>
-          <dt>Verified</dt>
+          <dt>已验证</dt>
           <dd>{boolLabel(finalResponse?.metadata.verified)}</dd>
         </div>
         <div>
-          <dt>Iteration</dt>
+          <dt>迭代次数</dt>
           <dd>
             {finalResponse?.metadata.iteration
               ? `${finalResponse.metadata.iteration}/${finalResponse.metadata.maxIterations ?? '-'}`
@@ -82,11 +82,11 @@ export function AgentExecutionSummary({
           </dd>
         </div>
         <div>
-          <dt>Memory</dt>
+          <dt>使用记忆</dt>
           <dd>{boolLabel(finalResponse?.metadata.usedMemory)}</dd>
         </div>
         <div>
-          <dt>Reason</dt>
+          <dt>验证原因</dt>
           <dd>{finalResponse?.metadata.verificationResult?.reason ?? '-'}</dd>
         </div>
       </dl>

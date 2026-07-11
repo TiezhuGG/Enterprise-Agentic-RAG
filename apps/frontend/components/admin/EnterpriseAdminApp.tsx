@@ -303,6 +303,47 @@ const statusColor: Record<DocumentStatus, string> = {
   READY: '#22c55e',
 };
 
+const executionStatusLabels: Record<string, string> = {
+  FAILED: '失败',
+  RUNNING: '运行中',
+  SUCCEEDED: '成功',
+};
+
+const executionSourceLabels: Record<string, string> = {
+  agent: 'AI 问答',
+  assistant: 'AI 问答',
+  chat: 'AI 问答',
+  ingestion: '文档入库',
+  retrieval: '智能搜索',
+  search: '智能搜索',
+};
+
+const executionStageLabels: Record<string, string> = {
+  'agent-plan': '问题理解',
+  'answer-generation': '生成回答',
+  chat: 'AI 问答',
+  chunking: '文档分块',
+  done: '完成',
+  embedding: '向量生成',
+  'graph-extraction': '图谱抽取',
+  graph: '图谱召回',
+  ingestion: '文档入库',
+  'permission-filter': '权限过滤',
+  reranker: '重排序',
+  retrieval: '知识检索',
+  search: '智能搜索',
+  vector: '向量召回',
+};
+
+const executionEventTypeLabels: Record<string, string> = {
+  error: '异常',
+  event: '事件',
+  finish: '完成',
+  node: '节点',
+  start: '开始',
+  stage: '阶段',
+};
+
 const previewableDocumentTypes = new Set<DocumentType>(['PDF', 'IMAGE', 'TXT', 'MARKDOWN']);
 const textPreviewDocumentTypes = new Set<DocumentType>(['TXT', 'MARKDOWN']);
 
@@ -319,6 +360,21 @@ const formatDateTime = (value?: string | null): string => {
     year: 'numeric',
   }).format(new Date(value));
 };
+
+const getExecutionStatusLabel = (status: string): string =>
+  executionStatusLabels[status] ?? status;
+
+const getExecutionSourceLabel = (source: string): string => {
+  const normalized = source.toLowerCase();
+
+  return executionSourceLabels[normalized] ?? source;
+};
+
+const getExecutionStageLabel = (stage: string): string =>
+  executionStageLabels[stage] ?? stage;
+
+const getExecutionEventTypeLabel = (type: string): string =>
+  executionEventTypeLabels[type] ?? type;
 
 const formatDate = (value?: string | null): string => {
   if (!value) {
@@ -1334,14 +1390,16 @@ function DocumentsPage() {
               <span className="text-sm font-medium">3. 解析入库</span>
               <Badge
                 variant={
-                  ingestionState.status === 'running'
+                  ingestionState.status === 'queued' || ingestionState.status === 'running'
                     ? 'warning'
                     : selectedDocument?.status === 'READY'
                       ? 'success'
                       : 'secondary'
                 }
               >
-                {ingestionState.status === 'running'
+                {ingestionState.status === 'queued'
+                  ? '排队中'
+                  : ingestionState.status === 'running'
                   ? '解析中'
                   : selectedDocument
                     ? statusLabel[selectedDocument.status]
@@ -1592,15 +1650,21 @@ function DocumentsPage() {
                     <span>解析时抽取知识图谱</span>
                   </label>
                   <Button
-                    disabled={ingestionState.status === 'running'}
+                    disabled={
+                      ingestionState.status === 'queued' || ingestionState.status === 'running'
+                    }
                     onClick={() => void ingestSelectedDocument()}
                   >
-                    {ingestionState.status === 'running' ? (
+                    {ingestionState.status === 'queued' || ingestionState.status === 'running' ? (
                       <Loader2 className="animate-spin" />
                     ) : (
                       <RefreshCw />
                     )}
-                    {ingestionState.status === 'running' ? '解析中' : '开始解析'}
+                    {ingestionState.status === 'queued'
+                      ? '排队中'
+                      : ingestionState.status === 'running'
+                        ? '解析中'
+                        : '开始解析'}
                   </Button>
                   <Button onClick={() => setDetailOpen(true)} variant="outline">
                     <FileText />
@@ -2189,7 +2253,9 @@ function SystemPage() {
                       type="button"
                     >
                       <div className="flex items-center justify-between gap-2">
-                        <span className="truncate font-medium">{run.source}</span>
+                        <span className="truncate font-medium">
+                          {getExecutionSourceLabel(run.source)}
+                        </span>
                         <Badge
                           variant={
                             run.status === 'SUCCEEDED'
@@ -2199,7 +2265,7 @@ function SystemPage() {
                                 : 'warning'
                           }
                         >
-                          {run.status}
+                          {getExecutionStatusLabel(run.status)}
                         </Badge>
                       </div>
                       <div className="mt-1 text-xs text-muted-foreground">
@@ -2229,7 +2295,7 @@ function SystemPage() {
                   timeline.map((event) => (
                     <div className="grid gap-2 rounded-md border p-3 text-sm" key={event.id}>
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium">{event.stage}</span>
+                        <span className="font-medium">{getExecutionStageLabel(event.stage)}</span>
                         <Badge
                           variant={
                             event.status === 'SUCCEEDED'
@@ -2239,11 +2305,11 @@ function SystemPage() {
                                 : 'secondary'
                           }
                         >
-                          {event.status}
+                          {getExecutionStatusLabel(event.status)}
                         </Badge>
                       </div>
                       <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                        <span>{event.type}</span>
+                        <span>{getExecutionEventTypeLabel(event.type)}</span>
                         <span>{formatDateTime(event.timestamp)}</span>
                         <span>{event.durationMs ?? 0} ms</span>
                       </div>

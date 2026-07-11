@@ -198,7 +198,11 @@ export const envSchema = z
         error: 'EMBEDDING_DIMENSION is required',
       })
       .int('EMBEDDING_DIMENSION must be an integer')
-      .min(1, 'EMBEDDING_DIMENSION must be greater than 0'),
+      .min(1, 'EMBEDDING_DIMENSION must be greater than 0')
+      .refine(
+        (value) => value === 768,
+        '当前版本仅支持 768 维向量，请将 EMBEDDING_DIMENSION 配置为 768',
+      ),
     RERANKER_API_URL: requiredUrl('RERANKER_API_URL'),
     RERANKER_API_KEY: requiredString('RERANKER_API_KEY'),
     RERANKER_MODEL: requiredString('RERANKER_MODEL'),

@@ -38,6 +38,13 @@ export interface IngestionResult {
   counts: IngestionCounts;
 }
 
+export interface IngestionJobResponse {
+  documentId: string;
+  pipelineJobId: string;
+  spaceId: string;
+  status: 'QUEUED';
+}
+
 export interface IngestionStatus {
   documentId: string;
   spaceId: string;
