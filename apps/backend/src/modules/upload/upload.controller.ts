@@ -13,7 +13,7 @@ import { CurrentUser, JwtAuthGuard, type AuthenticatedUser } from '../auth';
 import type { DocumentEntity } from '../document';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { maxUploadFileSizeBytes, type UploadedDocumentFile } from './upload.types';
-import { UploadService } from './upload.service';
+import { UploadService, type UploadDocumentVersionResponse } from './upload.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -41,6 +41,29 @@ export class UploadController {
     return this.uploadService.uploadDocument(
       this.createExecutionContext(user),
       spaceId,
+      uploadDocumentDto,
+      file,
+    );
+  }
+
+  @Post('documents/:id/versions/upload')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      limits: {
+        fileSize: maxUploadFileSizeBytes,
+        files: 1,
+      },
+    }),
+  )
+  uploadDocumentVersion(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() uploadDocumentDto: UploadDocumentDto,
+    @UploadedFile() file: UploadedDocumentFile | undefined,
+  ): Promise<UploadDocumentVersionResponse> {
+    return this.uploadService.uploadDocumentVersion(
+      this.createExecutionContext(user),
+      id,
       uploadDocumentDto,
       file,
     );

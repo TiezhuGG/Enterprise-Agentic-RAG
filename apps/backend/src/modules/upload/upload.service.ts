@@ -5,12 +5,18 @@ import {
   InternalServerErrorException,
   NotFoundException,
 } from '@nestjs/common';
+import { createHash } from 'node:crypto';
 import { basename, extname, parse } from 'node:path';
 import type { ExecutionContext } from '../../common';
 import { ObservabilityService } from '../../infrastructure/observability';
 import { createAppBadRequestException } from '../../common';
 import { StorageService } from '../../infrastructure/storage';
-import { DocumentRepository, type DocumentEntity, type DocumentType } from '../document';
+import {
+  DocumentRepository,
+  type DocumentEntity,
+  type DocumentType,
+  type DocumentVersionEntity,
+} from '../document';
 import { KnowledgeSpaceRepository, type SpaceMemberRole } from '../knowledge-space';
 import type { UploadDocumentDto } from './dto/upload-document.dto';
 import {
@@ -45,6 +51,11 @@ const documentMimeTypesByType: Partial<Record<DocumentType, readonly string[]>> 
   ],
 };
 const genericMimeDocumentTypes = new Set<DocumentType>(['MARKDOWN', 'PDF', 'TXT', 'WORD']);
+
+export interface UploadDocumentVersionResponse {
+  document: DocumentEntity;
+  version: DocumentVersionEntity;
+}
 
 @Injectable()
 export class UploadService {
@@ -88,10 +99,31 @@ export class UploadService {
         throw new InternalServerErrorException('Document upload failed');
       }
 
-      const updatedDocument = await this.documentRepository.update(document.id, {
-        storageKey,
-        status: 'PROCESSING',
-      });
+      const { document: updatedDocument } =
+        await this.documentRepository.createNextVersionAndUpdateDocument(
+          {
+            createdBy: context.userId,
+            description: document.description ?? undefined,
+            documentId: document.id,
+            metadata: {
+              filename: uploadFile.originalname,
+              uploadKind: 'initial',
+            },
+            mimeType: uploadFile.mimetype,
+            size: uploadFile.size,
+            sourceHash: this.createSourceHash(uploadFile.buffer),
+            status: 'PROCESSING',
+            storageKey,
+            title: document.title,
+            type: document.type,
+          },
+          {
+            mimeType: uploadFile.mimetype,
+            size: uploadFile.size,
+            status: 'PROCESSING',
+            storageKey,
+          },
+        );
 
       this.observabilityService.recordUpload({
         context,
@@ -103,6 +135,98 @@ export class UploadService {
       });
 
       return updatedDocument;
+    } catch (error) {
+      this.observabilityService.recordUpload({
+        context,
+        durationMs: Date.now() - startedAt,
+        error,
+        mimeType: uploadFile?.mimetype,
+        size: uploadFile?.size,
+        spaceId,
+        status: 'failed',
+      });
+      throw error;
+    }
+  }
+
+  async uploadDocumentVersion(
+    context: ExecutionContext,
+    documentId: string,
+    input: UploadDocumentDto,
+    file: UploadedDocumentFile | undefined,
+  ): Promise<UploadDocumentVersionResponse> {
+    const startedAt = Date.now();
+    let uploadFile: UploadedDocumentFile | undefined;
+    let spaceId: string | undefined;
+
+    try {
+      uploadFile = this.validateFile(file);
+      const document = await this.documentRepository.findActiveById(documentId);
+
+      if (!document) {
+        throw new NotFoundException('Document not found');
+      }
+
+      spaceId = document.spaceId;
+      await this.ensureSpaceRole(context, document.spaceId);
+
+      const type = this.resolveDocumentType(uploadFile);
+      const title = input.title?.trim() || document.title;
+      const description =
+        typeof input.description === 'string'
+          ? input.description
+          : (document.description ?? undefined);
+      const storageKey = this.createObjectKey(
+        document.spaceId,
+        document.id,
+        uploadFile.originalname,
+      );
+
+      try {
+        await this.storageService.uploadObject(storageKey, uploadFile.buffer, uploadFile.mimetype);
+      } catch {
+        throw new InternalServerErrorException('Document version upload failed');
+      }
+
+      const result = await this.documentRepository.createNextVersionAndUpdateDocument(
+        {
+          createdBy: context.userId,
+          description,
+          documentId: document.id,
+          metadata: {
+            filename: uploadFile.originalname,
+            previousStorageKey: document.storageKey,
+            uploadKind: 'version',
+          },
+          mimeType: uploadFile.mimetype,
+          size: uploadFile.size,
+          sourceHash: this.createSourceHash(uploadFile.buffer),
+          status: 'PROCESSING',
+          storageKey,
+          title,
+          type,
+        },
+        {
+          description,
+          mimeType: uploadFile.mimetype,
+          size: uploadFile.size,
+          status: 'PROCESSING',
+          storageKey,
+          title,
+          type,
+        },
+      );
+
+      this.observabilityService.recordUpload({
+        context,
+        durationMs: Date.now() - startedAt,
+        mimeType: uploadFile.mimetype,
+        size: uploadFile.size,
+        spaceId: document.spaceId,
+        status: 'success',
+      });
+
+      return result;
     } catch (error) {
       this.observabilityService.recordUpload({
         context,
@@ -198,6 +322,10 @@ export class UploadService {
 
   private createObjectKey(spaceId: string, documentId: string, filename: string): string {
     return `${spaceId}/${documentId}/${Date.now()}/${this.sanitizeFilename(filename)}`;
+  }
+
+  private createSourceHash(buffer: Buffer): string {
+    return createHash('sha256').update(buffer).digest('hex');
   }
 
   private sanitizeFilename(filename: string): string {

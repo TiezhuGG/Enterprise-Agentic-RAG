@@ -17,6 +17,7 @@ import { CreateDocumentDto } from './dto/create-document.dto';
 import { UpdateDocumentAccessScopeDto } from './dto/update-document-access-scope.dto';
 import { UpdateDocumentDto } from './dto/update-document.dto';
 import type { DocumentEntity } from './entities/document.entity';
+import type { DocumentVersionEntity } from './entities/document-version.entity';
 import {
   DocumentService,
   type DocumentAccessScopeResponse,
@@ -71,6 +72,23 @@ export class DocumentController {
     @Param('id') id: string,
   ): Promise<DocumentAccessScopeResponse> {
     return this.documentService.getAccessScope(this.createExecutionContext(user), id);
+  }
+
+  @Get('documents/:id/versions')
+  listVersions(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<DocumentVersionEntity[]> {
+    return this.documentService.listVersions(this.createExecutionContext(user), id);
+  }
+
+  @Get('documents/:id/versions/:versionId')
+  getVersion(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('versionId') versionId: string,
+  ): Promise<DocumentVersionEntity> {
+    return this.documentService.getVersion(this.createExecutionContext(user), id, versionId);
   }
 
   @Patch('documents/:id/access-scope')

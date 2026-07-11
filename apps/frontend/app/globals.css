@@ -1433,6 +1433,109 @@ textarea:disabled {
   width: 16px;
 }
 
+.document-version-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.document-version-panel__header,
+.document-version-panel__toolbar,
+.document-version-panel__item-header {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.document-version-panel__toolbar div,
+.document-version-panel__item-header div,
+.document-version-panel__current {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  min-width: 0;
+}
+
+.document-version-panel__toolbar svg,
+.document-version-panel__current svg {
+  color: #0f766e;
+  flex: 0 0 auto;
+  height: 16px;
+  width: 16px;
+}
+
+.document-version-panel__upload {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.document-version-panel__upload input {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  min-width: 0;
+}
+
+.document-version-panel__upload small,
+.document-version-panel__meta,
+.document-version-panel__empty {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.document-version-panel__list {
+  display: grid;
+  gap: 10px;
+}
+
+.document-version-panel__item {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 10px;
+}
+
+.document-version-panel__item-header strong,
+.document-version-panel__item-header span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.document-version-panel__item-header strong {
+  color: var(--foreground);
+  flex: 0 0 auto;
+  font-size: 13px;
+}
+
+.document-version-panel__item-header span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.document-version-panel__meta {
+  display: grid;
+  gap: 3px;
+}
+
+.document-version-panel__current {
+  color: #0f766e;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.document-version-panel__empty {
+  background: #f8fafc;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  padding: 12px;
+}
+
 .status-pill {
   align-items: center;
   background: #edf2f7;

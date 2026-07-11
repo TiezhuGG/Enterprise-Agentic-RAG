@@ -13,6 +13,7 @@ import type {
   DocumentAccessScope,
   DocumentContentMetadata,
   DocumentPreviewResponse,
+  DocumentVersion,
   IngestionResult,
   IngestionOptions,
   IngestionState,
@@ -44,6 +45,8 @@ interface WorkbenchStore {
   documentMetadata: DocumentContentMetadata | null;
   documentPreview: DocumentPreviewResponse | null;
   documentPreviewError: string | null;
+  documentVersions: DocumentVersion[];
+  documentVersionsError: string | null;
   documents: KnowledgeDocument[];
   error: string | null;
   ingestionState: IngestionState;
@@ -51,6 +54,7 @@ interface WorkbenchStore {
   ingestionStatus: IngestionStatus | null;
   loading: boolean;
   loadingDocumentPreview: boolean;
+  loadingDocumentVersions: boolean;
   loadingDocuments: boolean;
   loadingPipeline: boolean;
   loadingSpaceMembers: boolean;
@@ -63,6 +67,7 @@ interface WorkbenchStore {
   spaceMembersError: string | null;
   spaces: KnowledgeSpace[];
   uploadState: UploadState;
+  uploadingDocumentVersion: boolean;
   clearAuth: () => void;
   createSpace: (
     name: string,
@@ -73,6 +78,7 @@ interface WorkbenchStore {
   ingestSelectedDocument: () => Promise<void>;
   initialize: () => Promise<void>;
   loadDocumentPreview: (documentId?: string) => Promise<void>;
+  loadDocumentVersions: (documentId?: string) => Promise<void>;
   loadDocuments: (spaceId?: string) => Promise<void>;
   loadSpaceMembers: (spaceId?: string) => Promise<void>;
   loadPipeline: (documentId: string, preferredJobId?: string) => Promise<void>;
@@ -95,6 +101,7 @@ interface WorkbenchStore {
   }) => Promise<void>;
   updateSpaceMemberRole: (userId: string, role: SpaceMemberRole) => Promise<void>;
   uploadDocument: (file: File) => Promise<void>;
+  uploadDocumentVersion: (file: File) => Promise<void>;
 }
 
 const selectedSpaceStorageKey = 'enterprise-agentic-rag.selectedSpaceId';
@@ -145,6 +152,8 @@ const emptyWorkspaceState = () => ({
   documentMetadata: null,
   documentPreview: null,
   documentPreviewError: null,
+  documentVersions: [],
+  documentVersionsError: null,
   documents: [],
   error: null,
   ingestionState: {
@@ -156,6 +165,7 @@ const emptyWorkspaceState = () => ({
   ingestionStatus: null,
   loading: false,
   loadingDocumentPreview: false,
+  loadingDocumentVersions: false,
   loadingDocuments: false,
   loadingPipeline: false,
   loadingSpaceMembers: false,
@@ -170,6 +180,7 @@ const emptyWorkspaceState = () => ({
   uploadState: {
     status: 'idle' as const,
   },
+  uploadingDocumentVersion: false,
 });
 
 export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
@@ -185,6 +196,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   documentMetadata: null,
   documentPreview: null,
   documentPreviewError: null,
+  documentVersions: [],
+  documentVersionsError: null,
   documents: [],
   error: null,
   ingestionState: {
@@ -196,6 +209,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   ingestionStatus: null,
   loading: false,
   loadingDocumentPreview: false,
+  loadingDocumentVersions: false,
   loadingDocuments: false,
   loadingPipeline: false,
   loadingSpaceMembers: false,
@@ -210,6 +224,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   uploadState: {
     status: 'idle',
   },
+  uploadingDocumentVersion: false,
 
   clearAuth() {
     persistAuthToken('');
@@ -435,6 +450,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
         documentMetadata: null,
         documentPreview: null,
         documentPreviewError: null,
+        documentVersions: [],
+        documentVersionsError: null,
         documents: [],
         pipelineEvents: [],
         pipelineJobs: [],
@@ -469,6 +486,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
           documentMetadata: null,
           documentPreview: null,
           documentPreviewError: null,
+          documentVersions: [],
+          documentVersionsError: null,
           ingestionStatus: null,
           pipelineEvents: [],
           pipelineJobs: [],
@@ -507,6 +526,37 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
         documentPreview: null,
         documentPreviewError: toErrorMessage(error),
         loadingDocumentPreview: false,
+      });
+    }
+  },
+
+  async loadDocumentVersions(documentId = get().selectedDocumentId ?? undefined) {
+    if (!documentId) {
+      set({
+        documentVersions: [],
+        documentVersionsError: null,
+        loadingDocumentVersions: false,
+      });
+      return;
+    }
+
+    set({
+      documentVersionsError: null,
+      loadingDocumentVersions: true,
+    });
+
+    try {
+      const documentVersions = await documentService.listVersions(documentId);
+
+      set({
+        documentVersions,
+        loadingDocumentVersions: false,
+      });
+    } catch (error) {
+      set({
+        documentVersions: [],
+        documentVersionsError: toErrorMessage(error),
+        loadingDocumentVersions: false,
       });
     }
   },
@@ -601,6 +651,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       documentMetadata: null,
       documentPreview: null,
       documentPreviewError: null,
+      documentVersions: [],
+      documentVersionsError: null,
       ingestionState: { status: 'idle' },
       ingestionStatus: null,
       pipelineEvents: [],
@@ -654,7 +706,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       set({ error: toErrorMessage(error) });
     }
 
-    await get().loadPipeline(documentId);
+    await Promise.all([get().loadPipeline(documentId), get().loadDocumentVersions(documentId)]);
   },
 
   async selectPipelineJob(jobId: string) {
@@ -711,6 +763,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       documentMetadata: null,
       documentPreview: null,
       documentPreviewError: null,
+      documentVersions: [],
+      documentVersionsError: null,
       error: null,
       ingestionState: { status: 'idle' },
       ingestionStatus: null,
@@ -891,6 +945,44 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
           filename: file.name,
           status: 'error',
         },
+      });
+    }
+  },
+
+  async uploadDocumentVersion(file: File) {
+    const documentId = get().selectedDocumentId;
+    const spaceId = get().selectedSpaceId;
+
+    if (!documentId || !spaceId) {
+      set({ error: 'Please select a document before uploading a new version.' });
+      return;
+    }
+
+    set({
+      error: null,
+      uploadingDocumentVersion: true,
+    });
+
+    try {
+      const response = await uploadService.uploadDocumentVersion(documentId, file, {
+        title: file.name,
+      });
+
+      set((state) => ({
+        documents: state.documents.map((document) =>
+          document.id === documentId ? response.document : document,
+        ),
+        selectedDocumentId: response.document.id,
+        uploadingDocumentVersion: false,
+      }));
+
+      await get().loadDocuments(spaceId);
+      await get().selectDocument(response.document.id);
+      await get().loadDocumentPreview(response.document.id);
+    } catch (error) {
+      set({
+        error: toErrorMessage(error),
+        uploadingDocumentVersion: false,
       });
     }
   },

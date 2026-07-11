@@ -13,6 +13,7 @@ import type { CreateDocumentDto } from './dto/create-document.dto';
 import type { UpdateDocumentDto } from './dto/update-document.dto';
 import type { DocumentContentMetadata } from './entities/document-content.entity';
 import type { DocumentAccessScope, DocumentEntity } from './entities/document.entity';
+import type { DocumentVersionEntity } from './entities/document-version.entity';
 import { normalizeDocumentAccessScope } from './entities/document.entity';
 import { DocumentRepository } from './document.repository';
 
@@ -163,6 +164,28 @@ export class DocumentService {
     };
   }
 
+  async listVersions(context: ExecutionContext, id: string): Promise<DocumentVersionEntity[]> {
+    await this.ensureDocumentReadAccess(context, id);
+
+    return this.documentRepository.listVersions(id);
+  }
+
+  async getVersion(
+    context: ExecutionContext,
+    id: string,
+    versionId: string,
+  ): Promise<DocumentVersionEntity> {
+    await this.ensureDocumentReadAccess(context, id);
+
+    const version = await this.documentRepository.findVersion(id, versionId);
+
+    if (!version) {
+      throw new NotFoundException('Document version not found');
+    }
+
+    return version;
+  }
+
   async getFile(context: ExecutionContext, id: string): Promise<DocumentFileResponse> {
     const document = await this.getById(context, id);
 
@@ -276,6 +299,22 @@ export class DocumentService {
     if (!document) {
       throw new NotFoundException('Document not found');
     }
+
+    return document;
+  }
+
+  private async ensureDocumentReadAccess(
+    context: ExecutionContext,
+    id: string,
+  ): Promise<DocumentEntity> {
+    const document = await this.findActiveDocument(id);
+    const access = await this.ensureSpaceRole(context, document.spaceId, readRoles);
+    const content = await this.documentRepository.findContentByDocumentId(document.id);
+
+    this.accessPolicyService.assertCanReadKnowledgeResource(
+      this.accessPolicyService.toSubject(context),
+      this.toPolicyResource(access.space, access.memberRole, document, content?.metadata),
+    );
 
     return document;
   }

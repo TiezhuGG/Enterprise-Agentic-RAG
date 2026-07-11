@@ -13,6 +13,10 @@ import type {
   DocumentType,
 } from './entities/document.entity';
 import { normalizeDocumentAccessScope } from './entities/document.entity';
+import {
+  normalizeDocumentVersionMetadata,
+  type DocumentVersionEntity,
+} from './entities/document-version.entity';
 
 export interface CreateDocumentInput {
   spaceId: string;
@@ -37,10 +41,28 @@ export interface UpdateDocumentInput {
   size?: number;
 }
 
+export interface CreateDocumentVersionInput {
+  documentId: string;
+  title: string;
+  description?: string;
+  type: DocumentType;
+  status: DocumentStatus;
+  storageKey?: string;
+  mimeType?: string;
+  size?: number;
+  sourceHash?: string;
+  contentHash?: string;
+  metadata?: Record<string, unknown>;
+  createdBy: string;
+}
+
 type DocumentModel = Omit<DocumentEntity, 'accessScope'> & {
   accessScope: unknown;
 };
 type DocumentContentModel = Omit<DocumentContentEntity, 'metadata'> & {
+  metadata: unknown;
+};
+type DocumentVersionModel = Omit<DocumentVersionEntity, 'metadata'> & {
   metadata: unknown;
 };
 
@@ -73,6 +95,26 @@ const toDocumentContentEntity = (content: DocumentContentModel): DocumentContent
   metadata: normalizeDocumentContentMetadata(content.metadata, content.documentId),
   createdAt: content.createdAt,
   updatedAt: content.updatedAt,
+});
+
+const toDocumentVersionEntity = (version: DocumentVersionModel): DocumentVersionEntity => ({
+  id: version.id,
+  documentId: version.documentId,
+  versionNumber: version.versionNumber,
+  title: version.title,
+  description: version.description,
+  type: version.type,
+  status: version.status,
+  storageKey: version.storageKey,
+  mimeType: version.mimeType,
+  size: version.size,
+  sourceHash: version.sourceHash,
+  contentHash: version.contentHash,
+  isCurrent: version.isCurrent,
+  metadata: normalizeDocumentVersionMetadata(version.metadata),
+  createdBy: version.createdBy,
+  createdAt: version.createdAt,
+  updatedAt: version.updatedAt,
 });
 
 const toPrismaDocumentContentMetadata = (
@@ -142,6 +184,16 @@ const toPrismaDocumentAccessScope = (scope: DocumentAccessScope): Prisma.InputJs
   return json as Prisma.InputJsonObject;
 };
 
+const toPrismaDocumentVersionMetadata = (
+  metadata: Record<string, unknown> | undefined,
+): Prisma.InputJsonObject => {
+  if (!metadata) {
+    return {};
+  }
+
+  return metadata as Prisma.InputJsonObject;
+};
+
 @Injectable()
 export class DocumentRepository {
   constructor(private readonly prisma: PrismaService) {}
@@ -209,14 +261,32 @@ export class DocumentRepository {
   }
 
   async update(id: string, input: UpdateDocumentInput): Promise<DocumentEntity> {
-    const document = await this.prisma.document.update({
-      where: {
-        id,
-      },
-      data: {
-        ...input,
-        accessScope: input.accessScope ? toPrismaDocumentAccessScope(input.accessScope) : undefined,
-      },
+    const document = await this.prisma.$transaction(async (transaction) => {
+      const updatedDocument = await transaction.document.update({
+        where: {
+          id,
+        },
+        data: {
+          ...input,
+          accessScope: input.accessScope
+            ? toPrismaDocumentAccessScope(input.accessScope)
+            : undefined,
+        },
+      });
+
+      if (input.status) {
+        await transaction.documentVersion.updateMany({
+          where: {
+            documentId: id,
+            isCurrent: true,
+          },
+          data: {
+            status: input.status,
+          },
+        });
+      }
+
+      return updatedDocument;
     });
 
     return toDocumentEntity(document);
@@ -255,6 +325,17 @@ export class DocumentRepository {
       },
     });
 
+    await this.prisma.documentVersion.updateMany({
+      where: {
+        documentId,
+        isCurrent: true,
+      },
+      data: {
+        contentHash: metadata.contentHash,
+        sourceHash: metadata.sourceHash,
+      },
+    });
+
     return toDocumentContentEntity(documentContent);
   }
 
@@ -282,5 +363,141 @@ export class DocumentRepository {
     });
 
     return contents.map(toDocumentContentEntity);
+  }
+
+  async createNextVersion(input: CreateDocumentVersionInput): Promise<DocumentVersionEntity> {
+    const version = await this.prisma.$transaction(async (transaction) => {
+      const aggregate = await transaction.documentVersion.aggregate({
+        where: {
+          documentId: input.documentId,
+        },
+        _max: {
+          versionNumber: true,
+        },
+      });
+      const versionNumber = (aggregate._max.versionNumber ?? 0) + 1;
+
+      await transaction.documentVersion.updateMany({
+        where: {
+          documentId: input.documentId,
+          isCurrent: true,
+        },
+        data: {
+          isCurrent: false,
+        },
+      });
+
+      return transaction.documentVersion.create({
+        data: {
+          contentHash: input.contentHash,
+          createdBy: input.createdBy,
+          description: input.description,
+          documentId: input.documentId,
+          isCurrent: true,
+          metadata: toPrismaDocumentVersionMetadata(input.metadata),
+          mimeType: input.mimeType,
+          size: input.size,
+          sourceHash: input.sourceHash,
+          status: input.status,
+          storageKey: input.storageKey,
+          title: input.title,
+          type: input.type,
+          versionNumber,
+        },
+      });
+    });
+
+    return toDocumentVersionEntity(version);
+  }
+
+  async createNextVersionAndUpdateDocument(
+    input: CreateDocumentVersionInput,
+    documentInput: UpdateDocumentInput,
+  ): Promise<{ document: DocumentEntity; version: DocumentVersionEntity }> {
+    const result = await this.prisma.$transaction(async (transaction) => {
+      const aggregate = await transaction.documentVersion.aggregate({
+        where: {
+          documentId: input.documentId,
+        },
+        _max: {
+          versionNumber: true,
+        },
+      });
+      const versionNumber = (aggregate._max.versionNumber ?? 0) + 1;
+
+      await transaction.documentVersion.updateMany({
+        where: {
+          documentId: input.documentId,
+          isCurrent: true,
+        },
+        data: {
+          isCurrent: false,
+        },
+      });
+
+      const version = await transaction.documentVersion.create({
+        data: {
+          contentHash: input.contentHash,
+          createdBy: input.createdBy,
+          description: input.description,
+          documentId: input.documentId,
+          isCurrent: true,
+          metadata: toPrismaDocumentVersionMetadata(input.metadata),
+          mimeType: input.mimeType,
+          size: input.size,
+          sourceHash: input.sourceHash,
+          status: input.status,
+          storageKey: input.storageKey,
+          title: input.title,
+          type: input.type,
+          versionNumber,
+        },
+      });
+      const document = await transaction.document.update({
+        where: {
+          id: input.documentId,
+        },
+        data: {
+          ...documentInput,
+          accessScope: documentInput.accessScope
+            ? toPrismaDocumentAccessScope(documentInput.accessScope)
+            : undefined,
+        },
+      });
+
+      return {
+        document,
+        version,
+      };
+    });
+
+    return {
+      document: toDocumentEntity(result.document),
+      version: toDocumentVersionEntity(result.version),
+    };
+  }
+
+  async findVersion(documentId: string, versionId: string): Promise<DocumentVersionEntity | null> {
+    const version = await this.prisma.documentVersion.findFirst({
+      where: {
+        documentId,
+        id: versionId,
+      },
+    });
+
+    return version ? toDocumentVersionEntity(version) : null;
+  }
+
+  async listVersions(documentId: string): Promise<DocumentVersionEntity[]> {
+    const versions = await this.prisma.documentVersion.findMany({
+      where: {
+        documentId,
+      },
+      orderBy: {
+        versionNumber: 'desc',
+      },
+    });
+
+    return versions.map(toDocumentVersionEntity);
   }
 }

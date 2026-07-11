@@ -73,6 +73,31 @@ export interface KnowledgeDocument {
   updatedAt: string;
 }
 
+export interface DocumentVersion {
+  id: string;
+  documentId: string;
+  versionNumber: number;
+  title: string;
+  description: string | null;
+  type: DocumentType;
+  status: DocumentStatus;
+  storageKey: string | null;
+  mimeType: string | null;
+  size: number | null;
+  sourceHash: string | null;
+  contentHash: string | null;
+  isCurrent: boolean;
+  metadata: Record<string, unknown>;
+  createdBy: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface UploadDocumentVersionResponse {
+  document: KnowledgeDocument;
+  version: DocumentVersion;
+}
+
 export interface DocumentContentCleanerMetadata {
   inputLength: number;
   outputLength: number;

@@ -119,6 +119,7 @@ model User {
   updatedAt             DateTime               @updatedAt @map("updated_at")
   conversations         Conversation[]
   createdDocuments      Document[]             @relation("DocumentCreator")
+  createdDocumentVersions DocumentVersion[]     @relation("DocumentVersionCreator")
   department            Department?            @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   executionRuns         ExecutionRun[]
   executionTraceEvents  ExecutionTraceEvent[]
@@ -299,6 +300,7 @@ model Document {
   chunks      Chunk[]
   content     DocumentContent?
   creator     User             @relation("DocumentCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  versions    DocumentVersion[]
   pipelineJobs PipelineJob[]
   space       KnowledgeSpace   @relation(fields: [spaceId], references: [id], onDelete: Cascade)
 
@@ -306,6 +308,34 @@ model Document {
   @@index([createdBy])
   @@index([status])
   @@map("documents")
+}
+
+model DocumentVersion {
+  id            String         @id @default(cuid())
+  documentId    String         @map("document_id")
+  versionNumber Int            @map("version_number")
+  title         String
+  description   String?
+  type          DocumentType
+  status        DocumentStatus @default(CREATED)
+  storageKey    String?        @map("storage_key")
+  mimeType      String?        @map("mime_type")
+  size          Int?
+  sourceHash    String?        @map("source_hash")
+  contentHash   String?        @map("content_hash")
+  isCurrent     Boolean        @default(false) @map("is_current")
+  metadata      Json           @default("{}")
+  createdBy     String         @map("created_by")
+  createdAt     DateTime       @default(now()) @map("created_at")
+  updatedAt     DateTime       @updatedAt @map("updated_at")
+  creator       User           @relation("DocumentVersionCreator", fields: [createdBy], references: [id], onDelete: Restrict)
+  document      Document       @relation(fields: [documentId], references: [id], onDelete: Cascade)
+
+  @@unique([documentId, versionNumber])
+  @@index([documentId, isCurrent])
+  @@index([createdBy])
+  @@index([status])
+  @@map("document_versions")
 }
 
 model DocumentContent {

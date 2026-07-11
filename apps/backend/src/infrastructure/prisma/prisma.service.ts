@@ -56,6 +56,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.document;
   }
 
+  get documentVersion() {
+    return this.client.documentVersion;
+  }
+
   get documentContent() {
     return this.client.documentContent;
   }
@@ -112,6 +116,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     ...values: unknown[]
   ): Promise<number> {
     return this.client.$executeRaw(query, ...values);
+  }
+
+  async $transaction<T>(fn: (client: Prisma.TransactionClient) => Promise<T>): Promise<T> {
+    return this.client.$transaction(fn);
   }
 
   async onModuleInit(): Promise<void> {

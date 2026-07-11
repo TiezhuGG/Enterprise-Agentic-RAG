@@ -3,6 +3,7 @@ import type {
   DocumentAccessScopeResponse,
   DocumentMetadataResponse,
   DocumentPreviewResponse,
+  DocumentVersion,
   KnowledgeDocument,
 } from '@/types/workbench';
 import { createApiUrl, createJsonHeaders, getAuthToken, readApiError } from './api-client';
@@ -125,6 +126,32 @@ export const documentService = {
     }
 
     return (await response.json()) as DocumentPreviewResponse;
+  },
+
+  async listVersions(documentId: string): Promise<DocumentVersion[]> {
+    const response = await fetch(createApiUrl(`/documents/${documentId}/versions`), {
+      headers: createJsonHeaders(),
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      throw await readApiError(response);
+    }
+
+    return (await response.json()) as DocumentVersion[];
+  },
+
+  async getVersion(documentId: string, versionId: string): Promise<DocumentVersion> {
+    const response = await fetch(createApiUrl(`/documents/${documentId}/versions/${versionId}`), {
+      headers: createJsonHeaders(),
+      method: 'GET',
+    });
+
+    if (!response.ok) {
+      throw await readApiError(response);
+    }
+
+    return (await response.json()) as DocumentVersion;
   },
 
   async getAccessScope(documentId: string): Promise<DocumentAccessScopeResponse> {
