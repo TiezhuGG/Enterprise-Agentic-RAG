@@ -10,6 +10,7 @@ import { useDemoStore } from '@/store/demo.store';
 import { useObservabilityStore } from '@/store/observability.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
 import { AuthPanel } from './AuthPanel';
+import { BatchOperationsPanel } from './BatchOperationsPanel';
 import { DocumentAccessScopePanel } from './DocumentAccessScopePanel';
 import { DocumentListPanel } from './DocumentListPanel';
 import { DocumentMetadataPanel } from './DocumentMetadataPanel';
@@ -113,6 +114,7 @@ export function DemoWorkbench() {
           <div className="workbench-grid" aria-busy={loading}>
             <div className="workbench-column">
               <DocumentUploadPanel />
+              <BatchOperationsPanel />
               <DocumentListPanel />
             </div>
             <div className="workbench-column workbench-column--wide">

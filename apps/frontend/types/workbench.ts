@@ -230,6 +230,31 @@ export interface IngestionResult {
   };
 }
 
+export type BatchOperation = 'archive' | 'ingest' | 'taxonomy';
+export type BatchItemStatus = 'success' | 'failed';
+
+export interface BatchOperationItem<TData = unknown> {
+  data?: TData;
+  documentId: string;
+  errorMessage?: string;
+  status: BatchItemStatus;
+}
+
+export interface BatchOperationResponse<TData = unknown> {
+  failed: number;
+  operation: BatchOperation;
+  results: Array<BatchOperationItem<TData>>;
+  succeeded: number;
+  total: number;
+}
+
+export interface BatchState {
+  errorMessage?: string;
+  lastResult?: BatchOperationResponse;
+  operation?: BatchOperation;
+  status: 'idle' | 'running' | 'success' | 'error';
+}
+
 export interface IngestionStatus {
   documentId: string;
   spaceId: string;

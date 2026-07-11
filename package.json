@@ -9,6 +9,7 @@
   },
   "scripts": {
     "build": "pnpm --workspace-concurrency=1 -r build",
+    "batch:smoke": "pnpm --filter @enterprise-agentic-rag/backend batch:smoke",
     "demo:ingest": "pnpm --filter @enterprise-agentic-rag/backend demo:ingest",
     "demo:reset": "pnpm --filter @enterprise-agentic-rag/backend demo:reset",
     "demo:seed": "pnpm --filter @enterprise-agentic-rag/backend demo:seed",

@@ -28,8 +28,10 @@ export function DocumentListPanel() {
   const documents = useWorkbenchStore((state) => state.documents);
   const loadingDocuments = useWorkbenchStore((state) => state.loadingDocuments);
   const selectedDocumentId = useWorkbenchStore((state) => state.selectedDocumentId);
+  const selectedDocumentIds = useWorkbenchStore((state) => state.selectedDocumentIds);
   const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const selectDocument = useWorkbenchStore((state) => state.selectDocument);
+  const toggleDocumentSelection = useWorkbenchStore((state) => state.toggleDocumentSelection);
   const selectedDocument = useMemo(
     () => documents.find((document) => document.id === selectedDocumentId) ?? null,
     [documents, selectedDocumentId],
@@ -76,15 +78,28 @@ export function DocumentListPanel() {
         ) : null}
 
         {documents.map((document) => (
-          <button
+          <div
             className={`document-row ${
               document.id === selectedDocumentId ? 'document-row--active' : ''
             }`}
             key={document.id}
-            onClick={() => void selectDocument(document.id)}
-            type="button"
           >
-            <span className="document-row__title">{document.title}</span>
+            <div className="document-row__head">
+              <label className="document-row__select" onClick={(event) => event.stopPropagation()}>
+                <input
+                  checked={selectedDocumentIds.includes(document.id)}
+                  onChange={() => toggleDocumentSelection(document.id)}
+                  type="checkbox"
+                />
+              </label>
+              <button
+                className="document-row__open"
+                onClick={() => void selectDocument(document.id)}
+                type="button"
+              >
+                <span className="document-row__title">{document.title}</span>
+              </button>
+            </div>
             <span className="document-row__meta">{getDocumentSubtitle(document)}</span>
             <span className={`status-pill status-pill--${document.status.toLowerCase()}`}>
               {documentStatusLabels[document.status]}
@@ -92,7 +107,7 @@ export function DocumentListPanel() {
             <span className="document-row__meta">
               {documentStatusDescriptions[document.status]}
             </span>
-          </button>
+          </div>
         ))}
       </div>
     </section>

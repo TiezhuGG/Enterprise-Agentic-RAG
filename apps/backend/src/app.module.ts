@@ -4,6 +4,7 @@ import { ObservabilityModule } from './infrastructure/observability';
 import { ReadinessModule } from './infrastructure/observability/readiness.module';
 import { AgentModule } from './modules/agent';
 import { AuthModule } from './modules/auth';
+import { BatchModule } from './modules/batch';
 import { ChatModule } from './modules/chat';
 import { ChunkModule } from './modules/chunk';
 import { ConversationModule } from './modules/conversation';
@@ -34,6 +35,7 @@ import { KnowledgeSearchModule } from './modules/search';
     ReadinessModule,
     AgentModule,
     AuthModule,
+    BatchModule,
     UserModule,
     ConversationModule,
     MemoryModule,

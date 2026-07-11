@@ -1716,6 +1716,29 @@ textarea:disabled {
   text-align: left;
 }
 
+.document-row__head {
+  align-items: center;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: auto minmax(0, 1fr);
+  width: 100%;
+}
+
+.document-row__select {
+  align-items: center;
+  display: inline-flex;
+}
+
+.document-row__open {
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
 .document-row:hover,
 .document-row--active {
   background: #f4fbf9;
@@ -1723,10 +1746,100 @@ textarea:disabled {
 }
 
 .document-row__title {
+  display: block;
   max-width: 100%;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+.batch-panel {
+  display: grid;
+  gap: 12px;
+}
+
+.batch-panel__header {
+  align-items: flex-start;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.batch-panel__actions {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.batch-panel__taxonomy {
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.batch-panel__field {
+  display: grid;
+  gap: 7px;
+}
+
+.batch-panel__field > span {
+  color: var(--foreground);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.batch-panel__field select {
+  background: #fff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--foreground);
+  min-height: 36px;
+  padding: 0 10px;
+}
+
+.batch-panel__tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.batch-panel__tags label {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 999px;
+  display: inline-flex;
+  gap: 6px;
+  padding: 5px 9px;
+}
+
+.batch-panel__tags span,
+.batch-panel__tags small {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.batch-panel__result {
+  align-items: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  font-size: 13px;
+  gap: 8px;
+  justify-content: space-between;
+  padding: 9px 10px;
+}
+
+.batch-panel__result--success {
+  background: #ecfdf3;
+  border-color: #b7e4ca;
+}
+
+.batch-panel__result--error {
+  background: #fff7ed;
+  border-color: #fed7aa;
 }
 
 .ingestion-summary {

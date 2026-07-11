@@ -4,6 +4,7 @@
   "private": true,
   "scripts": {
     "build": "pnpm prisma:generate && node --max-old-space-size=4096 ./node_modules/@nestjs/cli/bin/nest.js build",
+    "batch:smoke": "pnpm prisma:generate && ts-node src/modules/batch/run-batch-smoke.ts",
     "demo:ingest": "pnpm prisma:generate && ts-node src/modules/ingestion/run-demo-ingest.ts",
     "demo:reset": "pnpm prisma:generate && ts-node src/modules/ingestion/run-demo-seed.ts --reset --no-ingest",
     "demo:seed": "pnpm prisma:generate && ts-node src/modules/ingestion/run-demo-seed.ts",

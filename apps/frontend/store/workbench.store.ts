@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { getAuthToken, setAuthToken as persistAuthToken } from '@/services/api-client';
 import { authService } from '@/services/auth.service';
+import { batchService } from '@/services/batch.service';
 import { documentService } from '@/services/document.service';
 import { ingestionService } from '@/services/ingestion.service';
 import { knowledgeSpaceService } from '@/services/knowledge-space.service';
@@ -11,6 +12,7 @@ import { taxonomyService } from '@/services/taxonomy.service';
 import { uploadService } from '@/services/upload.service';
 import { toUserFacingErrorMessage } from '@/lib/workbench-copy';
 import type {
+  BatchState,
   DocumentAccessScope,
   DocumentCategory,
   DocumentContentMetadata,
@@ -45,6 +47,7 @@ interface WorkbenchStore {
   authLoading: boolean;
   authToken: string;
   authUser: AuthenticatedUser | null;
+  batchState: BatchState;
   categories: DocumentCategory[];
   documentAccessScope: DocumentAccessScope | null;
   documentAccessScopeError: string | null;
@@ -70,6 +73,7 @@ interface WorkbenchStore {
   pipelineEvents: PipelineEvent[];
   pipelineJobs: PipelineJob[];
   selectedDocumentId: string | null;
+  selectedDocumentIds: string[];
   selectedPipelineJobId: string | null;
   selectedSpaceId: string | null;
   spaceMembers: SpaceMemberDetail[];
@@ -79,7 +83,11 @@ interface WorkbenchStore {
   taxonomyError: string | null;
   uploadState: UploadState;
   uploadingDocumentVersion: boolean;
+  batchArchiveDocuments: () => Promise<void>;
+  batchIngestDocuments: () => Promise<void>;
+  batchUpdateTaxonomy: (input: UpdateDocumentTaxonomyRequest) => Promise<void>;
   clearAuth: () => void;
+  clearDocumentSelection: () => void;
   createSpace: (
     name: string,
     profile?: { metadata?: KnowledgeSpaceMetadata; type?: KnowledgeSpaceType },
@@ -107,6 +115,7 @@ interface WorkbenchStore {
   setAuthToken: (token: string) => Promise<void>;
   setIngestionOptions: (options: Partial<IngestionOptions>) => void;
   setSelectedSpaceFromGlobalSwitcher: (spaceId: string) => Promise<void>;
+  toggleDocumentSelection: (documentId: string) => void;
   updateDocumentTaxonomy: (input: UpdateDocumentTaxonomyRequest) => Promise<void>;
   updateDocumentAccessScope: (accessScope: DocumentAccessScope) => Promise<void>;
   updateSelectedSpaceProfile: (profile: {
@@ -163,6 +172,9 @@ const isMetadataUnavailable = (error: unknown): boolean => {
 };
 
 const emptyWorkspaceState = () => ({
+  batchState: {
+    status: 'idle' as const,
+  },
   categories: [],
   documentAccessScope: null,
   documentAccessScopeError: null,
@@ -192,6 +204,7 @@ const emptyWorkspaceState = () => ({
   pipelineEvents: [],
   pipelineJobs: [],
   selectedDocumentId: null,
+  selectedDocumentIds: [],
   selectedPipelineJobId: null,
   selectedSpaceId: null,
   spaceMembers: [],
@@ -213,6 +226,9 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   authLoading: false,
   authToken: '',
   authUser: null,
+  batchState: {
+    status: 'idle',
+  },
   categories: [],
   documentAccessScope: null,
   documentAccessScopeError: null,
@@ -242,6 +258,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   pipelineEvents: [],
   pipelineJobs: [],
   selectedDocumentId: null,
+  selectedDocumentIds: [],
   selectedPipelineJobId: null,
   selectedSpaceId: null,
   spaceMembers: [],
@@ -254,6 +271,130 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   },
   uploadingDocumentVersion: false,
 
+  async batchArchiveDocuments() {
+    const documentIds = get().selectedDocumentIds;
+    const spaceId = get().selectedSpaceId;
+
+    if (!spaceId || documentIds.length === 0) {
+      return;
+    }
+
+    set({
+      batchState: {
+        operation: 'archive',
+        status: 'running',
+      },
+      error: null,
+    });
+
+    try {
+      const result = await batchService.archiveDocuments(documentIds);
+
+      set({
+        batchState: {
+          lastResult: result,
+          operation: 'archive',
+          status: result.failed > 0 ? 'error' : 'success',
+        },
+        selectedDocumentIds: [],
+      });
+      await get().loadDocuments(spaceId);
+    } catch (error) {
+      set({
+        batchState: {
+          errorMessage: toErrorMessage(error),
+          operation: 'archive',
+          status: 'error',
+        },
+      });
+    }
+  },
+
+  async batchIngestDocuments() {
+    const documentIds = get().selectedDocumentIds;
+    const spaceId = get().selectedSpaceId;
+
+    if (!spaceId || documentIds.length === 0) {
+      return;
+    }
+
+    set({
+      batchState: {
+        operation: 'ingest',
+        status: 'running',
+      },
+      error: null,
+    });
+
+    try {
+      const result = await batchService.ingestDocuments(documentIds, {
+        force: true,
+        includeEmbedding: true,
+        includeGraph: get().ingestionOptions.includeGraph,
+      });
+
+      set({
+        batchState: {
+          lastResult: result,
+          operation: 'ingest',
+          status: result.failed > 0 ? 'error' : 'success',
+        },
+      });
+      await get().loadDocuments(spaceId);
+      if (get().selectedDocumentId) {
+        await get().selectDocument(get().selectedDocumentId);
+      }
+    } catch (error) {
+      set({
+        batchState: {
+          errorMessage: toErrorMessage(error),
+          operation: 'ingest',
+          status: 'error',
+        },
+      });
+    }
+  },
+
+  async batchUpdateTaxonomy(input: UpdateDocumentTaxonomyRequest) {
+    const documentIds = get().selectedDocumentIds;
+
+    if (documentIds.length === 0) {
+      return;
+    }
+
+    set({
+      batchState: {
+        operation: 'taxonomy',
+        status: 'running',
+      },
+      error: null,
+    });
+
+    try {
+      const result = await batchService.updateTaxonomy(documentIds, input);
+
+      set({
+        batchState: {
+          lastResult: result,
+          operation: 'taxonomy',
+          status: result.failed > 0 ? 'error' : 'success',
+        },
+      });
+
+      if (get().selectedDocumentId && documentIds.includes(get().selectedDocumentId ?? '')) {
+        await get().loadDocumentTaxonomy(get().selectedDocumentId ?? undefined);
+      }
+    } catch (error) {
+      set({
+        batchState: {
+          errorMessage: toErrorMessage(error),
+          operation: 'taxonomy',
+          status: 'error',
+        },
+      });
+    }
+  },
+
   clearAuth() {
     persistAuthToken('');
     persistSelectedSpaceId(null);
@@ -264,6 +405,12 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       authLoading: false,
       authToken: '',
       authUser: null,
+    });
+  },
+
+  clearDocumentSelection() {
+    set({
+      selectedDocumentIds: [],
     });
   },
 
@@ -537,6 +684,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
         pipelineEvents: [],
         pipelineJobs: [],
         selectedDocumentId: null,
+        selectedDocumentIds: [],
         selectedPipelineJobId: null,
         tags: [],
         taxonomyError: null,
@@ -558,6 +706,9 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
         documents,
         loadingDocuments: false,
         selectedDocumentId,
+        selectedDocumentIds: get().selectedDocumentIds.filter((documentId) =>
+          documents.some((document) => document.id === documentId),
+        ),
       });
 
       if (selectedDocumentId) {
@@ -927,6 +1078,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       pipelineEvents: [],
       pipelineJobs: [],
       selectedDocumentId: null,
+      selectedDocumentIds: [],
       selectedPipelineJobId: null,
       selectedSpaceId: spaceId,
       spaceMembers: [],
@@ -979,6 +1131,14 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
   async setSelectedSpaceFromGlobalSwitcher(spaceId: string) {
     await get().selectSpace(spaceId);
+  },
+
+  toggleDocumentSelection(documentId: string) {
+    set((state) => ({
+      selectedDocumentIds: state.selectedDocumentIds.includes(documentId)
+        ? state.selectedDocumentIds.filter((id) => id !== documentId)
+        : [...state.selectedDocumentIds, documentId],
+    }));
   },
 
   async updateDocumentTaxonomy(input: UpdateDocumentTaxonomyRequest) {
