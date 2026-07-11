@@ -119,6 +119,25 @@ export interface DocumentMetadataResponse {
   metadata: DocumentContentMetadata;
 }
 
+export interface DocumentPreviewResponse {
+  document: KnowledgeDocument;
+  file: {
+    available: boolean;
+    contentType: string | null;
+    filename: string;
+    inlineUrl: string | null;
+  };
+  metadata?: DocumentContentMetadata;
+  parsedContent: {
+    available: boolean;
+    content: string;
+    contentLength: number;
+    format: 'markdown';
+    maxChars: number;
+    truncated: boolean;
+  };
+}
+
 export interface DocumentAccessScopeResponse {
   accessScope: DocumentAccessScope;
   documentId: string;

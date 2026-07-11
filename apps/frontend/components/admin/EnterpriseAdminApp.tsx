@@ -47,6 +47,7 @@ import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } fro
 import { AgentDebugWorkbench } from '@/components/agent-debug';
 import { SearchCenter } from '@/components/search';
 import { DocumentAccessScopePanel } from '@/components/workbench/DocumentAccessScopePanel';
+import { DocumentPreviewPanel } from '@/components/workbench/DocumentPreviewPanel';
 import { SpaceProfilePanel } from '@/components/workbench/SpaceProfilePanel';
 import { SpaceMembersPanel } from '@/components/workbench/SpaceMembersPanel';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -1183,6 +1184,8 @@ function DocumentsPage() {
   const [previewFile, setPreviewFile] = useState<DocumentFileBlob | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [previewOpen, setPreviewOpen] = useState(false);
+  const [previewParsedText, setPreviewParsedText] = useState<string | null>(null);
+  const [previewParsedTruncated, setPreviewParsedTruncated] = useState(false);
   const [previewText, setPreviewText] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'ALL'>('ALL');
   const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
@@ -1229,6 +1232,8 @@ function DocumentsPage() {
     setPreviewError(null);
     setPreviewFile(null);
     setPreviewLoading(false);
+    setPreviewParsedText(null);
+    setPreviewParsedTruncated(false);
     setPreviewText(null);
   };
 
@@ -1237,23 +1242,25 @@ function DocumentsPage() {
     setDocumentActionError(null);
     setPreviewDocument(document);
     setPreviewOpen(true);
-
-    if (!previewableDocumentTypes.has(document.type)) {
-      setPreviewError(
-        '当前文件类型暂不支持在线预览，请下载原文件查看。解析完成后可在元数据中查看文本处理信息。',
-      );
-      return;
-    }
-
     setPreviewLoading(true);
 
     try {
-      const fileBlob = await documentService.preview(document);
+      const preview = await documentService.getPreview(document.id);
+      setPreviewParsedText(preview.parsedContent.available ? preview.parsedContent.content : null);
+      setPreviewParsedTruncated(preview.parsedContent.truncated);
 
-      setPreviewFile(fileBlob);
+      if (previewableDocumentTypes.has(document.type)) {
+        const fileBlob = await documentService.preview(document);
 
-      if (textPreviewDocumentTypes.has(document.type)) {
-        setPreviewText(await fileBlob.blob.text());
+        setPreviewFile(fileBlob);
+
+        if (textPreviewDocumentTypes.has(document.type)) {
+          setPreviewText(await fileBlob.blob.text());
+        }
+      } else if (!preview.parsedContent.available) {
+        setPreviewError(
+          '当前文件类型暂不支持原文件在线预览，且暂未生成解析文本。请先完成文档解析或下载原文件查看。',
+        );
       }
     } catch (error) {
       setPreviewError(error instanceof Error ? error.message : '文档预览失败');
@@ -1554,6 +1561,7 @@ function DocumentsPage() {
 
         <div className="grid gap-4">
           <SpaceProfilePanel />
+          <DocumentPreviewPanel />
           <DocumentAccessScopePanel />
           <SpaceMembersPanel />
 
@@ -1713,6 +1721,15 @@ function DocumentsPage() {
               <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap bg-white p-4 text-sm leading-7">
                 {previewText}
               </pre>
+            ) : previewParsedText !== null ? (
+              <div className="max-h-[70vh] overflow-auto bg-white">
+                {previewParsedTruncated ? (
+                  <div className="border-b bg-amber-50 px-4 py-2 text-xs text-amber-800">
+                    解析文本较长，当前仅展示预览片段。
+                  </div>
+                ) : null}
+                <pre className="whitespace-pre-wrap p-4 text-sm leading-7">{previewParsedText}</pre>
+              </div>
             ) : (
               <div className="grid h-[420px] place-items-center text-sm text-muted-foreground">
                 请选择文档后预览。

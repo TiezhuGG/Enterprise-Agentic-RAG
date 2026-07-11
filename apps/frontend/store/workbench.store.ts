@@ -12,6 +12,7 @@ import { toUserFacingErrorMessage } from '@/lib/workbench-copy';
 import type {
   DocumentAccessScope,
   DocumentContentMetadata,
+  DocumentPreviewResponse,
   IngestionResult,
   IngestionOptions,
   IngestionState,
@@ -41,12 +42,15 @@ interface WorkbenchStore {
   documentAccessScope: DocumentAccessScope | null;
   documentAccessScopeError: string | null;
   documentMetadata: DocumentContentMetadata | null;
+  documentPreview: DocumentPreviewResponse | null;
+  documentPreviewError: string | null;
   documents: KnowledgeDocument[];
   error: string | null;
   ingestionState: IngestionState;
   ingestionOptions: IngestionOptions;
   ingestionStatus: IngestionStatus | null;
   loading: boolean;
+  loadingDocumentPreview: boolean;
   loadingDocuments: boolean;
   loadingPipeline: boolean;
   loadingSpaceMembers: boolean;
@@ -68,6 +72,7 @@ interface WorkbenchStore {
   addSpaceMember: (email: string, role: SpaceMemberRole) => Promise<void>;
   ingestSelectedDocument: () => Promise<void>;
   initialize: () => Promise<void>;
+  loadDocumentPreview: (documentId?: string) => Promise<void>;
   loadDocuments: (spaceId?: string) => Promise<void>;
   loadSpaceMembers: (spaceId?: string) => Promise<void>;
   loadPipeline: (documentId: string, preferredJobId?: string) => Promise<void>;
@@ -138,6 +143,8 @@ const emptyWorkspaceState = () => ({
   documentAccessScope: null,
   documentAccessScopeError: null,
   documentMetadata: null,
+  documentPreview: null,
+  documentPreviewError: null,
   documents: [],
   error: null,
   ingestionState: {
@@ -148,6 +155,7 @@ const emptyWorkspaceState = () => ({
   },
   ingestionStatus: null,
   loading: false,
+  loadingDocumentPreview: false,
   loadingDocuments: false,
   loadingPipeline: false,
   loadingSpaceMembers: false,
@@ -175,6 +183,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   documentAccessScope: null,
   documentAccessScopeError: null,
   documentMetadata: null,
+  documentPreview: null,
+  documentPreviewError: null,
   documents: [],
   error: null,
   ingestionState: {
@@ -185,6 +195,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   },
   ingestionStatus: null,
   loading: false,
+  loadingDocumentPreview: false,
   loadingDocuments: false,
   loadingPipeline: false,
   loadingSpaceMembers: false,
@@ -422,6 +433,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
         documentAccessScope: null,
         documentAccessScopeError: null,
         documentMetadata: null,
+        documentPreview: null,
+        documentPreviewError: null,
         documents: [],
         pipelineEvents: [],
         pipelineJobs: [],
@@ -454,6 +467,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
           documentAccessScope: null,
           documentAccessScopeError: null,
           documentMetadata: null,
+          documentPreview: null,
+          documentPreviewError: null,
           ingestionStatus: null,
           pipelineEvents: [],
           pipelineJobs: [],
@@ -462,6 +477,37 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       }
     } catch (error) {
       set({ error: toErrorMessage(error), loadingDocuments: false });
+    }
+  },
+
+  async loadDocumentPreview(documentId = get().selectedDocumentId ?? undefined) {
+    if (!documentId) {
+      set({
+        documentPreview: null,
+        documentPreviewError: null,
+        loadingDocumentPreview: false,
+      });
+      return;
+    }
+
+    set({
+      documentPreviewError: null,
+      loadingDocumentPreview: true,
+    });
+
+    try {
+      const documentPreview = await documentService.getPreview(documentId);
+
+      set({
+        documentPreview,
+        loadingDocumentPreview: false,
+      });
+    } catch (error) {
+      set({
+        documentPreview: null,
+        documentPreviewError: toErrorMessage(error),
+        loadingDocumentPreview: false,
+      });
     }
   },
 
@@ -553,6 +599,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       documentAccessScope: null,
       documentAccessScopeError: null,
       documentMetadata: null,
+      documentPreview: null,
+      documentPreviewError: null,
       ingestionState: { status: 'idle' },
       ingestionStatus: null,
       pipelineEvents: [],
@@ -661,6 +709,8 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       documentAccessScope: null,
       documentAccessScopeError: null,
       documentMetadata: null,
+      documentPreview: null,
+      documentPreviewError: null,
       error: null,
       ingestionState: { status: 'idle' },
       ingestionStatus: null,

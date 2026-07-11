@@ -18,6 +18,8 @@ import { DocumentRepository } from './document.repository';
 
 const readRoles: SpaceMemberRole[] = ['OWNER', 'EDITOR', 'VIEWER'];
 const writeRoles: SpaceMemberRole[] = ['OWNER', 'EDITOR'];
+const defaultPreviewMaxChars = 20_000;
+const hardPreviewMaxChars = 50_000;
 
 export interface DocumentMetadataResponse {
   documentId: string;
@@ -35,6 +37,25 @@ export interface DocumentFileResponse {
   document: DocumentEntity;
   filename: string;
   size: number;
+}
+
+export interface DocumentPreviewResponse {
+  document: DocumentEntity;
+  file: {
+    available: boolean;
+    contentType: string | null;
+    filename: string;
+    inlineUrl: string | null;
+  };
+  metadata?: DocumentContentMetadata;
+  parsedContent: {
+    available: boolean;
+    content: string;
+    contentLength: number;
+    format: 'markdown';
+    maxChars: number;
+    truncated: boolean;
+  };
 }
 
 @Injectable()
@@ -160,6 +181,53 @@ export class DocumentService {
     };
   }
 
+  async getPreview(
+    context: ExecutionContext,
+    id: string,
+    maxChars?: number,
+  ): Promise<DocumentPreviewResponse> {
+    const document = await this.findActiveDocument(id);
+    const access = await this.ensureSpaceRole(context, document.spaceId, readRoles);
+    const content = await this.documentRepository.findContentByDocumentId(document.id);
+
+    this.accessPolicyService.assertCanReadKnowledgeResource(
+      this.accessPolicyService.toSubject(context),
+      this.toPolicyResource(access.space, access.memberRole, document, content?.metadata),
+    );
+
+    const normalizedMaxChars = this.normalizePreviewMaxChars(maxChars);
+    const contentValue = content?.content ?? '';
+    const parsedContent = content
+      ? {
+          available: true,
+          content: contentValue.slice(0, normalizedMaxChars),
+          contentLength: contentValue.length,
+          format: 'markdown' as const,
+          maxChars: normalizedMaxChars,
+          truncated: contentValue.length > normalizedMaxChars,
+        }
+      : {
+          available: false,
+          content: '',
+          contentLength: 0,
+          format: 'markdown' as const,
+          maxChars: normalizedMaxChars,
+          truncated: false,
+        };
+
+    return {
+      document,
+      file: {
+        available: Boolean(document.storageKey),
+        contentType: document.mimeType,
+        filename: this.resolveFilename(document),
+        inlineUrl: document.storageKey ? `/documents/${document.id}/file?disposition=inline` : null,
+      },
+      metadata: content ? this.mergeMetadataWithAccessScope(document, content.metadata) : undefined,
+      parsedContent,
+    };
+  }
+
   async update(
     context: ExecutionContext,
     id: string,
@@ -281,6 +349,14 @@ export class DocumentService {
       departmentId: document.accessScope.departmentId,
       securityLevel: document.accessScope.securityLevel,
     };
+  }
+
+  private normalizePreviewMaxChars(value: number | undefined): number {
+    if (typeof value !== 'number' || !Number.isFinite(value)) {
+      return defaultPreviewMaxChars;
+    }
+
+    return Math.min(Math.max(Math.trunc(value), 1), hardPreviewMaxChars);
   }
 
   private resolveFilename(document: DocumentEntity): string {

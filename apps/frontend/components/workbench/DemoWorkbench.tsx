@@ -13,6 +13,7 @@ import { AuthPanel } from './AuthPanel';
 import { DocumentAccessScopePanel } from './DocumentAccessScopePanel';
 import { DocumentListPanel } from './DocumentListPanel';
 import { DocumentMetadataPanel } from './DocumentMetadataPanel';
+import { DocumentPreviewPanel } from './DocumentPreviewPanel';
 import { DocumentUploadPanel } from './DocumentUploadPanel';
 import { IngestionPanel } from './IngestionPanel';
 import { PipelineTimeline } from './PipelineTimeline';
@@ -117,6 +118,7 @@ export function DemoWorkbench() {
               <PipelineTimeline />
             </div>
             <div className="workbench-column">
+              <DocumentPreviewPanel />
               <DocumentAccessScopePanel />
               <DocumentMetadataPanel />
             </div>

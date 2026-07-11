@@ -21,6 +21,7 @@ import {
   DocumentService,
   type DocumentAccessScopeResponse,
   type DocumentMetadataResponse,
+  type DocumentPreviewResponse,
 } from './document.service';
 
 interface FileResponse {
@@ -108,6 +109,19 @@ export class DocumentController {
     return new StreamableFile(file.buffer);
   }
 
+  @Get('documents/:id/preview')
+  getPreview(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Query('maxChars') maxChars: string | undefined,
+  ): Promise<DocumentPreviewResponse> {
+    return this.documentService.getPreview(
+      this.createExecutionContext(user),
+      id,
+      this.toOptionalNumber(maxChars),
+    );
+  }
+
   @Get('documents/:id')
   getById(
     @CurrentUser() user: AuthenticatedUser,
@@ -132,5 +146,15 @@ export class DocumentController {
 
   private createExecutionContext(user: AuthenticatedUser): ExecutionContext {
     return this.requestContextService.create(user);
+  }
+
+  private toOptionalNumber(value: string | undefined): number | undefined {
+    if (!value) {
+      return undefined;
+    }
+
+    const parsed = Number(value);
+
+    return Number.isFinite(parsed) ? parsed : undefined;
   }
 }

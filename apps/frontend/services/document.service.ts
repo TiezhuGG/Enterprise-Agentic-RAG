@@ -2,6 +2,7 @@ import type {
   DocumentAccessScope,
   DocumentAccessScopeResponse,
   DocumentMetadataResponse,
+  DocumentPreviewResponse,
   KnowledgeDocument,
 } from '@/types/workbench';
 import { createApiUrl, createJsonHeaders, getAuthToken, readApiError } from './api-client';
@@ -108,6 +109,22 @@ export const documentService = {
     }
 
     return (await response.json()) as DocumentMetadataResponse;
+  },
+
+  async getPreview(documentId: string, maxChars = 20_000): Promise<DocumentPreviewResponse> {
+    const response = await fetch(
+      createApiUrl(`/documents/${documentId}/preview?maxChars=${maxChars}`),
+      {
+        headers: createJsonHeaders(),
+        method: 'GET',
+      },
+    );
+
+    if (!response.ok) {
+      throw await readApiError(response);
+    }
+
+    return (await response.json()) as DocumentPreviewResponse;
   },
 
   async getAccessScope(documentId: string): Promise<DocumentAccessScopeResponse> {
