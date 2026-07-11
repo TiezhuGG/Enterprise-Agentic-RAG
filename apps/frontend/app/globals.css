@@ -2545,6 +2545,25 @@ textarea:disabled {
   grid-template-columns: repeat(4, minmax(0, 1fr));
 }
 
+.graph-browser__guide > div {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.graph-browser__guide strong {
+  display: block;
+  font-size: 14px;
+}
+
+.graph-browser__guide span {
+  color: var(--muted-foreground);
+  display: block;
+  font-size: 13px;
+  margin-top: 3px;
+}
+
 .graph-browser__stat {
   align-items: center;
   display: flex;
@@ -2636,6 +2655,27 @@ textarea:disabled {
   position: relative;
 }
 
+.graph-browser__canvas-hint {
+  align-items: center;
+  background: rgba(255, 255, 255, 0.9);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.08);
+  display: flex;
+  gap: 8px;
+  left: 14px;
+  max-width: min(520px, calc(100% - 28px));
+  padding: 8px 10px;
+  position: absolute;
+  top: 14px;
+  z-index: 4;
+}
+
+.graph-browser__canvas-hint span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
 .graph-browser__edges {
   inset: 0;
   position: absolute;
@@ -2647,10 +2687,47 @@ textarea:disabled {
   stroke-width: 0.22;
 }
 
+.graph-edge-kind--ownership {
+  stroke: #2563eb;
+}
+
+.graph-edge-kind--contains {
+  stroke: #16a34a;
+}
+
+.graph-edge-kind--approval {
+  stroke: #d97706;
+  stroke-width: 0.34;
+}
+
+.graph-edge-kind--reference {
+  stroke: #7c3aed;
+  stroke-dasharray: 1.4 1.2;
+}
+
+.graph-edge-kind--requirement {
+  stroke: #e11d48;
+  stroke-dasharray: 0.55 1;
+}
+
+.graph-edge-kind--default {
+  stroke: #64748b;
+}
+
 .graph-browser__edge-line--selected {
   stroke: #2563eb;
   stroke-opacity: 0.95;
   stroke-width: 0.5;
+}
+
+.graph-browser__edge-label {
+  fill: #475569;
+  font-size: 2.4px;
+  paint-order: stroke;
+  pointer-events: none;
+  stroke: #ffffff;
+  stroke-width: 0.35px;
+  text-anchor: middle;
 }
 
 .graph-browser__edge-hit {
@@ -2668,16 +2745,18 @@ textarea:disabled {
   color: var(--text);
   cursor: pointer;
   display: grid;
-  gap: 2px;
-  min-height: 58px;
-  padding: 8px 9px;
+  gap: 8px;
+  grid-template-columns: 26px minmax(0, 1fr);
+  min-height: 68px;
+  padding: 9px 10px;
   position: absolute;
   text-align: left;
   transition:
     border-color 0.16s ease,
     box-shadow 0.16s ease,
     transform 0.16s ease;
-  width: 96px;
+  width: 124px;
+  z-index: 2;
 }
 
 .graph-browser__node:hover,
@@ -2696,17 +2775,162 @@ textarea:disabled {
   white-space: nowrap;
 }
 
-.graph-browser__node span {
+.graph-browser__node-copy {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+.graph-browser__node em,
+.graph-browser__node-copy span {
   color: var(--muted-foreground);
   font-size: 11px;
+  font-style: normal;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
 
+.graph-browser__node-marker {
+  align-items: center;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  color: #475569;
+  display: inline-flex;
+  height: 26px;
+  justify-content: center;
+  width: 26px;
+}
+
+.graph-browser__node-marker svg {
+  height: 14px;
+  width: 14px;
+}
+
+.graph-node-kind--department {
+  background: #eff6ff;
+  border-color: #93c5fd;
+  color: #1d4ed8;
+}
+
+.graph-node-kind--role {
+  background: #f5f3ff;
+  border-color: #c4b5fd;
+  border-radius: 999px;
+  color: #6d28d9;
+}
+
+.graph-node-kind--policy {
+  background: #ecfdf5;
+  border-color: #86efac;
+  color: #15803d;
+}
+
+.graph-node-kind--rule {
+  background: #fffbeb;
+  border-color: #fcd34d;
+  color: #b45309;
+}
+
+.graph-node-kind--process {
+  background: #eef2ff;
+  border-color: #a5b4fc;
+  color: #4338ca;
+}
+
+.graph-node-kind--requirement {
+  background: #fff1f2;
+  border-color: #fda4af;
+  color: #be123c;
+}
+
+.graph-node-kind--data {
+  background: #f0fdfa;
+  border-color: #5eead4;
+  color: #0f766e;
+}
+
+.graph-node-kind--document,
+.graph-node-kind--unknown {
+  background: #f8fafc;
+  border-color: #cbd5e1;
+  color: #475569;
+}
+
 .graph-browser__side {
   display: grid;
   gap: 16px;
+}
+
+.graph-browser__legend {
+  display: grid;
+  gap: 14px;
+}
+
+.graph-browser__legend > div {
+  display: grid;
+  gap: 9px;
+}
+
+.graph-browser__legend strong {
+  font-size: 13px;
+}
+
+.graph-browser__legend-grid {
+  display: grid;
+  gap: 8px;
+}
+
+.graph-legend-entity,
+.graph-legend-relation {
+  align-items: center;
+  color: var(--muted-foreground);
+  display: flex;
+  font-size: 12px;
+  gap: 8px;
+}
+
+.graph-legend-relation__line,
+.graph-relation-item__line {
+  border-top: 2px solid #64748b;
+  display: inline-block;
+  width: 32px;
+}
+
+.graph-legend-relation__line.graph-edge-kind--reference,
+.graph-relation-item__line.graph-edge-kind--reference {
+  border-top-style: dashed;
+}
+
+.graph-legend-relation__line.graph-edge-kind--requirement,
+.graph-relation-item__line.graph-edge-kind--requirement {
+  border-top-style: dotted;
+}
+
+.graph-legend-relation__line.graph-edge-kind--ownership,
+.graph-relation-item__line.graph-edge-kind--ownership {
+  border-color: #2563eb;
+}
+
+.graph-legend-relation__line.graph-edge-kind--contains,
+.graph-relation-item__line.graph-edge-kind--contains {
+  border-color: #16a34a;
+}
+
+.graph-legend-relation__line.graph-edge-kind--approval,
+.graph-relation-item__line.graph-edge-kind--approval {
+  border-color: #d97706;
+}
+
+.graph-legend-relation__line.graph-edge-kind--reference,
+.graph-relation-item__line.graph-edge-kind--reference {
+  border-color: #7c3aed;
+}
+
+.graph-legend-relation__line.graph-edge-kind--requirement,
+.graph-relation-item__line.graph-edge-kind--requirement {
+  border-color: #e11d48;
 }
 
 .graph-browser__details,
@@ -2841,6 +3065,16 @@ textarea:disabled {
   min-width: 0;
 }
 
+.graph-relation-item strong {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+}
+
+.graph-relation-item__line {
+  width: 24px;
+}
+
 .graph-browser__loading,
 .graph-browser__empty,
 .graph-browser__empty-mini {
@@ -2943,6 +3177,12 @@ textarea:disabled {
 
   .demo-guide__header strong {
     max-width: 100%;
+  }
+
+  .graph-browser__guide > div,
+  .graph-browser__canvas-hint {
+    align-items: flex-start;
+    flex-direction: column;
   }
 
   .workbench-column:last-child {

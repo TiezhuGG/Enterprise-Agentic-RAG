@@ -35,8 +35,14 @@ interface GraphBrowserState {
 }
 
 export interface GraphVisibleView extends GraphView {
+  displayMode: 'document' | 'empty' | 'filtered' | 'focus' | 'overview' | 'query';
+  hiddenCounts: {
+    edges: number;
+    nodes: number;
+  };
   selectedEdge: GraphEdge | null;
   selectedNode: GraphNode | null;
+  totalCounts: GraphView['counts'];
   typeOptions: string[];
 }
 
@@ -46,6 +52,8 @@ type GraphVisibleViewInput = Pick<
 >;
 
 const graphLimit = 160;
+const documentOverviewLimit = 28;
+const spaceOverviewLimit = 18;
 
 export const useGraphBrowserStore = create<GraphBrowserState>((set, get) => ({
   error: null,
@@ -187,15 +195,20 @@ export const createGraphVisibleView = (state: GraphVisibleViewInput): GraphVisib
   const selectedNodeIds = selectedNode
     ? collectNeighborNodeIds(state.view.edges, selectedNode.id, state.hopDepth)
     : null;
-  const visibleNodeIds = selectedNodeIds
-    ? new Set([...selectedNodeIds].filter((nodeId) => typeFilteredNodeIds.has(nodeId)))
-    : typeFilteredNodeIds;
-  const queryAndTypeNodeIds = queryMatchedNodeIds
-    ? new Set([...visibleNodeIds].filter((nodeId) => queryMatchedNodeIds.has(nodeId)))
-    : visibleNodeIds;
-  const visibleNodes = state.view.nodes.filter((node) => queryAndTypeNodeIds.has(node.id));
+  const { displayMode, visibleNodeIds } = resolveVisibleNodeIds({
+    queryMatchedNodeIds,
+    selectedNodeIds,
+    typeFilteredNodeIds,
+    view: state.view,
+  });
+  const orderedVisibleNodes = orderVisibleNodes({
+    edges: state.view.edges,
+    nodes: state.view.nodes.filter((node) => visibleNodeIds.has(node.id)),
+    queryMatchedNodeIds,
+    selectedNodeId: selectedNode?.id ?? null,
+  });
   const visibleEdges = state.view.edges.filter(
-    (edge) => queryAndTypeNodeIds.has(edge.sourceId) && queryAndTypeNodeIds.has(edge.targetId),
+    (edge) => visibleNodeIds.has(edge.sourceId) && visibleNodeIds.has(edge.targetId),
   );
   const selectedEdge = state.selectedEdgeId
     ? (state.view.edges.find((edge) => edge.id === state.selectedEdgeId) ?? null)
@@ -205,14 +218,117 @@ export const createGraphVisibleView = (state: GraphVisibleViewInput): GraphVisib
     ...state.view,
     counts: {
       edges: visibleEdges.length,
-      nodes: visibleNodes.length,
+      nodes: orderedVisibleNodes.length,
     },
+    displayMode,
     edges: visibleEdges,
-    nodes: visibleNodes,
+    hiddenCounts: {
+      edges: Math.max(0, state.view.counts.edges - visibleEdges.length),
+      nodes: Math.max(0, state.view.counts.nodes - orderedVisibleNodes.length),
+    },
+    nodes: orderedVisibleNodes,
     selectedEdge,
     selectedNode,
+    totalCounts: state.view.counts,
     typeOptions,
   };
+};
+
+const resolveVisibleNodeIds = ({
+  queryMatchedNodeIds,
+  selectedNodeIds,
+  typeFilteredNodeIds,
+  view,
+}: {
+  queryMatchedNodeIds: Set<string> | null;
+  selectedNodeIds: Set<string> | null;
+  typeFilteredNodeIds: Set<string>;
+  view: GraphView;
+}): Pick<GraphVisibleView, 'displayMode'> & { visibleNodeIds: Set<string> } => {
+  if (selectedNodeIds) {
+    return {
+      displayMode: 'focus',
+      visibleNodeIds: new Set(
+        [...selectedNodeIds].filter((nodeId) => typeFilteredNodeIds.has(nodeId)),
+      ),
+    };
+  }
+
+  if (queryMatchedNodeIds) {
+    const expandedQueryNodeIds = expandNodeIdsByDepth(view.edges, queryMatchedNodeIds, 1);
+
+    return {
+      displayMode: 'query',
+      visibleNodeIds: new Set(
+        [...expandedQueryNodeIds].filter((nodeId) => typeFilteredNodeIds.has(nodeId)),
+      ),
+    };
+  }
+
+  const typeFilteredNodes = view.nodes.filter((node) => typeFilteredNodeIds.has(node.id));
+  const overviewLimit = view.source === 'document' ? documentOverviewLimit : spaceOverviewLimit;
+
+  if (typeFilteredNodes.length === 0) {
+    return {
+      displayMode: 'empty',
+      visibleNodeIds: new Set(),
+    };
+  }
+
+  if (typeFilteredNodes.length <= overviewLimit) {
+    return {
+      displayMode: view.source === 'document' ? 'document' : 'filtered',
+      visibleNodeIds: typeFilteredNodeIds,
+    };
+  }
+
+  return {
+    displayMode: 'overview',
+    visibleNodeIds: selectHubNodeIds(typeFilteredNodes, view.edges, overviewLimit),
+  };
+};
+
+const orderVisibleNodes = ({
+  edges,
+  nodes,
+  queryMatchedNodeIds,
+  selectedNodeId,
+}: {
+  edges: GraphEdge[];
+  nodes: GraphNode[];
+  queryMatchedNodeIds: Set<string> | null;
+  selectedNodeId: string | null;
+}): GraphNode[] => {
+  const degrees = getNodeDegrees(edges);
+
+  return [...nodes].sort((left, right) => {
+    if (selectedNodeId) {
+      if (left.id === selectedNodeId) {
+        return -1;
+      }
+
+      if (right.id === selectedNodeId) {
+        return 1;
+      }
+    }
+
+    if (queryMatchedNodeIds) {
+      const leftMatched = queryMatchedNodeIds.has(left.id);
+      const rightMatched = queryMatchedNodeIds.has(right.id);
+
+      if (leftMatched !== rightMatched) {
+        return leftMatched ? -1 : 1;
+      }
+    }
+
+    const degreeDelta = (degrees.get(right.id) ?? 0) - (degrees.get(left.id) ?? 0);
+
+    if (degreeDelta !== 0) {
+      return degreeDelta;
+    }
+
+    return left.name.localeCompare(right.name);
+  });
 };
 
 const collectQueryMatchedNodeIds = (
@@ -266,4 +382,48 @@ const collectNeighborNodeIds = (
   }
 
   return visited;
+};
+
+const expandNodeIdsByDepth = (
+  edges: GraphEdge[],
+  nodeIds: Set<string>,
+  depth: GraphHopDepth,
+): Set<string> => {
+  const expandedNodeIds = new Set<string>();
+
+  nodeIds.forEach((nodeId) => {
+    collectNeighborNodeIds(edges, nodeId, depth).forEach((value) => expandedNodeIds.add(value));
+  });
+
+  return expandedNodeIds;
+};
+
+const selectHubNodeIds = (nodes: GraphNode[], edges: GraphEdge[], limit: number): Set<string> => {
+  const degrees = getNodeDegrees(edges);
+
+  return new Set(
+    [...nodes]
+      .sort((left, right) => {
+        const degreeDelta = (degrees.get(right.id) ?? 0) - (degrees.get(left.id) ?? 0);
+
+        if (degreeDelta !== 0) {
+          return degreeDelta;
+        }
+
+        return left.name.localeCompare(right.name);
+      })
+      .slice(0, limit)
+      .map((node) => node.id),
+  );
+};
+
+const getNodeDegrees = (edges: GraphEdge[]): Map<string, number> => {
+  const degrees = new Map<string, number>();
+
+  edges.forEach((edge) => {
+    degrees.set(edge.sourceId, (degrees.get(edge.sourceId) ?? 0) + 1);
+    degrees.set(edge.targetId, (degrees.get(edge.targetId) ?? 0) + 1);
+  });
+
+  return degrees;
 };
