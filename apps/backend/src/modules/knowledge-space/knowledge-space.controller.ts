@@ -1,9 +1,14 @@
 import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { RequestContextService, type ExecutionContext } from '../../common';
 import { CurrentUser, JwtAuthGuard, type AuthenticatedUser } from '../auth';
+import { AddSpaceMemberDto } from './dto/add-space-member.dto';
 import { CreateKnowledgeSpaceDto } from './dto/create-knowledge-space.dto';
+import { UpdateSpaceMemberDto } from './dto/update-space-member.dto';
 import { UpdateKnowledgeSpaceDto } from './dto/update-knowledge-space.dto';
-import type { KnowledgeSpaceEntity } from './entities/knowledge-space.entity';
+import type {
+  KnowledgeSpaceEntity,
+  SpaceMemberDetailEntity,
+} from './entities/knowledge-space.entity';
 import { KnowledgeSpaceService } from './knowledge-space.service';
 
 @Controller('spaces')
@@ -36,6 +41,51 @@ export class KnowledgeSpaceController {
     @Param('id') id: string,
   ): Promise<KnowledgeSpaceEntity> {
     return this.knowledgeSpaceService.getById(this.createExecutionContext(user), id);
+  }
+
+  @Get(':id/members')
+  listMembers(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<SpaceMemberDetailEntity[]> {
+    return this.knowledgeSpaceService.listMembers(this.createExecutionContext(user), id);
+  }
+
+  @Post(':id/members')
+  addMember(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Body() addSpaceMemberDto: AddSpaceMemberDto,
+  ): Promise<SpaceMemberDetailEntity[]> {
+    return this.knowledgeSpaceService.addMember(
+      this.createExecutionContext(user),
+      id,
+      addSpaceMemberDto,
+    );
+  }
+
+  @Patch(':id/members/:userId')
+  updateMember(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+    @Body() updateSpaceMemberDto: UpdateSpaceMemberDto,
+  ): Promise<SpaceMemberDetailEntity[]> {
+    return this.knowledgeSpaceService.updateMember(
+      this.createExecutionContext(user),
+      id,
+      userId,
+      updateSpaceMemberDto,
+    );
+  }
+
+  @Delete(':id/members/:userId')
+  removeMember(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+    @Param('userId') userId: string,
+  ): Promise<SpaceMemberDetailEntity[]> {
+    return this.knowledgeSpaceService.removeMember(this.createExecutionContext(user), id, userId);
   }
 
   @Patch(':id')

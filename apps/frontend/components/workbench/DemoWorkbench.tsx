@@ -15,6 +15,7 @@ import { DocumentMetadataPanel } from './DocumentMetadataPanel';
 import { DocumentUploadPanel } from './DocumentUploadPanel';
 import { IngestionPanel } from './IngestionPanel';
 import { PipelineTimeline } from './PipelineTimeline';
+import { SpaceMembersPanel } from './SpaceMembersPanel';
 import { SpaceSwitcher } from './SpaceSwitcher';
 
 export function DemoWorkbench() {
@@ -95,6 +96,7 @@ export function DemoWorkbench() {
         <AuthPanel />
         <SystemReadinessPanel />
         <SpaceSwitcher />
+        <SpaceMembersPanel />
       </aside>
 
       <section className="workbench-main">

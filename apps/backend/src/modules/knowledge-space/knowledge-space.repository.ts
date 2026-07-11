@@ -5,7 +5,9 @@ import type {
   KnowledgeSpaceStatus,
   KnowledgeSpaceVisibility,
   SpaceMemberEntity,
+  SpaceMemberDetailEntity,
   SpaceMemberRole,
+  SpaceMemberUserEntity,
 } from './entities/knowledge-space.entity';
 
 export interface CreateKnowledgeSpaceInput {
@@ -29,6 +31,10 @@ type SpaceMemberModel = {
   role: SpaceMemberRole;
 };
 
+type SpaceMemberDetailModel = SpaceMemberModel & {
+  user: SpaceMemberUserEntity;
+};
+
 type KnowledgeSpaceModel = Omit<KnowledgeSpaceEntity, 'members'> & {
   members?: SpaceMemberModel[];
 };
@@ -37,6 +43,18 @@ const toSpaceMemberEntity = (member: SpaceMemberModel): SpaceMemberEntity => ({
   spaceId: member.spaceId,
   userId: member.userId,
   role: member.role,
+});
+
+const toSpaceMemberDetailEntity = (member: SpaceMemberDetailModel): SpaceMemberDetailEntity => ({
+  ...toSpaceMemberEntity(member),
+  user: {
+    departmentId: member.user.departmentId,
+    email: member.user.email,
+    id: member.user.id,
+    name: member.user.name,
+    organizationId: member.user.organizationId,
+    tenantId: member.user.tenantId,
+  },
 });
 
 const toKnowledgeSpaceEntity = (space: KnowledgeSpaceModel): KnowledgeSpaceEntity => ({
@@ -164,6 +182,127 @@ export class KnowledgeSpaceRepository {
     });
 
     return member ? toSpaceMemberEntity(member) : null;
+  }
+
+  async listMembers(spaceId: string): Promise<SpaceMemberDetailEntity[]> {
+    const members = await this.prisma.spaceMember.findMany({
+      where: {
+        spaceId,
+      },
+      include: {
+        user: {
+          select: {
+            departmentId: true,
+            email: true,
+            id: true,
+            name: true,
+            organizationId: true,
+            tenantId: true,
+          },
+        },
+      },
+      orderBy: [
+        {
+          role: 'asc',
+        },
+        {
+          user: {
+            email: 'asc',
+          },
+        },
+      ],
+    });
+
+    return members.map(toSpaceMemberDetailEntity);
+  }
+
+  async countOwners(spaceId: string): Promise<number> {
+    return this.prisma.spaceMember.count({
+      where: {
+        role: 'OWNER',
+        spaceId,
+      },
+    });
+  }
+
+  async upsertMember(
+    spaceId: string,
+    userId: string,
+    role: SpaceMemberRole,
+  ): Promise<SpaceMemberDetailEntity> {
+    const member = await this.prisma.spaceMember.upsert({
+      where: {
+        spaceId_userId: {
+          spaceId,
+          userId,
+        },
+      },
+      create: {
+        role,
+        spaceId,
+        userId,
+      },
+      update: {
+        role,
+      },
+      include: {
+        user: {
+          select: {
+            departmentId: true,
+            email: true,
+            id: true,
+            name: true,
+            organizationId: true,
+            tenantId: true,
+          },
+        },
+      },
+    });
+
+    return toSpaceMemberDetailEntity(member);
+  }
+
+  async updateMemberRole(
+    spaceId: string,
+    userId: string,
+    role: SpaceMemberRole,
+  ): Promise<SpaceMemberDetailEntity> {
+    const member = await this.prisma.spaceMember.update({
+      where: {
+        spaceId_userId: {
+          spaceId,
+          userId,
+        },
+      },
+      data: {
+        role,
+      },
+      include: {
+        user: {
+          select: {
+            departmentId: true,
+            email: true,
+            id: true,
+            name: true,
+            organizationId: true,
+            tenantId: true,
+          },
+        },
+      },
+    });
+
+    return toSpaceMemberDetailEntity(member);
+  }
+
+  async deleteMember(spaceId: string, userId: string): Promise<void> {
+    await this.prisma.spaceMember.delete({
+      where: {
+        spaceId_userId: {
+          spaceId,
+          userId,
+        },
+      },
+    });
   }
 
   async update(spaceId: string, input: UpdateKnowledgeSpaceInput): Promise<KnowledgeSpaceEntity> {

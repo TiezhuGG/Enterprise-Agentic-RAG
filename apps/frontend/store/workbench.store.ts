@@ -19,6 +19,8 @@ import type {
   KnowledgeSpace,
   PipelineEvent,
   PipelineJob,
+  SpaceMemberDetail,
+  SpaceMemberRole,
   UploadState,
   WorkbenchTab,
   AppSection,
@@ -42,29 +44,36 @@ interface WorkbenchStore {
   loading: boolean;
   loadingDocuments: boolean;
   loadingPipeline: boolean;
+  loadingSpaceMembers: boolean;
   pipelineEvents: PipelineEvent[];
   pipelineJobs: PipelineJob[];
   selectedDocumentId: string | null;
   selectedPipelineJobId: string | null;
   selectedSpaceId: string | null;
+  spaceMembers: SpaceMemberDetail[];
+  spaceMembersError: string | null;
   spaces: KnowledgeSpace[];
   uploadState: UploadState;
   clearAuth: () => void;
   createSpace: (name: string) => Promise<void>;
   deleteSelectedDocument: () => Promise<void>;
+  addSpaceMember: (email: string, role: SpaceMemberRole) => Promise<void>;
   ingestSelectedDocument: () => Promise<void>;
   initialize: () => Promise<void>;
   loadDocuments: (spaceId?: string) => Promise<void>;
+  loadSpaceMembers: (spaceId?: string) => Promise<void>;
   loadPipeline: (documentId: string, preferredJobId?: string) => Promise<void>;
   login: (email: string, password: string) => Promise<void>;
   selectDocument: (documentId: string | null) => Promise<void>;
   selectPipelineJob: (jobId: string) => Promise<void>;
   selectSpace: (spaceId: string) => Promise<void>;
+  removeSpaceMember: (userId: string) => Promise<void>;
   setActiveTab: (tab: WorkbenchTab) => void;
   setActiveSection: (section: AppSection) => void;
   setAuthToken: (token: string) => Promise<void>;
   setIngestionOptions: (options: Partial<IngestionOptions>) => void;
   setSelectedSpaceFromGlobalSwitcher: (spaceId: string) => Promise<void>;
+  updateSpaceMemberRole: (userId: string, role: SpaceMemberRole) => Promise<void>;
   uploadDocument: (file: File) => Promise<void>;
 }
 
@@ -124,11 +133,14 @@ const emptyWorkspaceState = () => ({
   loading: false,
   loadingDocuments: false,
   loadingPipeline: false,
+  loadingSpaceMembers: false,
   pipelineEvents: [],
   pipelineJobs: [],
   selectedDocumentId: null,
   selectedPipelineJobId: null,
   selectedSpaceId: null,
+  spaceMembers: [],
+  spaceMembersError: null,
   spaces: [],
   uploadState: {
     status: 'idle' as const,
@@ -156,11 +168,14 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   loading: false,
   loadingDocuments: false,
   loadingPipeline: false,
+  loadingSpaceMembers: false,
   pipelineEvents: [],
   pipelineJobs: [],
   selectedDocumentId: null,
   selectedPipelineJobId: null,
   selectedSpaceId: null,
+  spaceMembers: [],
+  spaceMembersError: null,
   spaces: [],
   uploadState: {
     status: 'idle',
@@ -199,8 +214,39 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       persistSelectedSpaceId(space.id);
 
       await get().loadDocuments(space.id);
+      await get().loadSpaceMembers(space.id);
     } catch (error) {
       set({ error: toErrorMessage(error), loading: false });
+    }
+  },
+
+  async addSpaceMember(email: string, role: SpaceMemberRole) {
+    const spaceId = get().selectedSpaceId;
+    const normalizedEmail = email.trim().toLowerCase();
+
+    if (!spaceId || !normalizedEmail) {
+      return;
+    }
+
+    set({ loadingSpaceMembers: true, spaceMembersError: null });
+
+    try {
+      const spaceMembers = await knowledgeSpaceService.addMember(spaceId, {
+        email: normalizedEmail,
+        role,
+      });
+      const spaces = await knowledgeSpaceService.list();
+
+      set({
+        loadingSpaceMembers: false,
+        spaceMembers,
+        spaces,
+      });
+    } catch (error) {
+      set({
+        loadingSpaceMembers: false,
+        spaceMembersError: toErrorMessage(error),
+      });
     }
   },
 
@@ -332,6 +378,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
       if (selectedSpaceId) {
         await get().loadDocuments(selectedSpaceId);
+        await get().loadSpaceMembers(selectedSpaceId);
       }
     } catch (error) {
       set({
@@ -385,6 +432,34 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       }
     } catch (error) {
       set({ error: toErrorMessage(error), loadingDocuments: false });
+    }
+  },
+
+  async loadSpaceMembers(spaceId = get().selectedSpaceId ?? undefined) {
+    if (!spaceId) {
+      set({
+        loadingSpaceMembers: false,
+        spaceMembers: [],
+        spaceMembersError: null,
+      });
+      return;
+    }
+
+    set({ loadingSpaceMembers: true, spaceMembersError: null });
+
+    try {
+      const spaceMembers = await knowledgeSpaceService.listMembers(spaceId);
+
+      set({
+        loadingSpaceMembers: false,
+        spaceMembers,
+      });
+    } catch (error) {
+      set({
+        loadingSpaceMembers: false,
+        spaceMembers: [],
+        spaceMembersError: toErrorMessage(error),
+      });
     }
   },
 
@@ -501,6 +576,42 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     }
   },
 
+  async removeSpaceMember(userId: string) {
+    const spaceId = get().selectedSpaceId;
+
+    if (!spaceId) {
+      return;
+    }
+
+    set({ loadingSpaceMembers: true, spaceMembersError: null });
+
+    try {
+      const spaceMembers = await knowledgeSpaceService.removeMember(spaceId, userId);
+      const spaces = await knowledgeSpaceService.list();
+
+      if (!spaces.some((space) => space.id === spaceId)) {
+        persistSelectedSpaceId(null);
+        set({
+          ...emptyWorkspaceState(),
+          loadingSpaceMembers: false,
+          spaces,
+        });
+        return;
+      }
+
+      set({
+        loadingSpaceMembers: false,
+        spaceMembers,
+        spaces,
+      });
+    } catch (error) {
+      set({
+        loadingSpaceMembers: false,
+        spaceMembersError: toErrorMessage(error),
+      });
+    }
+  },
+
   async selectSpace(spaceId: string) {
     set({
       documentMetadata: null,
@@ -512,10 +623,12 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       selectedDocumentId: null,
       selectedPipelineJobId: null,
       selectedSpaceId: spaceId,
+      spaceMembers: [],
+      spaceMembersError: null,
     });
     persistSelectedSpaceId(spaceId);
 
-    await get().loadDocuments(spaceId);
+    await Promise.all([get().loadDocuments(spaceId), get().loadSpaceMembers(spaceId)]);
   },
 
   setActiveTab(tab: WorkbenchTab) {
@@ -554,6 +667,34 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
   async setSelectedSpaceFromGlobalSwitcher(spaceId: string) {
     await get().selectSpace(spaceId);
+  },
+
+  async updateSpaceMemberRole(userId: string, role: SpaceMemberRole) {
+    const spaceId = get().selectedSpaceId;
+
+    if (!spaceId) {
+      return;
+    }
+
+    set({ loadingSpaceMembers: true, spaceMembersError: null });
+
+    try {
+      const spaceMembers = await knowledgeSpaceService.updateMember(spaceId, userId, {
+        role,
+      });
+      const spaces = await knowledgeSpaceService.list();
+
+      set({
+        loadingSpaceMembers: false,
+        spaceMembers,
+        spaces,
+      });
+    } catch (error) {
+      set({
+        loadingSpaceMembers: false,
+        spaceMembersError: toErrorMessage(error),
+      });
+    }
   },
 
   async uploadDocument(file: File) {

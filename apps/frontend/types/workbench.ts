@@ -9,6 +9,19 @@ export interface SpaceMember {
   role: SpaceMemberRole;
 }
 
+export interface SpaceMemberUser {
+  departmentId: string | null;
+  email: string;
+  id: string;
+  name: string | null;
+  organizationId: string | null;
+  tenantId: string | null;
+}
+
+export interface SpaceMemberDetail extends SpaceMember {
+  user: SpaceMemberUser;
+}
+
 export interface KnowledgeSpace {
   id: string;
   name: string;

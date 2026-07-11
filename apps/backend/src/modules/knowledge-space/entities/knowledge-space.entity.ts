@@ -13,6 +13,19 @@ export interface SpaceMemberEntity {
   role: SpaceMemberRole;
 }
 
+export interface SpaceMemberUserEntity {
+  departmentId: string | null;
+  email: string;
+  id: string;
+  name: string | null;
+  organizationId: string | null;
+  tenantId: string | null;
+}
+
+export interface SpaceMemberDetailEntity extends SpaceMemberEntity {
+  user: SpaceMemberUserEntity;
+}
+
 export interface KnowledgeSpaceEntity {
   id: string;
   name: string;

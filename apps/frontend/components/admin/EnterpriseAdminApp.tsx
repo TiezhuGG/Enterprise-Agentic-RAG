@@ -46,6 +46,7 @@ import {
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 'recharts';
 import { AgentDebugWorkbench } from '@/components/agent-debug';
 import { SearchCenter } from '@/components/search';
+import { SpaceMembersPanel } from '@/components/workbench/SpaceMembersPanel';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -1549,71 +1550,75 @@ function DocumentsPage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>解析与详情</CardTitle>
-            <CardDescription>
-              {selectedDocument ? selectedDocument.title : '选择文档后查看详情'}
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-4">
-            {selectedDocument ? (
-              <>
-                <div className="grid gap-3 rounded-md border bg-muted/35 p-3 text-sm">
-                  <MetricLine label="文档状态" value={statusLabel[selectedDocument.status]} />
-                  <MetricLine label="分块数量" value={ingestionStatus?.chunkCount ?? '-'} />
-                  <MetricLine label="向量数量" value={ingestionStatus?.embeddingCount ?? '-'} />
-                  <MetricLine label="图谱实体" value={ingestionStatus?.graphEntityCount ?? '-'} />
-                </div>
-                <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
-                  <input
-                    checked={ingestionOptions.includeGraph}
-                    onChange={(event) =>
-                      setIngestionOptions({ includeGraph: event.target.checked })
-                    }
-                    type="checkbox"
-                  />
-                  <span>解析时抽取知识图谱</span>
-                </label>
-                <Button
-                  disabled={ingestionState.status === 'running'}
-                  onClick={() => void ingestSelectedDocument()}
-                >
-                  {ingestionState.status === 'running' ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    <RefreshCw />
-                  )}
-                  {ingestionState.status === 'running' ? '解析中' : '开始解析'}
-                </Button>
-                <Button onClick={() => setDetailOpen(true)} variant="outline">
-                  <FileText />
-                  查看元数据
-                </Button>
-                <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-                  <Button onClick={() => void handlePreview(selectedDocument)} variant="outline">
-                    <Eye />
-                    在线预览
+        <div className="grid gap-4">
+          <SpaceMembersPanel />
+
+          <Card>
+            <CardHeader>
+              <CardTitle>解析与详情</CardTitle>
+              <CardDescription>
+                {selectedDocument ? selectedDocument.title : '选择文档后查看详情'}
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="grid gap-4">
+              {selectedDocument ? (
+                <>
+                  <div className="grid gap-3 rounded-md border bg-muted/35 p-3 text-sm">
+                    <MetricLine label="文档状态" value={statusLabel[selectedDocument.status]} />
+                    <MetricLine label="分块数量" value={ingestionStatus?.chunkCount ?? '-'} />
+                    <MetricLine label="向量数量" value={ingestionStatus?.embeddingCount ?? '-'} />
+                    <MetricLine label="图谱实体" value={ingestionStatus?.graphEntityCount ?? '-'} />
+                  </div>
+                  <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
+                    <input
+                      checked={ingestionOptions.includeGraph}
+                      onChange={(event) =>
+                        setIngestionOptions({ includeGraph: event.target.checked })
+                      }
+                      type="checkbox"
+                    />
+                    <span>解析时抽取知识图谱</span>
+                  </label>
+                  <Button
+                    disabled={ingestionState.status === 'running'}
+                    onClick={() => void ingestSelectedDocument()}
+                  >
+                    {ingestionState.status === 'running' ? (
+                      <Loader2 className="animate-spin" />
+                    ) : (
+                      <RefreshCw />
+                    )}
+                    {ingestionState.status === 'running' ? '解析中' : '开始解析'}
                   </Button>
-                  <Button onClick={() => void handleDownload(selectedDocument)} variant="outline">
-                    <Download />
-                    下载原文件
+                  <Button onClick={() => setDetailOpen(true)} variant="outline">
+                    <FileText />
+                    查看元数据
                   </Button>
-                </div>
-                <Separator />
-                <div className="text-xs leading-6 text-muted-foreground">
-                  默认会执行文本解析、分块、向量化和索引。图谱抽取会调用现有入库参数，不会新增后端接口。
-                </div>
-              </>
-            ) : (
-              <EmptyState
-                description="从左侧文档表格选择一份文档。"
-                icon={FileText}
-                title="未选择文档"
-              />
-            )}
-          </CardContent>
-        </Card>
+                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
+                    <Button onClick={() => void handlePreview(selectedDocument)} variant="outline">
+                      <Eye />
+                      在线预览
+                    </Button>
+                    <Button onClick={() => void handleDownload(selectedDocument)} variant="outline">
+                      <Download />
+                      下载原文件
+                    </Button>
+                  </div>
+                  <Separator />
+                  <div className="text-xs leading-6 text-muted-foreground">
+                    默认会执行文本解析、分块、向量化和索引。图谱抽取会调用现有入库参数，不会新增后端接口。
+                  </div>
+                </>
+              ) : (
+                <EmptyState
+                  description="从左侧文档表格选择一份文档。"
+                  icon={FileText}
+                  title="未选择文档"
+                />
+              )}
+            </CardContent>
+          </Card>
+        </div>
       </div>
 
       <Dialog onOpenChange={setDetailOpen} open={detailOpen}>
