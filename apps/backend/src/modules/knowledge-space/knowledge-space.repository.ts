@@ -1,19 +1,25 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma';
+import type { Prisma } from '../../infrastructure/prisma/generated/client';
 import type {
   KnowledgeSpaceEntity,
+  KnowledgeSpaceMetadata,
   KnowledgeSpaceStatus,
+  KnowledgeSpaceType,
   KnowledgeSpaceVisibility,
   SpaceMemberEntity,
   SpaceMemberDetailEntity,
   SpaceMemberRole,
   SpaceMemberUserEntity,
 } from './entities/knowledge-space.entity';
+import { normalizeKnowledgeSpaceMetadata } from './entities/knowledge-space.entity';
 
 export interface CreateKnowledgeSpaceInput {
   name: string;
   description?: string;
   visibility?: KnowledgeSpaceVisibility;
+  type?: KnowledgeSpaceType;
+  metadata?: KnowledgeSpaceMetadata;
   ownerId: string;
   tenantId?: string;
 }
@@ -22,6 +28,8 @@ export interface UpdateKnowledgeSpaceInput {
   name?: string;
   description?: string;
   visibility?: KnowledgeSpaceVisibility;
+  type?: KnowledgeSpaceType;
+  metadata?: KnowledgeSpaceMetadata;
   status?: KnowledgeSpaceStatus;
 }
 
@@ -35,7 +43,8 @@ type SpaceMemberDetailModel = SpaceMemberModel & {
   user: SpaceMemberUserEntity;
 };
 
-type KnowledgeSpaceModel = Omit<KnowledgeSpaceEntity, 'members'> & {
+type KnowledgeSpaceModel = Omit<KnowledgeSpaceEntity, 'members' | 'metadata'> & {
+  metadata: unknown;
   members?: SpaceMemberModel[];
 };
 
@@ -62,13 +71,25 @@ const toKnowledgeSpaceEntity = (space: KnowledgeSpaceModel): KnowledgeSpaceEntit
   name: space.name,
   description: space.description,
   visibility: space.visibility,
+  type: space.type,
   status: space.status,
   ownerId: space.ownerId,
   tenantId: space.tenantId,
+  metadata: normalizeKnowledgeSpaceMetadata(space.metadata),
   createdAt: space.createdAt,
   updatedAt: space.updatedAt,
   members: space.members?.map(toSpaceMemberEntity) ?? [],
 });
+
+const toPrismaKnowledgeSpaceMetadata = (
+  metadata: KnowledgeSpaceMetadata | undefined,
+): Prisma.InputJsonObject | undefined => {
+  if (!metadata) {
+    return undefined;
+  }
+
+  return normalizeKnowledgeSpaceMetadata(metadata) as Prisma.InputJsonObject;
+};
 
 @Injectable()
 export class KnowledgeSpaceRepository {
@@ -80,6 +101,8 @@ export class KnowledgeSpaceRepository {
         name: input.name,
         description: input.description,
         visibility: input.visibility ?? 'PRIVATE',
+        type: input.type ?? 'GENERAL',
+        metadata: toPrismaKnowledgeSpaceMetadata(input.metadata),
         ownerId: input.ownerId,
         tenantId: input.tenantId,
         members: {
@@ -310,7 +333,10 @@ export class KnowledgeSpaceRepository {
       where: {
         id: spaceId,
       },
-      data: input,
+      data: {
+        ...input,
+        metadata: toPrismaKnowledgeSpaceMetadata(input.metadata),
+      },
       include: {
         members: true,
       },

@@ -16,6 +16,8 @@ import type {
   IngestionOptions,
   IngestionState,
   IngestionStatus,
+  KnowledgeSpaceMetadata,
+  KnowledgeSpaceType,
   KnowledgeDocument,
   KnowledgeSpace,
   PipelineEvent,
@@ -58,7 +60,10 @@ interface WorkbenchStore {
   spaces: KnowledgeSpace[];
   uploadState: UploadState;
   clearAuth: () => void;
-  createSpace: (name: string) => Promise<void>;
+  createSpace: (
+    name: string,
+    profile?: { metadata?: KnowledgeSpaceMetadata; type?: KnowledgeSpaceType },
+  ) => Promise<void>;
   deleteSelectedDocument: () => Promise<void>;
   addSpaceMember: (email: string, role: SpaceMemberRole) => Promise<void>;
   ingestSelectedDocument: () => Promise<void>;
@@ -77,6 +82,12 @@ interface WorkbenchStore {
   setIngestionOptions: (options: Partial<IngestionOptions>) => void;
   setSelectedSpaceFromGlobalSwitcher: (spaceId: string) => Promise<void>;
   updateDocumentAccessScope: (accessScope: DocumentAccessScope) => Promise<void>;
+  updateSelectedSpaceProfile: (profile: {
+    metadata?: KnowledgeSpaceMetadata;
+    name?: string;
+    type?: KnowledgeSpaceType;
+    visibility?: KnowledgeSpace['visibility'];
+  }) => Promise<void>;
   updateSpaceMemberRole: (userId: string, role: SpaceMemberRole) => Promise<void>;
   uploadDocument: (file: File) => Promise<void>;
 }
@@ -202,7 +213,10 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     });
   },
 
-  async createSpace(name: string) {
+  async createSpace(
+    name: string,
+    profile?: { metadata?: KnowledgeSpaceMetadata; type?: KnowledgeSpaceType },
+  ) {
     const trimmedName = name.trim();
 
     if (!trimmedName) {
@@ -212,7 +226,11 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     set({ error: null, loading: true });
 
     try {
-      const space = await knowledgeSpaceService.create(trimmedName);
+      const space = await knowledgeSpaceService.create({
+        metadata: profile?.metadata,
+        name: trimmedName,
+        type: profile?.type,
+      });
 
       set((state) => ({
         loading: false,
@@ -762,6 +780,27 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
         documentAccessScopeError: toErrorMessage(error),
         loadingDocuments: false,
       });
+    }
+  },
+
+  async updateSelectedSpaceProfile(profile) {
+    const spaceId = get().selectedSpaceId;
+
+    if (!spaceId) {
+      return;
+    }
+
+    set({ error: null, loading: true });
+
+    try {
+      const updatedSpace = await knowledgeSpaceService.update(spaceId, profile);
+
+      set((state) => ({
+        loading: false,
+        spaces: state.spaces.map((space) => (space.id === spaceId ? updatedSpace : space)),
+      }));
+    } catch (error) {
+      set({ error: toErrorMessage(error), loading: false });
     }
   },
 

@@ -20,6 +20,13 @@ enum KnowledgeSpaceStatus {
   DELETED
 }
 
+enum KnowledgeSpaceType {
+  GENERAL
+  DEPARTMENT
+  PROJECT
+  CUSTOMER
+}
+
 enum SpaceMemberRole {
   OWNER
   EDITOR
@@ -244,9 +251,11 @@ model KnowledgeSpace {
   name        String
   description String?
   visibility  KnowledgeSpaceVisibility @default(PRIVATE)
+  type        KnowledgeSpaceType       @default(GENERAL)
   status      KnowledgeSpaceStatus     @default(ACTIVE)
   ownerId     String                   @map("owner_id")
   tenantId    String?                  @map("tenant_id")
+  metadata    Json                     @default("{}")
   createdAt   DateTime                 @default(now()) @map("created_at")
   updatedAt   DateTime                 @updatedAt @map("updated_at")
   documents   Document[]
@@ -257,6 +266,7 @@ model KnowledgeSpace {
 
   @@index([ownerId])
   @@index([tenantId])
+  @@index([type])
   @@map("knowledge_spaces")
 }
 

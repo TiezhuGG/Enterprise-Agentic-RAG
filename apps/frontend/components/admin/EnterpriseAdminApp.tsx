@@ -47,6 +47,7 @@ import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } fro
 import { AgentDebugWorkbench } from '@/components/agent-debug';
 import { SearchCenter } from '@/components/search';
 import { DocumentAccessScopePanel } from '@/components/workbench/DocumentAccessScopePanel';
+import { SpaceProfilePanel } from '@/components/workbench/SpaceProfilePanel';
 import { SpaceMembersPanel } from '@/components/workbench/SpaceMembersPanel';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
@@ -1552,6 +1553,7 @@ function DocumentsPage() {
         </Card>
 
         <div className="grid gap-4">
+          <SpaceProfilePanel />
           <DocumentAccessScopePanel />
           <SpaceMembersPanel />
 

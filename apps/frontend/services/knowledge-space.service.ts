@@ -1,5 +1,26 @@
-import type { KnowledgeSpace, SpaceMemberDetail, SpaceMemberRole } from '@/types/workbench';
+import type {
+  KnowledgeSpace,
+  KnowledgeSpaceMetadata,
+  KnowledgeSpaceType,
+  SpaceMemberDetail,
+  SpaceMemberRole,
+} from '@/types/workbench';
 import { createApiUrl, createJsonHeaders, readApiError } from './api-client';
+
+export interface CreateKnowledgeSpaceRequest {
+  metadata?: KnowledgeSpaceMetadata;
+  name: string;
+  type?: KnowledgeSpaceType;
+  visibility?: KnowledgeSpace['visibility'];
+}
+
+export interface UpdateKnowledgeSpaceRequest {
+  description?: string;
+  metadata?: KnowledgeSpaceMetadata;
+  name?: string;
+  type?: KnowledgeSpaceType;
+  visibility?: KnowledgeSpace['visibility'];
+}
 
 export const knowledgeSpaceService = {
   async list(): Promise<KnowledgeSpace[]> {
@@ -15,14 +36,28 @@ export const knowledgeSpaceService = {
     return (await response.json()) as KnowledgeSpace[];
   },
 
-  async create(name: string): Promise<KnowledgeSpace> {
+  async create(input: CreateKnowledgeSpaceRequest): Promise<KnowledgeSpace> {
     const response = await fetch(createApiUrl('/spaces'), {
       body: JSON.stringify({
-        name,
-        visibility: 'PRIVATE',
+        ...input,
+        visibility: input.visibility ?? 'PRIVATE',
       }),
       headers: createJsonHeaders(),
       method: 'POST',
+    });
+
+    if (!response.ok) {
+      throw await readApiError(response);
+    }
+
+    return (await response.json()) as KnowledgeSpace;
+  },
+
+  async update(spaceId: string, input: UpdateKnowledgeSpaceRequest): Promise<KnowledgeSpace> {
+    const response = await fetch(createApiUrl(`/spaces/${spaceId}`), {
+      body: JSON.stringify(input),
+      headers: createJsonHeaders(),
+      method: 'PATCH',
     });
 
     if (!response.ok) {

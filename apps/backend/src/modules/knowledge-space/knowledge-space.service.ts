@@ -12,6 +12,7 @@ import type {
   SpaceMemberEntity,
   SpaceMemberRole,
 } from './entities/knowledge-space.entity';
+import { normalizeKnowledgeSpaceMetadata } from './entities/knowledge-space.entity';
 import type { AddSpaceMemberDto } from './dto/add-space-member.dto';
 import type { CreateKnowledgeSpaceDto } from './dto/create-knowledge-space.dto';
 import type { UpdateSpaceMemberDto } from './dto/update-space-member.dto';
@@ -36,6 +37,8 @@ export class KnowledgeSpaceService {
       name: input.name,
       description: input.description,
       visibility: input.visibility,
+      type: input.type,
+      metadata: input.metadata ? normalizeKnowledgeSpaceMetadata(input.metadata) : undefined,
       ownerId: context.userId,
       tenantId: context.tenantId,
     });
@@ -66,7 +69,14 @@ export class KnowledgeSpaceService {
   ): Promise<KnowledgeSpaceEntity> {
     await this.ensureMemberRole(context, id, input.status === 'DELETED' ? ['OWNER'] : writeRoles);
 
-    return this.knowledgeSpaceRepository.update(id, input);
+    return this.knowledgeSpaceRepository.update(id, {
+      description: input.description,
+      metadata: input.metadata ? normalizeKnowledgeSpaceMetadata(input.metadata) : undefined,
+      name: input.name,
+      status: input.status,
+      type: input.type,
+      visibility: input.visibility,
+    });
   }
 
   async delete(context: ExecutionContext, id: string): Promise<KnowledgeSpaceEntity> {

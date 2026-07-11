@@ -1,8 +1,12 @@
-import { IsIn, IsOptional, IsString, Length } from 'class-validator';
+import { Type } from 'class-transformer';
+import { IsIn, IsOptional, IsString, Length, ValidateNested } from 'class-validator';
 import {
+  knowledgeSpaceTypes,
   knowledgeSpaceVisibilities,
+  type KnowledgeSpaceType,
   type KnowledgeSpaceVisibility,
 } from '../entities/knowledge-space.entity';
+import { KnowledgeSpaceMetadataDto } from './knowledge-space-metadata.dto';
 
 export class CreateKnowledgeSpaceDto {
   @IsString()
@@ -17,4 +21,13 @@ export class CreateKnowledgeSpaceDto {
   @IsOptional()
   @IsIn(knowledgeSpaceVisibilities)
   visibility?: KnowledgeSpaceVisibility;
+
+  @IsOptional()
+  @IsIn(knowledgeSpaceTypes)
+  type?: KnowledgeSpaceType;
+
+  @IsOptional()
+  @ValidateNested()
+  @Type(() => KnowledgeSpaceMetadataDto)
+  metadata?: KnowledgeSpaceMetadataDto;
 }

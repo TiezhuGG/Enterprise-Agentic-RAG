@@ -1,4 +1,5 @@
 export type SpaceMemberRole = 'OWNER' | 'EDITOR' | 'VIEWER';
+export type KnowledgeSpaceType = 'GENERAL' | 'DEPARTMENT' | 'PROJECT' | 'CUSTOMER';
 export type AppSection =
   'dashboard' | 'documents' | 'search' | 'assistant' | 'graph' | 'profile' | 'system';
 export type WorkbenchTab = 'pipeline' | 'search' | 'observability' | 'agent-debug' | 'assistant';
@@ -22,14 +23,25 @@ export interface SpaceMemberDetail extends SpaceMember {
   user: SpaceMemberUser;
 }
 
+export interface KnowledgeSpaceMetadata extends Record<string, unknown> {
+  customerCode?: string;
+  customerName?: string;
+  departmentId?: string;
+  ownerDepartmentId?: string;
+  projectCode?: string;
+  projectName?: string;
+}
+
 export interface KnowledgeSpace {
   id: string;
   name: string;
   description: string | null;
   visibility: 'PRIVATE' | 'INTERNAL' | 'PUBLIC';
+  type: KnowledgeSpaceType;
   status: 'ACTIVE' | 'ARCHIVED' | 'DELETED';
   ownerId: string;
   tenantId: string | null;
+  metadata: KnowledgeSpaceMetadata;
   createdAt: string;
   updatedAt: string;
   members: SpaceMember[];
