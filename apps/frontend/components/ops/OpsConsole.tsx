@@ -3,6 +3,7 @@
 import { RefreshCw } from 'lucide-react';
 import { DemoEmptyState } from '@/components/demo';
 import type { OpsSummary } from '@/types/ops';
+import { OpsCostPerformancePanel } from './OpsCostPerformancePanel';
 import { OpsExecutionDigest } from './OpsExecutionDigest';
 import { OpsOverviewCards } from './OpsOverviewCards';
 import { OpsPipelineDigest } from './OpsPipelineDigest';
@@ -56,6 +57,7 @@ export function OpsConsole({ authenticated, error, loading, onRefresh, summary }
         <>
           <OpsOverviewCards summary={summary} />
           <div className="ops-console__grid">
+            <OpsCostPerformancePanel cost={summary.cost} performance={summary.performance} />
             <OpsReadinessMatrix checks={summary.readiness.checks} />
             <OpsPipelineDigest counts={summary.pipeline.byStatus} jobs={summary.pipeline.recent} />
             <OpsExecutionDigest

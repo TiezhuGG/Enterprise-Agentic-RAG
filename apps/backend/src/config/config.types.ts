@@ -114,6 +114,13 @@ export interface AgentConfig {
   enableMemory: boolean;
 }
 
+export interface CostConfig {
+  currency: string;
+  llmInputPer1kTokens: number;
+  llmOutputPer1kTokens: number;
+  embeddingPer1kTokens: number;
+}
+
 export interface AppConfiguration {
   app: AppConfig;
   database: DatabaseConfig;
@@ -132,4 +139,5 @@ export interface AppConfiguration {
   reranker: RerankerConfig;
   llm: LlmConfig;
   agent: AgentConfig;
+  cost: CostConfig;
 }

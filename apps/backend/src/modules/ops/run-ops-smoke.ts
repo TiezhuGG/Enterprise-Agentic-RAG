@@ -1,6 +1,9 @@
+import { randomUUID } from 'node:crypto';
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from '../../app.module';
 import type { ExecutionContext } from '../../common';
+import { ConfigService } from '../../config';
+import { ExecutionService } from '../execution';
 import { UserRepository, type UserRecord } from '../user';
 import { OpsService } from './ops.service';
 
@@ -13,6 +16,8 @@ async function main() {
 
   try {
     const opsService = app.get(OpsService);
+    const configService = app.get(ConfigService);
+    const executionService = app.get(ExecutionService);
     const userRepository = app.get(UserRepository);
     const user = await userRepository.findByEmail(smokeEmail);
 
@@ -20,7 +25,11 @@ async function main() {
       throw new Error(`Ops smoke user not found: ${smokeEmail}. Run pnpm db:seed first.`);
     }
 
-    const summary = await opsService.getSummary(toExecutionContext(user), {
+    const context = toExecutionContext(user);
+
+    await createSyntheticCostExecution(executionService, configService, context);
+
+    const summary = await opsService.getSummary(context, {
       limit: 5,
     });
 
@@ -36,16 +45,35 @@ async function main() {
       throw new Error('Ops smoke expected smoke actions');
     }
 
+    if (summary.cost.totalTokens <= 0) {
+      throw new Error('Ops smoke expected cost token aggregation');
+    }
+
+    if (!summary.performance.nodeLatency.length) {
+      throw new Error('Ops smoke expected node latency aggregation');
+    }
+
     console.log(
       JSON.stringify(
         {
           actionCount: summary.actions.length,
+          cost: {
+            currency: summary.cost.currency,
+            totalEstimatedCost: summary.cost.totalEstimatedCost,
+            totalTokens: summary.cost.totalTokens,
+          },
           documentTotal: summary.documents.total,
           executionRecentCount: summary.executions.recent.length,
           failedExecutionsLast24h: summary.executions.failedLast24h,
           failedPipelineLast24h: summary.pipeline.failedLast24h,
           generatedAt: summary.generatedAt,
           pipelineRecentCount: summary.pipeline.recent.length,
+          performance: {
+            averageDurationMs: summary.performance.averageDurationMs,
+            nodeLatencyCount: summary.performance.nodeLatency.length,
+            p95DurationMs: summary.performance.p95DurationMs,
+            slowExecutions: summary.performance.slowExecutions,
+          },
           readiness: {
             failedChecks: summary.readiness.failedChecks,
             status: summary.readiness.status,
@@ -75,6 +103,61 @@ function toExecutionContext(user: UserRecord): ExecutionContext {
     tenantId: user.tenantId ?? undefined,
     userId: user.id,
   };
+}
+
+async function createSyntheticCostExecution(
+  executionService: ExecutionService,
+  configService: ConfigService,
+  context: ExecutionContext,
+): Promise<void> {
+  const executionId = randomUUID();
+  const requestId = randomUUID();
+  const costConfig = configService.getCostConfig();
+  const promptTokens = 120;
+  const outputTokens = 48;
+  const estimatedCost =
+    (promptTokens / 1000) * costConfig.llmInputPer1kTokens +
+    (outputTokens / 1000) * costConfig.llmOutputPer1kTokens;
+
+  await executionService.startRun({
+    executionId,
+    metadata: {
+      source: 'ops-smoke',
+    },
+    requestId,
+    source: 'ops-smoke',
+    userId: context.userId,
+  });
+  await executionService.recordEvent({
+    durationMs: 35,
+    executionId,
+    metadata: {
+      citationCount: 0,
+      currency: costConfig.currency,
+      estimatedCost: Number(estimatedCost.toFixed(8)),
+      llmModel: configService.getLlmConfig().model,
+      outputTokens,
+      promptTokens,
+      totalTokens: promptTokens + outputTokens,
+    },
+    node: 'answer',
+    requestId,
+    stage: 'answer',
+    status: 'SUCCEEDED',
+    type: 'answer',
+    userId: context.userId,
+  });
+  await executionService.finishRun({
+    durationMs: 120,
+    executionId,
+    metadata: {
+      usedGraph: false,
+      usedMemory: false,
+      usedRetrieval: false,
+      verified: true,
+    },
+    status: 'SUCCEEDED',
+  });
 }
 
 function unique(values: string[]): string[] {

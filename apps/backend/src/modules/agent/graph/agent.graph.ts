@@ -352,6 +352,12 @@ export class AgentGraph {
       case 'answer':
         return {
           citationCount: state.citations.length,
+          currency: state.answerMetrics?.currency,
+          estimatedCost: state.answerMetrics?.estimatedCost,
+          llmModel: state.answerMetrics?.llmModel,
+          outputTokens: state.answerMetrics?.outputTokens,
+          promptTokens: state.answerMetrics?.promptTokens,
+          totalTokens: state.answerMetrics?.totalTokens,
         };
       case 'verification':
         return {

@@ -143,5 +143,11 @@ export const createConfiguration = (): AppConfiguration => {
       enableGraph: env.AGENT_ENABLE_GRAPH,
       enableMemory: env.AGENT_ENABLE_MEMORY,
     },
+    cost: {
+      currency: env.COST_CURRENCY,
+      llmInputPer1kTokens: env.COST_LLM_INPUT_PER_1K,
+      llmOutputPer1kTokens: env.COST_LLM_OUTPUT_PER_1K,
+      embeddingPer1kTokens: env.COST_EMBEDDING_PER_1K,
+    },
   };
 };

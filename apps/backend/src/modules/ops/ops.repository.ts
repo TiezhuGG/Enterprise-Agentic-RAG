@@ -1,11 +1,24 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma';
-import type { OpsCountByStatus, OpsExecutionRun, OpsPipelineJob } from './ops.types';
+import type {
+  OpsCostTraceEvent,
+  OpsCountByStatus,
+  OpsExecutionRun,
+  OpsNodeLatencyEvent,
+  OpsPerformanceRun,
+  OpsPipelineJob,
+} from './ops.types';
 
 type AccessibleSpaceInput = {
   tenantId?: string;
   userId: string;
 };
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === 'object' && value !== null && !Array.isArray(value);
+
+const toMetadataRecord = (metadata: unknown): Record<string, unknown> =>
+  isRecord(metadata) ? metadata : {};
 
 @Injectable()
 export class OpsRepository {
@@ -224,5 +237,68 @@ export class OpsRepository {
     });
 
     return runs;
+  }
+
+  async listCostTraceEvents(userId: string, limit: number): Promise<OpsCostTraceEvent[]> {
+    const events = await this.prisma.executionTraceEvent.findMany({
+      orderBy: {
+        timestamp: 'desc',
+      },
+      select: {
+        metadata: true,
+      },
+      take: limit,
+      where: {
+        stage: 'answer',
+        status: 'SUCCEEDED',
+        type: 'answer',
+        userId,
+      },
+    });
+
+    return events.map((event) => ({
+      metadata: toMetadataRecord(event.metadata),
+    }));
+  }
+
+  async listPerformanceRuns(userId: string, limit: number): Promise<OpsPerformanceRun[]> {
+    return this.prisma.executionRun.findMany({
+      orderBy: {
+        startedAt: 'desc',
+      },
+      select: {
+        durationMs: true,
+      },
+      take: limit,
+      where: {
+        durationMs: {
+          not: null,
+        },
+        userId,
+      },
+    });
+  }
+
+  async listNodeLatencyEvents(userId: string, limit: number): Promise<OpsNodeLatencyEvent[]> {
+    return this.prisma.executionTraceEvent.findMany({
+      orderBy: {
+        timestamp: 'desc',
+      },
+      select: {
+        durationMs: true,
+        node: true,
+        stage: true,
+      },
+      take: limit,
+      where: {
+        durationMs: {
+          not: null,
+        },
+        status: {
+          in: ['SUCCEEDED', 'FAILED'],
+        },
+        userId,
+      },
+    });
   }
 }

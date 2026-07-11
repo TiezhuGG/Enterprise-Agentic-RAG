@@ -5,6 +5,7 @@ import type { GraphContext } from '../../knowledge-graph';
 import type { MemoryContext } from '../../memory';
 import type { MultimodalContext } from '../../multimodal';
 import type { ContextChunk, RetrievalPipelineBreakdown } from '../../retrieval';
+import type { ExecutionAnswerMetrics } from '../../execution/metrics/execution-cost.types';
 
 export type AgentTraceStatus = 'success' | 'failed' | 'skipped';
 
@@ -41,6 +42,7 @@ export interface AgentState {
   retrievalContext: ContextChunk[];
   graphContext: GraphContext[];
   answer: string | null;
+  answerMetrics: ExecutionAnswerMetrics | null;
   needsGraph: boolean;
   needsRetrieval: boolean;
   iteration: number;
@@ -66,6 +68,7 @@ export const createInitialAgentState = (input: {
   multimodalContext?: MultimodalContext[];
 }): AgentState => ({
   answer: null,
+  answerMetrics: null,
   citations: [],
   conversationId: input.conversationId,
   executionId: input.executionId ?? randomUUID(),

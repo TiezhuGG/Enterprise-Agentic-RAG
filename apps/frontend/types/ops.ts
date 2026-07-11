@@ -34,6 +34,35 @@ export interface OpsExecutionRun {
   status: string;
 }
 
+export interface OpsCostByModel {
+  estimatedCost: number;
+  model: string;
+  totalTokens: number;
+}
+
+export interface OpsNodeLatency {
+  averageDurationMs: number;
+  count: number;
+  maxDurationMs: number;
+  node: string;
+}
+
+export interface OpsCostSummary {
+  byModel: OpsCostByModel[];
+  currency: string;
+  outputTokens: number;
+  promptTokens: number;
+  totalEstimatedCost: number;
+  totalTokens: number;
+}
+
+export interface OpsPerformanceSummary {
+  averageDurationMs: number | null;
+  nodeLatency: OpsNodeLatency[];
+  p95DurationMs: number | null;
+  slowExecutions: number;
+}
+
 export interface OpsAction {
   command: string;
   description: string;
@@ -43,6 +72,7 @@ export interface OpsAction {
 
 export interface OpsSummary {
   actions: OpsAction[];
+  cost: OpsCostSummary;
   documents: {
     byStatus: OpsCountByStatus[];
     total: number;
@@ -55,6 +85,7 @@ export interface OpsSummary {
   };
   generatedAt: string;
   health: DemoHealth;
+  performance: OpsPerformanceSummary;
   pipeline: {
     byStatus: OpsCountByStatus[];
     failedLast24h: number;

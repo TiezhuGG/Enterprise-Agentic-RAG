@@ -2831,6 +2831,102 @@ textarea:disabled {
   white-space: nowrap;
 }
 
+.ops-cost-panel {
+  background: #ffffff;
+}
+
+.ops-cost-summary {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ops-cost-summary article {
+  background: #fbfcfe;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.ops-cost-summary strong {
+  font-size: 17px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ops-cost-summary span,
+.ops-token-split,
+.ops-model-costs span,
+.ops-model-costs em,
+.ops-node-latency span,
+.ops-node-latency em {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  font-style: normal;
+}
+
+.ops-token-split {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ops-token-split span {
+  background: #eef4ff;
+  border: 1px solid #c8d7f2;
+  border-radius: 999px;
+  padding: 5px 8px;
+}
+
+.ops-model-costs,
+.ops-node-latency {
+  display: grid;
+  gap: 8px;
+}
+
+.ops-model-costs > div,
+.ops-node-latency > div:not(.ops-node-latency__title) {
+  align-items: center;
+  background: #fbfcfe;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  min-width: 0;
+  padding: 8px 10px;
+}
+
+.ops-node-latency > div:not(.ops-node-latency__title) {
+  grid-template-columns: minmax(0, 1fr) auto auto auto;
+}
+
+.ops-model-costs strong,
+.ops-node-latency strong {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.ops-node-latency__title {
+  align-items: center;
+  color: var(--muted-foreground);
+  display: inline-flex;
+  font-size: 12px;
+  gap: 6px;
+}
+
+.ops-node-latency__title svg {
+  height: 14px;
+  width: 14px;
+}
+
 .observability-toolbar {
   align-items: center;
   background: #ffffff;
@@ -4022,6 +4118,7 @@ textarea:disabled {
   .observability-grid,
   .ops-console__grid,
   .ops-overview-grid,
+  .ops-cost-summary,
   .ops-readiness-grid,
   .graph-browser__grid,
   .graph-browser__stats,
@@ -4037,6 +4134,13 @@ textarea:disabled {
   .space-members-panel__member,
   .execution-detail-grid {
     grid-template-columns: 1fr;
+  }
+
+  .ops-model-costs > div,
+  .ops-node-latency > div:not(.ops-node-latency__title) {
+    align-items: flex-start;
+    display: flex;
+    flex-direction: column;
   }
 
   .space-members-panel__role {

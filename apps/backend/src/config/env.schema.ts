@@ -225,6 +225,25 @@ export const envSchema = z
       .min(1, 'AGENT_MAX_ITERATIONS must be greater than 0'),
     AGENT_ENABLE_GRAPH: booleanFlag('AGENT_ENABLE_GRAPH'),
     AGENT_ENABLE_MEMORY: booleanFlag('AGENT_ENABLE_MEMORY'),
+    COST_CURRENCY: z.string().trim().min(1, 'COST_CURRENCY cannot be empty').default('USD'),
+    COST_LLM_INPUT_PER_1K: z.coerce
+      .number({
+        error: 'COST_LLM_INPUT_PER_1K must be a number',
+      })
+      .min(0, 'COST_LLM_INPUT_PER_1K must be greater than or equal to 0')
+      .default(0),
+    COST_LLM_OUTPUT_PER_1K: z.coerce
+      .number({
+        error: 'COST_LLM_OUTPUT_PER_1K must be a number',
+      })
+      .min(0, 'COST_LLM_OUTPUT_PER_1K must be greater than or equal to 0')
+      .default(0),
+    COST_EMBEDDING_PER_1K: z.coerce
+      .number({
+        error: 'COST_EMBEDDING_PER_1K must be a number',
+      })
+      .min(0, 'COST_EMBEDDING_PER_1K must be greater than or equal to 0')
+      .default(0),
   })
   .superRefine((env, ctx) => {
     validateConditionalProvider(env, ctx, 'OCR');

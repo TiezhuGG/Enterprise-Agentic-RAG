@@ -1,7 +1,11 @@
 import { Inject, Injectable } from '@nestjs/common';
+import { ConfigService } from '../../../config';
 import { ObservabilityService } from '../../../infrastructure/observability';
 import { LLM_PROVIDER, type LlmProvider } from '../../chat/providers/llm.provider';
 import { PromptBuilder } from '../../chat/prompt/prompt.builder';
+import type { ChatMessage } from '../../chat/chat.types';
+import { TokenEstimator } from '../../execution/metrics/token-estimator';
+import type { ExecutionAnswerMetrics } from '../../execution/metrics/execution-cost.types';
 import type { ContextChunk } from '../../retrieval';
 import type { AgentCitation } from '../graph/agent.state';
 import type { AgentNode } from '../agent.types';
@@ -9,9 +13,12 @@ import type { AgentState } from '../graph/agent.state';
 
 @Injectable()
 export class AnswerNode implements AgentNode {
+  private readonly tokenEstimator = new TokenEstimator();
+
   constructor(
     @Inject(LLM_PROVIDER)
     private readonly llmProvider: LlmProvider,
+    private readonly configService: ConfigService,
     private readonly observabilityService: ObservabilityService,
     private readonly promptBuilder: PromptBuilder,
   ) {}
@@ -52,6 +59,7 @@ export class AnswerNode implements AgentNode {
     return {
       ...state,
       answer,
+      answerMetrics: this.createAnswerMetrics(messages, answer),
       citations: this.toCitations(contextChunks),
     };
   }
@@ -100,7 +108,27 @@ export class AnswerNode implements AgentNode {
     return {
       ...state,
       answer: answerTokens.join(''),
+      answerMetrics: this.createAnswerMetrics(messages, answerTokens.join('')),
       citations: this.toCitations(contextChunks),
+    };
+  }
+
+  private createAnswerMetrics(messages: ChatMessage[], answer: string): ExecutionAnswerMetrics {
+    const costConfig = this.configService.getCostConfig();
+    const llmConfig = this.configService.getLlmConfig();
+    const promptTokens = this.tokenEstimator.countMessages(messages);
+    const outputTokens = this.tokenEstimator.countText(answer);
+    const estimatedCost =
+      (promptTokens / 1000) * costConfig.llmInputPer1kTokens +
+      (outputTokens / 1000) * costConfig.llmOutputPer1kTokens;
+
+    return {
+      currency: costConfig.currency,
+      estimatedCost: Number(estimatedCost.toFixed(8)),
+      llmModel: llmConfig.model,
+      outputTokens,
+      promptTokens,
+      totalTokens: promptTokens + outputTokens,
     };
   }
 

@@ -5,6 +5,7 @@ import type {
   AppConfiguration,
   AgentConfig,
   AsrConfig,
+  CostConfig,
   DatabaseConfig,
   EmbeddingConfig,
   GraphConfig,
@@ -101,5 +102,9 @@ export class ConfigService {
 
   getAgentConfig(): Readonly<AgentConfig> {
     return this.config.agent;
+  }
+
+  getCostConfig(): Readonly<CostConfig> {
+    return this.config.cost;
   }
 }
