@@ -19,6 +19,7 @@ import { KnowledgeSpaceModule } from './modules/knowledge-space';
 import { KnowledgeGraphModule } from './modules/knowledge-graph';
 import { MemoryModule } from './modules/memory';
 import { MultimodalModule } from './modules/multimodal';
+import { OpsModule } from './modules/ops';
 import { PipelineModule } from './modules/pipeline';
 import { RerankerModule } from './modules/reranker';
 import { RetrievalModule } from './modules/retrieval';
@@ -40,6 +41,7 @@ import { KnowledgeSearchModule } from './modules/search';
     ConversationModule,
     MemoryModule,
     MultimodalModule,
+    OpsModule,
     ChatModule,
     KnowledgeGraphModule,
     KnowledgeSpaceModule,

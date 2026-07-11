@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
+import { OpsConsole } from '@/components/ops';
+import { useOpsStore } from '@/store/ops.store';
 import { useObservabilityStore } from '@/store/observability.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
 import { ExecutionRunDetailPanel } from './ExecutionRunDetailPanel';
@@ -31,10 +33,16 @@ export function ObservabilityWorkbench() {
     selectedRun,
     timeline,
   } = useObservabilityStore();
+  const opsError = useOpsStore((state) => state.error);
+  const initializeOps = useOpsStore((state) => state.initialize);
+  const loadingOps = useOpsStore((state) => state.loading);
+  const refreshOps = useOpsStore((state) => state.refresh);
+  const opsSummary = useOpsStore((state) => state.summary);
 
   useEffect(() => {
     void initialize();
-  }, [authToken, initialize]);
+    void initializeOps();
+  }, [authToken, initialize, initializeOps]);
 
   return (
     <div className="observability-workbench">
@@ -53,6 +61,14 @@ export function ObservabilityWorkbench() {
           Refresh All
         </button>
       </div>
+
+      <OpsConsole
+        authenticated={Boolean(authToken)}
+        error={opsError}
+        loading={loadingOps}
+        onRefresh={() => void refreshOps()}
+        summary={opsSummary}
+      />
 
       <div className="observability-top-grid">
         <ReadinessCheckPanel

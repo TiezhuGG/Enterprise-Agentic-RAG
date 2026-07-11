@@ -2627,6 +2627,210 @@ textarea:disabled {
   gap: 16px;
 }
 
+.ops-console {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: var(--shadow);
+  display: grid;
+  gap: 16px;
+  padding: 16px;
+}
+
+.ops-console__header,
+.ops-panel header {
+  align-items: center;
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.ops-console__header > div,
+.ops-panel header > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ops-console__header h2,
+.ops-panel h3 {
+  font-size: 16px;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.ops-console__header span,
+.ops-panel header span,
+.ops-overview-card span,
+.ops-overview-card small,
+.ops-readiness small,
+.ops-list-item span,
+.ops-list-item small,
+.ops-list-item p,
+.ops-smoke-list span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.ops-overview-grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.ops-overview-card,
+.ops-panel {
+  background: #fbfcfe;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+}
+
+.ops-overview-card {
+  display: grid;
+  gap: 7px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.ops-overview-card svg {
+  color: #496079;
+  height: 18px;
+  width: 18px;
+}
+
+.ops-overview-card strong {
+  font-size: 22px;
+  line-height: 1.1;
+}
+
+.ops-overview-card--ok {
+  border-color: #b7e4ca;
+}
+
+.ops-overview-card--warn {
+  border-color: #f0b8af;
+}
+
+.ops-overview-card--ok svg {
+  color: var(--success);
+}
+
+.ops-overview-card--warn svg {
+  color: var(--danger);
+}
+
+.ops-console__grid {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.ops-panel {
+  display: grid;
+  gap: 12px;
+  min-width: 0;
+  padding: 12px;
+}
+
+.ops-panel header svg {
+  color: #496079;
+  height: 18px;
+  width: 18px;
+}
+
+.ops-readiness-grid {
+  display: grid;
+  gap: 8px;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
+.ops-readiness,
+.ops-list-item,
+.ops-smoke-list article {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 6px;
+  min-width: 0;
+  padding: 10px;
+}
+
+.ops-readiness--ok {
+  border-color: #b7e4ca;
+}
+
+.ops-readiness--failed {
+  border-color: #f0b8af;
+}
+
+.ops-readiness--skipped {
+  border-color: #c8d7f2;
+}
+
+.ops-readiness strong,
+.ops-readiness span,
+.ops-readiness small,
+.ops-list-item strong,
+.ops-list-item span,
+.ops-list-item p,
+.ops-smoke-list strong,
+.ops-smoke-list code,
+.ops-smoke-list span {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ops-readiness span {
+  font-size: 12px;
+  text-transform: uppercase;
+}
+
+.ops-status-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.ops-status-row > span:not(.status-pill) {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.ops-list,
+.ops-smoke-list {
+  display: grid;
+  gap: 8px;
+}
+
+.ops-list-item {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.ops-list-item > div {
+  display: grid;
+  gap: 4px;
+  min-width: 0;
+}
+
+.ops-list-item p {
+  grid-column: 1 / -1;
+  margin: 0;
+}
+
+.ops-smoke-list code {
+  background: #101828;
+  border-radius: 6px;
+  color: #e4e7ec;
+  display: block;
+  font-size: 12px;
+  padding: 7px 8px;
+  white-space: nowrap;
+}
+
 .observability-toolbar {
   align-items: center;
   background: #ffffff;
@@ -3777,6 +3981,7 @@ textarea:disabled {
   .agent-debug-grid,
   .graph-browser__grid,
   .observability-grid,
+  .ops-console__grid,
   .search-center__grid {
     grid-template-columns: minmax(260px, 1fr) minmax(320px, 1fr);
   }
@@ -3815,6 +4020,9 @@ textarea:disabled {
   .agent-debug-summary__grid,
   .observability-top-grid,
   .observability-grid,
+  .ops-console__grid,
+  .ops-overview-grid,
+  .ops-readiness-grid,
   .graph-browser__grid,
   .graph-browser__stats,
   .graph-browser__toolbar,
@@ -3867,6 +4075,8 @@ textarea:disabled {
   .graph-browser__header,
   .graph-browser__section-header,
   .observability-toolbar,
+  .ops-console__header,
+  .ops-panel header,
   .readiness-check__top,
   .metrics-breakdown__item,
   .execution-run__top,

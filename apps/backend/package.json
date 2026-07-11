@@ -12,6 +12,7 @@
     "dev": "pnpm prisma:generate && nest start --watch",
     "evaluation:run": "pnpm prisma:generate && ts-node src/modules/evaluation/run-evaluation.ts",
     "lint": "eslint src/**/*.ts",
+    "ops:smoke": "pnpm prisma:generate && ts-node src/modules/ops/run-ops-smoke.ts",
     "prisma:deploy": "prisma migrate deploy --config prisma.config.ts",
     "prisma:generate": "prisma generate --config prisma.config.ts",
     "prisma:migrate": "prisma migrate dev --config prisma.config.ts",

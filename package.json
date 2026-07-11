@@ -35,6 +35,7 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "lint": "eslint .",
+    "ops:smoke": "pnpm --filter @enterprise-agentic-rag/backend ops:smoke",
     "prepare": "husky || exit 0",
     "provider:smoke": "pnpm --filter @enterprise-agentic-rag/backend provider:smoke",
     "search:reindex": "pnpm --filter @enterprise-agentic-rag/backend search:reindex",
