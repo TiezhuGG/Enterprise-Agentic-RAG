@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { toUserFacingErrorMessage } from '@/lib/error-copy';
 import { getAuthToken } from '@/services/api-client';
 import { opsService } from '@/services/ops.service';
 import type { OpsSummary } from '@/types/ops';
@@ -14,7 +15,7 @@ interface OpsState {
 }
 
 const toErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : 'Ops summary request failed';
+  toUserFacingErrorMessage(error, '运维概览加载失败，请稍后重试。');
 
 export const useOpsStore = create<OpsState>((set) => ({
   error: null,

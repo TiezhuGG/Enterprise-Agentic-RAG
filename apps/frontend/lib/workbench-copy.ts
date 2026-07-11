@@ -1,3 +1,7 @@
+import {
+  toShortSafeMessage,
+  toUserFacingErrorMessage as toStandardUserFacingErrorMessage,
+} from '@/lib/error-copy';
 import type {
   DocumentStatus,
   IngestionState,
@@ -49,24 +53,18 @@ const pipelineStageLabels: Record<string, string> = {
   embedding: '向量生成',
   'document-processing': '解析与清洗',
   'graph-extraction': '图谱抽取',
+  'search-indexing': '搜索索引',
   validate: '文件校验',
 };
 
 const pipelineStageDescriptions: Record<string, string> = {
   chunking: '生成可检索片段，并同步关键词索引。',
-  done: '确认内容、分块和向量均满足检索要求。',
+  done: '确认内容、分块、向量和索引均满足检索要求。',
   embedding: '调用向量模型并写入向量索引。',
   'document-processing': '读取对象存储文件，解析为 Markdown，并进行内容清洗。',
   'graph-extraction': '可选抽取实体与关系，写入图谱存储。',
+  'search-indexing': '将分块写入搜索索引，供关键词检索使用。',
   validate: '确认文档状态、类型和对象存储位置可用于处理。',
-};
-
-const apiErrorMessages: Record<string, string> = {
-  EMBEDDING_UNAVAILABLE: '向量模型不可用',
-  GRAPH_UNAVAILABLE: '图谱服务未连接',
-  LLM_UNAVAILABLE: '大模型服务不可用',
-  RERANKER_UNAVAILABLE: '重排序服务不可用',
-  UNSUPPORTED_FILE_TYPE: '文件格式暂不支持',
 };
 
 export const getPipelineStageLabel = (stage: string): string => pipelineStageLabels[stage] ?? stage;
@@ -77,38 +75,7 @@ export const getPipelineStageDescription = (stage: string): string =>
 export const toUserFacingErrorMessage = (
   error: unknown,
   fallback = '操作失败，请稍后重试。',
-): string => {
-  const code = readErrorCode(error);
-
-  if (code && apiErrorMessages[code]) {
-    return apiErrorMessages[code];
-  }
-
-  const message = readErrorMessage(error);
-  const normalized = message.toLowerCase();
-
-  if (/unsupported|file type|文件格式/.test(normalized)) {
-    return '文件格式暂不支持';
-  }
-
-  if (/embedding|vector|向量/.test(normalized)) {
-    return '向量模型不可用';
-  }
-
-  if (/rerank|重排序/.test(normalized)) {
-    return '重排序服务不可用';
-  }
-
-  if (/graph|neo4j|图谱/.test(normalized)) {
-    return '图谱服务未连接';
-  }
-
-  if (/llm|model|chat completion|大模型/.test(normalized)) {
-    return '大模型服务不可用';
-  }
-
-  return toShortSafeMessage(message) || fallback;
-};
+): string => toStandardUserFacingErrorMessage(error, fallback);
 
 export const getPipelineEventErrorMessage = (event: PipelineEvent): string => {
   const rawMessage = event.errorMessage ?? '';
@@ -123,6 +90,10 @@ export const getPipelineEventErrorMessage = (event: PipelineEvent): string => {
   }
 
   if (event.stage === 'chunking' && /search|index|elastic|索引/.test(normalized)) {
+    return '搜索索引失败';
+  }
+
+  if (event.stage === 'search-indexing') {
     return '搜索索引失败';
   }
 
@@ -143,28 +114,3 @@ export const getPipelineEventErrorDetail = (event: PipelineEvent): string => {
 
   return rawMessage && rawMessage !== friendlyMessage ? rawMessage : '';
 };
-
-const readErrorCode = (error: unknown): string | undefined => {
-  if (!error || typeof error !== 'object' || !('code' in error)) {
-    return undefined;
-  }
-
-  const code = (error as { code?: unknown }).code;
-
-  return typeof code === 'string' ? code : undefined;
-};
-
-const readErrorMessage = (error: unknown): string => {
-  if (error instanceof Error) {
-    return error.message;
-  }
-
-  return typeof error === 'string' ? error : '';
-};
-
-const toShortSafeMessage = (message: string): string =>
-  message
-    .replace(/\s+/g, ' ')
-    .replace(/Bearer\s+[A-Za-z0-9._~+/=-]+/g, 'Bearer [redacted]')
-    .slice(0, 180)
-    .trim();

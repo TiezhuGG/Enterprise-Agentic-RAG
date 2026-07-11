@@ -1,14 +1,7 @@
 import { apiBaseUrl } from '@/lib/env';
+import { getAppErrorMessage, toShortSafeMessage } from '@/lib/error-copy';
 
 const authTokenStorageKey = 'enterprise-agentic-rag.authToken';
-
-const apiErrorMessages: Record<string, string> = {
-  EMBEDDING_UNAVAILABLE: '向量模型不可用',
-  GRAPH_UNAVAILABLE: '图谱服务未连接',
-  LLM_UNAVAILABLE: '大模型服务不可用',
-  RERANKER_UNAVAILABLE: '重排序服务不可用',
-  UNSUPPORTED_FILE_TYPE: '文件格式暂不支持',
-};
 
 export class ApiClientError extends Error {
   constructor(
@@ -64,13 +57,13 @@ export const createJsonHeaders = (): HeadersInit => {
 };
 
 export const readApiError = async (response: Response): Promise<Error> => {
-  const fallbackMessage = `Request failed with status ${response.status}`;
+  const fallbackMessage = `请求失败，状态码 ${response.status}`;
 
   try {
     const body = (await response.json()) as { code?: string; message?: string | string[] };
     const message = Array.isArray(body.message) ? body.message.join(', ') : body.message;
     const localizedMessage =
-      (body.code ? apiErrorMessages[body.code] : undefined) ?? message ?? fallbackMessage;
+      getAppErrorMessage(body.code) ?? (toShortSafeMessage(message ?? '') || fallbackMessage);
 
     return new ApiClientError(localizedMessage, response.status, body.code);
   } catch {

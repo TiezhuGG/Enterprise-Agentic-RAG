@@ -1311,7 +1311,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     const spaceId = get().selectedSpaceId;
 
     if (!documentId || !spaceId) {
-      set({ error: 'Please select a document before uploading a new version.' });
+      set({ error: '请先选择一个文档，再上传新版本。' });
       return;
     }
 

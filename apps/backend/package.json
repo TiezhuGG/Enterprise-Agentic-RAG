@@ -10,6 +10,7 @@
     "demo:seed": "pnpm prisma:generate && ts-node src/modules/ingestion/run-demo-seed.ts",
     "demo:smoke": "pnpm prisma:generate && ts-node src/modules/ingestion/run-demo-smoke.ts",
     "dev": "pnpm prisma:generate && nest start --watch",
+    "error:smoke": "ts-node src/common/errors/run-error-smoke.ts",
     "evaluation:run": "pnpm prisma:generate && ts-node src/modules/evaluation/run-evaluation.ts",
     "lint": "eslint src/**/*.ts",
     "ops:smoke": "pnpm prisma:generate && ts-node src/modules/ops/run-ops-smoke.ts",

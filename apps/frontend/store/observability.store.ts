@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { toUserFacingErrorMessage } from '@/lib/error-copy';
 import { getAuthToken } from '@/services/api-client';
 import { executionService } from '@/services/execution.service';
 import { observabilityService } from '@/services/observability.service';
@@ -35,7 +36,7 @@ interface ObservabilityState {
 }
 
 const toErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : 'Observability request failed';
+  toUserFacingErrorMessage(error, '可观测性数据加载失败，请稍后重试。');
 
 const sortRuns = (runs: ExecutionRun[]): ExecutionRun[] =>
   [...runs].sort(

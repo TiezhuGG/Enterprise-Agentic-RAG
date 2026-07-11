@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { toUserFacingErrorMessage } from '@/lib/error-copy';
 import { getAuthToken, setAuthToken as persistAuthToken } from '@/services/api-client';
 import { agentService } from '@/services/agent.service';
 import { conversationService } from '@/services/conversation.service';
@@ -166,7 +167,7 @@ const mapConversationMessage = (message: ConversationMessage): ChatMessage => {
 };
 
 const toErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : 'Request failed';
+  toUserFacingErrorMessage(error, '请求失败，请稍后重试。');
 
 const upsertTrace = (trace: AgentTraceItem[], item: AgentTraceItem): AgentTraceItem[] => {
   const existingIndex = trace.findIndex((traceItem) => traceItem.node === item.node);
@@ -395,7 +396,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     if (!conversationId) {
       set({
-        error: 'Conversation is not available',
+        error: '会话不可用，请重新创建会话。',
       });
       return;
     }
@@ -407,7 +408,7 @@ export const useChatStore = create<ChatStore>((set, get) => ({
 
     if (hasUploadingAttachment) {
       set({
-        error: 'Attachment upload is still in progress',
+        error: '附件仍在上传中，请稍后再发送。',
       });
       return;
     }
@@ -572,7 +573,7 @@ const handleAgentEvent = (event: AgentEvent, set: ChatStoreSet): void => {
       const data = event.data as ErrorEventData;
 
       set({
-        error: data.message,
+        error: toErrorMessage(new Error(data.message)),
         streaming: false,
         streamingMessage: null,
       });

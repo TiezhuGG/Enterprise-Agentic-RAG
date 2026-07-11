@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { toUserFacingErrorMessage } from '@/lib/error-copy';
 import { getAuthToken } from '@/services/api-client';
 import { agentService } from '@/services/agent.service';
 import { conversationService } from '@/services/conversation.service';
@@ -85,7 +86,7 @@ const createEventId = (): string => {
 };
 
 const toErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : 'Agent debug request failed';
+  toUserFacingErrorMessage(error, 'Agent 调试请求失败，请稍后重试。');
 
 const truncate = (value: string, maxLength = 180): string =>
   value.length > maxLength ? `${value.slice(0, maxLength)}...` : value;
@@ -143,7 +144,7 @@ const summarizeEvent = (event: AgentEvent): string => {
     case 'error': {
       const data = event.data as ErrorEventData;
 
-      return data.message;
+      return toErrorMessage(new Error(data.message));
     }
   }
 };
@@ -229,12 +230,12 @@ export const useAgentDebugStore = create<AgentDebugStore>((set, get) => ({
     const runConfig = get().runConfig;
 
     if (!conversationId) {
-      set({ error: 'Debug conversation is unavailable.' });
+      set({ error: '调试会话不可用，请重新创建会话。' });
       return;
     }
 
     if (!question) {
-      set({ error: 'Question is required.' });
+      set({ error: '请输入问题后再运行。' });
       return;
     }
 
@@ -339,7 +340,7 @@ export const useAgentDebugStore = create<AgentDebugStore>((set, get) => ({
             const data = event.data as ErrorEventData;
 
             set({
-              error: data.message,
+              error: toErrorMessage(new Error(data.message)),
               running: false,
             });
             return;

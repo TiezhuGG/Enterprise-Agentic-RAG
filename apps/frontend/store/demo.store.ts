@@ -1,6 +1,7 @@
 'use client';
 
 import { create } from 'zustand';
+import { toUserFacingErrorMessage } from '@/lib/error-copy';
 import { systemService } from '@/services/system.service';
 import type { DemoHealth, DemoMetricsSummary, DemoReadiness } from '@/types/demo';
 
@@ -16,7 +17,7 @@ interface DemoStore {
 }
 
 const toErrorMessage = (error: unknown): string =>
-  error instanceof Error ? error.message : 'System readiness check failed';
+  toUserFacingErrorMessage(error, '系统健康检查失败，请稍后重试。');
 
 export const useDemoStore = create<DemoStore>((set) => ({
   error: null,

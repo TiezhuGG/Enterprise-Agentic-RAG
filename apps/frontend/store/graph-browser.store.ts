@@ -116,7 +116,7 @@ export const useGraphBrowserStore = create<GraphBrowserState>((set, get) => ({
       }));
     } catch (error) {
       set({
-        error: toUserFacingErrorMessage(error, 'Graph loading failed. Please try again.'),
+        error: toUserFacingErrorMessage(error, '图谱加载失败，请稍后重试。'),
         loading: false,
         view: null,
       });
