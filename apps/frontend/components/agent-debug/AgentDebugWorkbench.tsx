@@ -1,6 +1,8 @@
 'use client';
 
 import { useEffect } from 'react';
+import { useRouter } from 'next/navigation';
+import { buildConsoleHref } from '@/lib/console-routes';
 import { useAgentDebugStore } from '@/store/agent-debug.store';
 import { useObservabilityStore } from '@/store/observability.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
@@ -38,15 +40,16 @@ export function AgentDebugWorkbench() {
     updateRunConfig,
   } = useAgentDebugStore();
   const selectExecution = useObservabilityStore((state) => state.selectExecution);
-  const setActiveSection = useWorkbenchStore((state) => state.setActiveSection);
+  const router = useRouter();
+  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
 
   useEffect(() => {
     void initialize();
   }, [initialize]);
 
   const openTimeline = (targetExecutionId: string) => {
-    setActiveSection('system');
     void selectExecution(targetExecutionId);
+    router.push(buildConsoleHref('system-executions', { space: selectedSpaceId }));
   };
 
   return (

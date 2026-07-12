@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, useEffect, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
   BadgeCheck,
@@ -45,6 +46,7 @@ import type {
   PipelineJob,
 } from '@/types/workbench';
 import { cn } from '@/lib/utils';
+import { buildConsoleHref } from '@/lib/console-routes';
 
 const scopeLabels: Record<GraphBrowserScope, string> = {
   document: '当前文档',
@@ -199,6 +201,7 @@ const relationLegend: RelationVisual[] = [
 ];
 
 export function GraphBrowser() {
+  const router = useRouter();
   const documents = useWorkbenchStore((state) => state.documents);
   const ingestionOptions = useWorkbenchStore((state) => state.ingestionOptions);
   const ingestionStatus = useWorkbenchStore((state) => state.ingestionStatus);
@@ -208,7 +211,6 @@ export function GraphBrowser() {
   const selectedPipelineJobId = useWorkbenchStore((state) => state.selectedPipelineJobId);
   const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const selectDocument = useWorkbenchStore((state) => state.selectDocument);
-  const setActiveSection = useWorkbenchStore((state) => state.setActiveSection);
   const spaces = useWorkbenchStore((state) => state.spaces);
   const readiness = useObservabilityStore((state) => state.readiness);
   const graphCheck = readiness?.checks.find((check) => check.name === 'graph') ?? null;
@@ -281,7 +283,7 @@ export function GraphBrowser() {
     }
 
     void selectDocument(documentId);
-    setActiveSection('documents');
+    router.push(buildConsoleHref('documents', { space: selectedSpaceId }));
   };
 
   return (

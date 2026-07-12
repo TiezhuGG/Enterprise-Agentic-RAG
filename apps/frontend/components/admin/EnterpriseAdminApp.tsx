@@ -5,13 +5,9 @@ import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import {
   Activity,
-  BarChart3,
-  Bell,
   BookOpen,
   Bot,
-  BrainCircuit,
   CheckCircle2,
-  ChevronDown,
   CircleHelp,
   Database,
   Download,
@@ -20,31 +16,22 @@ import {
   FileText,
   FolderOpen,
   Gauge,
-  GitBranch,
-  Grid2X2,
-  History,
-  Home,
-  KeyRound,
   Loader2,
   LogOut,
-  Menu,
   MoreHorizontal,
   Network,
   Plus,
   RefreshCw,
   Search,
   Send,
-  Settings,
   ShieldCheck,
-  Sparkles,
   Trash2,
   UploadCloud,
-  UserRound,
-  Users,
   type LucideIcon,
 } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 'recharts';
 import { AgentDebugWorkbench } from '@/components/agent-debug';
+import { ConsoleShell } from '@/components/admin/ConsoleShell';
 import { SearchCenter } from '@/components/search';
 import { DocumentAccessScopePanel } from '@/components/workbench/DocumentAccessScopePanel';
 import { DocumentPreviewPanel } from '@/components/workbench/DocumentPreviewPanel';
@@ -72,7 +59,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
@@ -86,7 +72,6 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Separator } from '@/components/ui/separator';
-import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { Skeleton } from '@/components/ui/skeleton';
 import {
   Table,
@@ -98,12 +83,10 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { documentService, type DocumentFileBlob } from '@/services/document.service';
 import { pipelineService } from '@/services/pipeline.service';
 import { useChatStore, type AgentTraceItem, type ChatMessage } from '@/store/chat.store';
 import { useObservabilityStore } from '@/store/observability.store';
-import { useSearchStore } from '@/store/search.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
 import type { AgentCitation } from '@/types/agent';
 import type {
@@ -114,7 +97,7 @@ import type {
   PipelineJobStatus,
   SpacePipelineJob,
 } from '@/types/workbench';
-import { buildConsoleHref, consoleRoutes, getConsoleRouteForSection, type ConsoleRouteKey } from '@/lib/console-routes';
+import { buildConsoleHref, consoleRoutes, type ConsoleRouteKey } from '@/lib/console-routes';
 import { cn } from '@/lib/utils';
 
 const acceptedDocumentTypes = [
@@ -167,103 +150,11 @@ const GraphBrowser = dynamic(
   },
 );
 
-const mainNav: Array<{ section: AppSection; label: string; icon: LucideIcon }> = [
-  { icon: Home, label: '仪表盘', section: 'dashboard' },
-  { icon: FolderOpen, label: '文档中心', section: 'documents' },
-  { icon: Search, label: '搜索中心', section: 'search' },
-  { icon: Bot, label: 'AI 中心', section: 'assistant' },
-  { icon: Network, label: '知识图谱', section: 'graph' },
-  { icon: UserRound, label: '个人中心', section: 'profile' },
-  { icon: Settings, label: '系统管理', section: 'system' },
-];
-
-const sectionMeta: Record<
-  AppSection,
-  { breadcrumb: string[]; description: string; title: string }
-> = {
-  assistant: {
-    breadcrumb: ['AI 中心', 'AI 问答'],
-    description: '围绕企业知识库发起问答，实时查看回答依据和引用来源。',
-    title: 'AI 智能问答',
-  },
-  dashboard: {
-    breadcrumb: ['首页', '仪表盘'],
-    description: '一眼看到知识状态、系统健康和最近操作。',
-    title: '仪表盘',
-  },
-  documents: {
-    breadcrumb: ['知识管理', '文档中心'],
-    description: '三步完成上传、解析和入库，集中管理知识空间与文档状态。',
-    title: '文档中心',
-  },
-  graph: {
-    breadcrumb: ['知识管理', '知识图谱'],
-    description: '查看图谱服务状态、关系引用和后续节点浏览接入状态。',
-    title: '知识图谱',
-  },
-  profile: {
-    breadcrumb: ['账号', '个人中心'],
-    description: '查看当前账号、权限、角色和可访问知识空间。',
-    title: '个人中心',
-  },
-  search: {
-    breadcrumb: ['搜索中心', '智能检索'],
-    description: '五秒定位制度、文档片段和问答引用来源。',
-    title: '搜索中心',
-  },
-  system: {
-    breadcrumb: ['系统管理', '运行状态'],
-    description: '收纳系统状态、执行记录和高级调试能力。',
-    title: '系统管理',
-  },
-};
-
 const loginHighlights: Array<{ label: string; icon: LucideIcon }> = [
   { icon: FileText, label: '文档入库' },
   { icon: Bot, label: '智能问答' },
   { icon: Network, label: '知识图谱' },
 ];
-
-const sectionSubNav: Record<AppSection, Array<{ label: string; icon: LucideIcon }>> = {
-  assistant: [
-    { icon: Bot, label: 'AI 问答' },
-    { icon: Sparkles, label: '提示词管理' },
-    { icon: BrainCircuit, label: '智能体配置' },
-    { icon: History, label: '历史会话' },
-  ],
-  dashboard: [
-    { icon: Grid2X2, label: '数据概览' },
-    { icon: Database, label: '知识状态' },
-    { icon: Activity, label: '最近活动' },
-  ],
-  documents: [
-    { icon: Database, label: '知识空间' },
-    { icon: FileText, label: '文档列表' },
-    { icon: FileArchive, label: '解析任务' },
-    { icon: ShieldCheck, label: '权限范围' },
-  ],
-  graph: [
-    { icon: Network, label: '全局图谱' },
-    { icon: GitBranch, label: '关系检索' },
-    { icon: BarChart3, label: '图谱统计' },
-  ],
-  profile: [
-    { icon: UserRound, label: '个人资料' },
-    { icon: ShieldCheck, label: '权限信息' },
-    { icon: KeyRound, label: '访问凭证' },
-  ],
-  search: [
-    { icon: Search, label: '智能搜索' },
-    { icon: FileText, label: '引用来源' },
-    { icon: Sparkles, label: '后续路线图' },
-  ],
-  system: [
-    { icon: Gauge, label: '系统状态' },
-    { icon: Activity, label: '执行记录' },
-    { icon: Users, label: '用户角色' },
-    { icon: BrainCircuit, label: '高级调试' },
-  ],
-};
 
 const statusLabel: Record<DocumentStatus, string> = {
   ARCHIVED: '已归档',
@@ -412,18 +303,13 @@ const getUserInitial = (email?: string | null): string => {
 };
 
 export function EnterpriseAdminApp({ routeKey }: { routeKey: ConsoleRouteKey }) {
-  const router = useRouter();
   const route = consoleRoutes[routeKey];
   const activeSection = route.section;
   const authToken = useWorkbenchStore((state) => state.authToken);
-  const authUser = useWorkbenchStore((state) => state.authUser);
-  const clearAuth = useWorkbenchStore((state) => state.clearAuth);
   const error = useWorkbenchStore((state) => state.error);
   const loading = useWorkbenchStore((state) => state.loading);
-  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const setActiveSection = useWorkbenchStore((state) => state.setActiveSection);
   const initializeObservability = useObservabilityStore((state) => state.initialize);
-  const refreshObservability = useObservabilityStore((state) => state.refresh);
 
   useEffect(() => {
     if (authToken) {
@@ -435,390 +321,14 @@ export function EnterpriseAdminApp({ routeKey }: { routeKey: ConsoleRouteKey }) 
     setActiveSection(route.section);
   }, [route.section, setActiveSection]);
 
-  const navigate = (section: AppSection) => {
-    const destination = getConsoleRouteForSection(section);
-    router.push(buildConsoleHref(destination.key, { space: selectedSpaceId }));
-  };
-
-  const navigateRoute = (key: ConsoleRouteKey) => {
-    router.push(buildConsoleHref(key, { space: selectedSpaceId }));
-  };
-
   return (
-    <TooltipProvider>
-      <main className="min-h-screen bg-background text-foreground">
-        <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)]">
-          <aside className="hidden border-r border-border bg-card lg:block">
-            <PageSideNav
-              activeSection={activeSection}
-              onNavigate={navigate}
-              onNavigateRoute={navigateRoute}
-              routeKey={routeKey}
-            />
-          </aside>
-
-          <div className="min-w-0">
-            <TopBar
-              activeSection={activeSection}
-              authUserEmail={authUser?.email ?? null}
-              clearAuth={clearAuth}
-              onNavigate={navigate}
-              onRefresh={() => void refreshObservability()}
-            />
-
-            <section className="mx-auto w-full max-w-[1440px] min-w-0 p-4 sm:p-5 lg:p-6">
-              {error ? <ErrorBanner message={error} /> : null}
-              {loading ? <WorkspaceSkeleton /> : <SectionContent activeSection={activeSection} routeKey={routeKey} />}
-            </section>
-          </div>
-        </div>
-      </main>
-    </TooltipProvider>
+    <ConsoleShell routeKey={routeKey}>
+      {error ? <ErrorBanner message={error} /> : null}
+      {loading ? <WorkspaceSkeleton /> : <SectionContent activeSection={activeSection} routeKey={routeKey} />}
+    </ConsoleShell>
   );
 }
 
-function TopBar({
-  activeSection,
-  authUserEmail,
-  clearAuth,
-  onNavigate,
-  onRefresh,
-}: {
-  activeSection: AppSection;
-  authUserEmail: string | null;
-  clearAuth: () => void;
-  onNavigate: (section: AppSection) => void;
-  onRefresh: () => void;
-}) {
-  const meta = sectionMeta[activeSection];
-  const createSpace = useWorkbenchStore((state) => state.createSpace);
-  const search = useSearchStore((state) => state.search);
-  const selectSpace = useWorkbenchStore((state) => state.setSelectedSpaceFromGlobalSwitcher);
-  const setSearchQuery = useSearchStore((state) => state.setQuery);
-  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
-  const spaces = useWorkbenchStore((state) => state.spaces);
-  const [globalQuery, setGlobalQuery] = useState('');
-  const [newSpaceName, setNewSpaceName] = useState('');
-
-  const handleGlobalSearch = (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    const query = globalQuery.trim();
-
-    if (!query) {
-      return;
-    }
-
-    setSearchQuery(query);
-    onNavigate('search');
-
-    if (selectedSpaceId) {
-      void search();
-    }
-  };
-
-  const handleCreateSpace = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const name = newSpaceName.trim();
-
-    if (!name) {
-      return;
-    }
-
-    await createSpace(name);
-    setNewSpaceName('');
-  };
-
-  return (
-    <header className="sticky top-0 z-40 border-b border-border bg-card/95 backdrop-blur">
-      <div className="grid min-h-16 grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 px-4 py-3 sm:px-5 lg:grid-cols-[minmax(190px,0.65fr)_minmax(260px,1fr)_minmax(220px,320px)_auto] lg:px-6">
-        <div className="flex min-w-0 items-center gap-3">
-          <Sheet>
-            <SheetTrigger asChild>
-              <Button className="lg:hidden" size="icon" variant="ghost">
-                <Menu />
-                <span className="sr-only">打开导航</span>
-              </Button>
-            </SheetTrigger>
-            <SheetContent className="w-[300px] p-0" side="left">
-              <SheetHeader className="border-b border-border px-4 py-4 text-left">
-                <SheetTitle>企业知识库</SheetTitle>
-              </SheetHeader>
-              <PageSideNav activeSection={activeSection} onNavigate={onNavigate} />
-            </SheetContent>
-          </Sheet>
-
-          <div className="min-w-0">
-            <div className="hidden items-center gap-1 text-xs text-muted-foreground sm:flex">
-              {meta.breadcrumb.map((item, index) => (
-                <span className="inline-flex items-center gap-1" key={`${item}-${index}`}>
-                  {index > 0 ? <span className="text-slate-300">/</span> : null}
-                  {item}
-                </span>
-              ))}
-            </div>
-            <h1 className="truncate text-sm font-semibold leading-5 text-foreground sm:text-base">
-              {meta.title}
-            </h1>
-          </div>
-        </div>
-
-        <form className="hidden min-w-0 md:block" onSubmit={handleGlobalSearch}>
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
-            <Input
-              className="h-9 border-slate-200 bg-slate-50 pl-9 pr-16 shadow-none"
-              onChange={(event) => setGlobalQuery(event.target.value)}
-              placeholder="搜索文档、问答记录"
-              value={globalQuery}
-            />
-            <span className="pointer-events-none absolute right-2 top-1/2 hidden -translate-y-1/2 rounded border border-slate-200 bg-white px-1.5 py-0.5 text-[10px] text-muted-foreground xl:inline">
-              Enter
-            </span>
-          </div>
-        </form>
-
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button className="hidden min-w-0 justify-between gap-2 px-3 lg:flex" variant="outline">
-              <Database className="size-4 text-muted-foreground" />
-              <span className="min-w-0 truncate">
-                {spaces.find((space) => space.id === selectedSpaceId)?.name ?? '选择知识空间'}
-              </span>
-              <ChevronDown className="size-4 text-muted-foreground" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end" className="w-80">
-            <DropdownMenuLabel>当前知识空间</DropdownMenuLabel>
-            <div className="px-2 pb-2 text-xs leading-5 text-muted-foreground">
-              知识空间用于隔离部门、项目或业务线知识，并决定文档、搜索、问答和图谱的范围。
-            </div>
-            <DropdownMenuSeparator />
-            {spaces.length === 0 ? (
-              <div className="px-2 py-3 text-sm text-muted-foreground">暂无知识空间</div>
-            ) : (
-              spaces.map((space) => (
-                <DropdownMenuItem
-                  className="items-start gap-2"
-                  key={space.id}
-                  onClick={() => void selectSpace(space.id)}
-                >
-                  <Database className="mt-0.5 size-4" />
-                  <span className="min-w-0">
-                    <span className="block truncate">{space.name}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {space.visibility === 'PRIVATE'
-                        ? '私有空间'
-                        : space.visibility === 'PUBLIC'
-                          ? '公开空间'
-                          : '内部空间'}
-                    </span>
-                  </span>
-                  {space.id === selectedSpaceId ? (
-                    <CheckCircle2 className="ml-auto size-4 text-emerald-600" />
-                  ) : null}
-                </DropdownMenuItem>
-              ))
-            )}
-            <DropdownMenuSeparator />
-            <form className="grid gap-2 p-2" onSubmit={handleCreateSpace}>
-              <Input
-                onChange={(event) => setNewSpaceName(event.target.value)}
-                placeholder="新建知识空间"
-                value={newSpaceName}
-              />
-              <Button disabled={!newSpaceName.trim()} size="sm" type="submit">
-                <Plus />
-                创建空间
-              </Button>
-            </form>
-          </DropdownMenuContent>
-        </DropdownMenu>
-
-        <div className="ml-auto flex items-center gap-1">
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button onClick={onRefresh} size="icon" variant="ghost">
-                <RefreshCw />
-                <span className="sr-only">刷新状态</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>刷新状态</TooltipContent>
-          </Tooltip>
-          <Tooltip>
-            <TooltipTrigger asChild>
-              <Button size="icon" variant="ghost">
-                <CircleHelp />
-                <span className="sr-only">帮助</span>
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent>帮助中心</TooltipContent>
-          </Tooltip>
-          <Button className="relative" size="icon" variant="ghost">
-            <Bell />
-            <span className="absolute right-2 top-2 size-1.5 rounded-full bg-red-500" />
-            <span className="sr-only">通知</span>
-          </Button>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button className="gap-2 px-2" variant="ghost">
-                <Avatar className="size-8">
-                  <AvatarFallback>{getUserInitial(authUserEmail)}</AvatarFallback>
-                </Avatar>
-                <span className="hidden max-w-32 truncate text-sm md:block">
-                  {authUserEmail ?? '管理员'}
-                </span>
-                <ChevronDown className="size-4 text-muted-foreground" />
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-52">
-              <DropdownMenuLabel>当前账号</DropdownMenuLabel>
-              <DropdownMenuItem onClick={() => onNavigate('profile')}>
-                <UserRound className="size-4" />
-                个人中心
-              </DropdownMenuItem>
-              <DropdownMenuItem onClick={() => onNavigate('system')}>
-                <Settings className="size-4" />
-                系统管理
-              </DropdownMenuItem>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem onClick={clearAuth}>
-                <LogOut className="size-4" />
-                退出登录
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        </div>
-      </div>
-    </header>
-  );
-}
-
-function PageSideNav({
-  activeSection,
-  onNavigate,
-  onNavigateRoute,
-  routeKey,
-}: {
-  activeSection: AppSection;
-  onNavigate: (section: AppSection) => void;
-  onNavigateRoute?: (key: ConsoleRouteKey) => void;
-  routeKey?: ConsoleRouteKey;
-}) {
-  const items =
-    activeSection === 'documents'
-      ? [
-          { icon: FileText, key: 'documents' as const, label: '\u6587\u6863\u5217\u8868' },
-          { icon: Database, key: 'document-spaces' as const, label: '\u77e5\u8bc6\u7a7a\u95f4' },
-          { icon: FileArchive, key: 'document-tasks' as const, label: '\u89e3\u6790\u4efb\u52a1' },
-          { icon: ShieldCheck, key: 'document-access' as const, label: '\u6743\u9650\u8303\u56f4' },
-        ]
-      : activeSection === 'system'
-        ? [
-            { icon: Gauge, key: 'system-status' as const, label: '\u7cfb\u7edf\u72b6\u6001' },
-            { icon: Activity, key: 'system-executions' as const, label: '\u6267\u884c\u8bb0\u5f55' },
-            { icon: BrainCircuit, key: 'system-debug' as const, label: '\u9ad8\u7ea7\u8c03\u8bd5' },
-          ]
-        : [];
-  const documents = useWorkbenchStore((state) => state.documents);
-  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
-  const spaces = useWorkbenchStore((state) => state.spaces);
-  const readiness = useObservabilityStore((state) => state.readiness);
-  const activeSpace = spaces.find((space) => space.id === selectedSpaceId);
-
-  return (
-    <div className="flex h-full min-h-screen flex-col bg-card">
-      <div className="border-b border-border px-4 py-4">
-        <button
-          className="flex w-full items-center gap-3 rounded-md px-1 py-1 text-left"
-          onClick={() => onNavigate('dashboard')}
-          type="button"
-        >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
-            <BookOpen className="size-5" />
-          </span>
-          <span className="min-w-0">
-            <span className="block truncate text-sm font-semibold">企业知识库</span>
-            <span className="block truncate text-xs text-muted-foreground">Knowledge Console</span>
-          </span>
-        </button>
-      </div>
-
-      <div className="border-b border-border p-3">
-        <p className="px-2 pb-2 text-[11px] font-medium uppercase text-muted-foreground">主导航</p>
-        <nav className="grid gap-1">
-          {mainNav.map((item) => {
-            const Icon = item.icon;
-            const active = activeSection === item.section;
-
-            return (
-              <button
-                className={cn(
-                  'flex items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm text-slate-600 transition hover:bg-muted hover:text-foreground',
-                  active && 'bg-slate-900 text-white hover:bg-slate-900 hover:text-white',
-                )}
-                key={item.section}
-                onClick={() => onNavigate(item.section)}
-                type="button"
-              >
-                <Icon className="size-4 shrink-0" />
-                <span className="truncate">{item.label}</span>
-              </button>
-            );
-          })}
-        </nav>
-      </div>
-
-      <div className="p-3">
-        <p className="px-2 pb-2 text-[11px] font-medium uppercase text-muted-foreground">
-          {sectionMeta[activeSection].title}
-        </p>
-        <div className="grid gap-1">
-          {items.map((item) => {
-            const Icon = item.icon;
-
-            return (
-              <button
-                className={cn(
-                  'flex items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground',
-                  routeKey === item.key && 'bg-accent text-primary',
-                )}
-                key={item.key}
-                onClick={() => onNavigateRoute?.(item.key)}
-                type="button"
-              >
-                <Icon className="size-4 shrink-0" />
-                <span className="truncate">{item.label}</span>
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="mt-auto border-t p-3">
-        <div className="rounded-lg border border-border bg-slate-50 p-3 text-xs">
-          <div className="mb-2 flex items-center justify-between gap-2">
-            <span className="font-medium text-foreground">当前空间</span>
-            <Badge variant={readiness?.status === 'ok' ? 'success' : 'secondary'}>
-              {readiness?.status === 'ok' ? '健康' : '待检查'}
-            </Badge>
-          </div>
-          <p className="truncate text-muted-foreground">{activeSpace?.name ?? '未选择知识空间'}</p>
-          <div className="mt-3 grid grid-cols-2 gap-2">
-            <div className="rounded-md border bg-white px-2 py-1.5">
-              <div className="text-sm font-semibold">{spaces.length}</div>
-              <div className="text-[11px] text-muted-foreground">空间</div>
-            </div>
-            <div className="rounded-md border bg-white px-2 py-1.5">
-              <div className="text-sm font-semibold">{documents.length}</div>
-              <div className="text-[11px] text-muted-foreground">文档</div>
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
 function SectionContent({
   activeSection,
@@ -924,7 +434,7 @@ export function LoginPage() {
       </section>
 
       <section className="flex items-center justify-center px-5 py-10">
-        <Card className="w-full max-w-md border-slate-200 shadow-[0_18px_45px_rgba(15,23,42,0.08)]">
+        <Card className="w-full max-w-md border-slate-200">
           <CardHeader className="text-center">
             <div className="mx-auto mb-2 flex size-12 items-center justify-center rounded-xl bg-primary text-primary-foreground lg:hidden">
               <BookOpen className="size-7" />
@@ -970,10 +480,10 @@ export function LoginPage() {
 }
 
 function DashboardPage() {
+  const router = useRouter();
   const documents = useWorkbenchStore((state) => state.documents);
   const loadingDocuments = useWorkbenchStore((state) => state.loadingDocuments);
   const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
-  const setActiveSection = useWorkbenchStore((state) => state.setActiveSection);
   const spaces = useWorkbenchStore((state) => state.spaces);
   const executionRuns = useObservabilityStore((state) => state.executionRuns);
   const readiness = useObservabilityStore((state) => state.readiness);
@@ -992,17 +502,18 @@ function DashboardPage() {
       label: '新增文档',
     },
   } satisfies ChartConfig;
+  const navigate = (key: ConsoleRouteKey) => router.push(buildConsoleHref(key, { space: selectedSpaceId }));
 
   return (
     <div className="grid gap-4">
       <PageHeader
         actions={
           <div className="flex flex-wrap gap-2">
-            <Button onClick={() => setActiveSection('documents')}>
+            <Button onClick={() => navigate('documents')}>
               <UploadCloud />
               上传文档
             </Button>
-            <Button onClick={() => setActiveSection('assistant')} variant="outline">
+            <Button onClick={() => navigate('assistant')} variant="outline">
               <Bot />
               发起问答
             </Button>
@@ -1033,7 +544,7 @@ function DashboardPage() {
           <div className="grid gap-2 sm:grid-cols-3 lg:min-w-[520px]">
             <Button
               className="justify-start"
-              onClick={() => setActiveSection('documents')}
+              onClick={() => navigate('documents')}
               variant="outline"
             >
               <UploadCloud />
@@ -1041,13 +552,13 @@ function DashboardPage() {
             </Button>
             <Button
               className="justify-start"
-              onClick={() => setActiveSection('search')}
+              onClick={() => navigate('search')}
               variant="outline"
             >
               <Search />
               查找知识
             </Button>
-            <Button className="justify-start" onClick={() => setActiveSection('assistant')}>
+            <Button className="justify-start" onClick={() => navigate('assistant')}>
               <Bot />
               发起问答
             </Button>
@@ -1070,26 +581,36 @@ function DashboardPage() {
 
       <Card>
         <CardHeader>
-          <CardTitle>演示流程</CardTitle>
-          <CardDescription>按这个顺序操作，可以完整讲清企业知识库全链路。</CardDescription>
+          <CardTitle>运营待办</CardTitle>
+          <CardDescription>优先处理会影响知识可用性、检索质量和访问范围的事项。</CardDescription>
         </CardHeader>
-        <CardContent className="grid gap-3 md:grid-cols-3 xl:grid-cols-6">
-          {[
-            ['选择空间', '确定部门、项目或业务线范围'],
-            ['上传文档', '把 PDF、Word、文本等资料放入空间'],
-            ['解析入库', '执行分块、向量化、索引和可选图谱抽取'],
-            ['智能搜索', '用自然语言查找制度和资料'],
-            ['AI 问答', '获得带引用来源的知识回答'],
-            ['图谱与状态', '查看关系图谱和系统健康'],
-          ].map(([title, description], index) => (
-            <div className="rounded-md border bg-slate-50 p-3 text-sm" key={title}>
-              <div className="mb-2 flex size-6 items-center justify-center rounded-md bg-slate-900 text-xs font-medium text-white">
-                {index + 1}
-              </div>
-              <p className="font-medium">{title}</p>
-              <p className="mt-1 text-xs leading-5 text-muted-foreground">{description}</p>
+        <CardContent className="grid gap-2 md:grid-cols-3">
+          <button className="group border border-border p-3 text-left hover:bg-muted/60" onClick={() => navigate('documents')} type="button">
+            <div className="flex items-start justify-between gap-3">
+              <FileText className="size-4 text-primary" />
+              <span className="text-sm font-semibold text-foreground">{documents.length === 0 ? '开始入库' : `${readyCount} 份可检索`}</span>
             </div>
-          ))}
+            <p className="mt-3 text-sm font-medium">文档质量</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">
+              {documents.length === 0 ? '创建空间后上传首批业务资料。' : `当前解析成功率 ${readyRate}%。`}
+            </p>
+          </button>
+          <button className="group border border-border p-3 text-left hover:bg-muted/60" onClick={() => navigate('document-tasks')} type="button">
+            <div className="flex items-start justify-between gap-3">
+              <FileArchive className="size-4 text-warning" />
+              <span className="text-sm font-semibold text-foreground">{processingCount} 个进行中</span>
+            </div>
+            <p className="mt-3 text-sm font-medium">入库任务</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">检查解析队列、失败原因和处理进度。</p>
+          </button>
+          <button className="group border border-border p-3 text-left hover:bg-muted/60" onClick={() => navigate('document-access')} type="button">
+            <div className="flex items-start justify-between gap-3">
+              <ShieldCheck className="size-4 text-success" />
+              <span className="text-sm font-semibold text-foreground">{spaces.length} 个空间</span>
+            </div>
+            <p className="mt-3 text-sm font-medium">访问治理</p>
+            <p className="mt-1 text-xs leading-5 text-muted-foreground">核查空间范围、文档可见性与成员权限。</p>
+          </button>
         </CardContent>
       </Card>
 
@@ -1176,7 +697,7 @@ function DashboardPage() {
               <CardTitle>近期操作记录</CardTitle>
               <CardDescription>最近更新的文档与执行状态</CardDescription>
             </div>
-            <Button onClick={() => setActiveSection('documents')} size="sm" variant="outline">
+            <Button onClick={() => navigate('documents')} size="sm" variant="outline">
               查看更多
             </Button>
           </CardHeader>
@@ -1189,7 +710,7 @@ function DashboardPage() {
               </div>
             ) : recentDocuments.length === 0 ? (
               <EmptyState
-                action={<Button onClick={() => setActiveSection('documents')}>去上传文档</Button>}
+                action={<Button onClick={() => navigate('documents')}>去上传文档</Button>}
                 description={
                   selectedSpaceId
                     ? '当前知识空间还没有文档。'
@@ -1248,7 +769,7 @@ function DashboardPage() {
               <p className="text-sm font-medium">推荐下一步</p>
               <Button
                 className="justify-start"
-                onClick={() => setActiveSection('search')}
+                onClick={() => navigate('search')}
                 variant="outline"
               >
                 <Search />
@@ -1256,7 +777,7 @@ function DashboardPage() {
               </Button>
               <Button
                 className="justify-start"
-                onClick={() => setActiveSection('graph')}
+                onClick={() => navigate('graph')}
                 variant="outline"
               >
                 <Network />
@@ -1371,6 +892,7 @@ function DocumentTasksPage() {
 }
 
 function DocumentsPage() {
+  const router = useRouter();
   const createSpace = useWorkbenchStore((state) => state.createSpace);
   const deleteSelectedDocument = useWorkbenchStore((state) => state.deleteSelectedDocument);
   const documents = useWorkbenchStore((state) => state.documents);
@@ -1437,6 +959,11 @@ function DocumentsPage() {
     event.preventDefault();
     await createSpace(createSpaceName);
     setCreateSpaceName('');
+  };
+
+  const handleSpaceChange = async (spaceId: string) => {
+    await selectSpace(spaceId);
+    router.replace(buildConsoleHref('documents', { space: spaceId }));
   };
 
   const clearPreview = () => {
@@ -1616,7 +1143,7 @@ function DocumentsPage() {
             <div className="grid gap-2 md:grid-cols-[240px_1fr_180px]">
               <Select
                 disabled={loading || spaces.length === 0}
-                onValueChange={(value) => void selectSpace(value)}
+                onValueChange={(value) => void handleSpaceChange(value)}
                 value={selectedSpaceId ?? ''}
               >
                 <SelectTrigger>
@@ -2287,6 +1814,7 @@ function ProfilePage() {
 }
 
 function SystemPage({ activeTab }: { activeTab: 'status' | 'executions' | 'debug' }) {
+  const router = useRouter();
   const authToken = useWorkbenchStore((state) => state.authToken);
   const clearAuth = useWorkbenchStore((state) => state.clearAuth);
   const setAuthToken = useWorkbenchStore((state) => state.setAuthToken);
@@ -2298,7 +1826,17 @@ function SystemPage({ activeTab }: { activeTab: 'status' | 'executions' | 'debug
   const selectExecution = useObservabilityStore((state) => state.selectExecution);
   const selectedRun = useObservabilityStore((state) => state.selectedRun);
   const timeline = useObservabilityStore((state) => state.timeline);
+  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const [manualToken, setManualTokenDraft] = useState(authToken);
+
+  const navigateTab = (tab: 'status' | 'executions' | 'debug') => {
+    const key: Record<typeof tab, ConsoleRouteKey> = {
+      debug: 'system-debug',
+      executions: 'system-executions',
+      status: 'system-status',
+    };
+    router.push(buildConsoleHref(key[tab], { space: selectedSpaceId }));
+  };
 
   const handleManualToken = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -2318,7 +1856,7 @@ function SystemPage({ activeTab }: { activeTab: 'status' | 'executions' | 'debug
         title="系统管理"
       />
 
-      <Tabs defaultValue="status">
+      <Tabs onValueChange={(value) => navigateTab(value as 'status' | 'executions' | 'debug')} value={activeTab}>
         <TabsList className="grid w-full grid-cols-3 lg:w-[520px]">
           <TabsTrigger value="status">系统状态</TabsTrigger>
           <TabsTrigger value="executions">执行记录</TabsTrigger>
