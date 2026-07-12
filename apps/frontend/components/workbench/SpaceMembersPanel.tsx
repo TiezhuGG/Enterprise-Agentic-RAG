@@ -41,7 +41,10 @@ export function SpaceMembersPanel() {
   const [email, setEmail] = useState('');
   const [role, setRole] = useState<SpaceMemberRole>('VIEWER');
   const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
-  const currentMember = spaceMembers.find((member) => member.userId === authUser?.id) ?? null;
+  const currentMember =
+    selectedSpace?.members.find((member) => member.userId === authUser?.id) ??
+    spaceMembers.find((member) => member.userId === authUser?.id) ??
+    null;
   const canManage = currentMember?.role === 'OWNER';
   const ownerCount = useMemo(
     () => spaceMembers.filter((member) => member.role === 'OWNER').length,
@@ -65,7 +68,7 @@ export function SpaceMembersPanel() {
           </CardDescription>
         </div>
         <Badge variant={canManage ? 'success' : 'secondary'}>
-          {canManage ? '负责人可管理' : `当前：${memberRoleLabels[currentMember?.role ?? 'VIEWER']}`}
+          {canManage ? '空间负责人' : `空间角色：${memberRoleLabels[currentMember?.role ?? 'VIEWER']}`}
         </Badge>
       </CardHeader>
       <CardContent className="space-members-panel">

@@ -45,7 +45,10 @@ export function SpaceProfilePanel() {
   const spaces = useWorkbenchStore((state) => state.spaces);
   const updateSelectedSpaceProfile = useWorkbenchStore((state) => state.updateSelectedSpaceProfile);
   const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
-  const currentMember = spaceMembers.find((member) => member.userId === authUser?.id) ?? null;
+  const currentMember =
+    selectedSpace?.members.find((member) => member.userId === authUser?.id) ??
+    spaceMembers.find((member) => member.userId === authUser?.id) ??
+    null;
   const owner = spaceMembers.find((member) => member.role === 'OWNER') ?? null;
   const role = currentMember?.role ?? 'VIEWER';
   const canManage = role === 'OWNER' || role === 'EDITOR';
@@ -110,7 +113,7 @@ export function SpaceProfilePanel() {
             {selectedSpace ? '定义空间的业务语境；成员和检索资料以此空间为边界。' : '请先选择一个知识空间。'}
           </CardDescription>
         </div>
-        <Badge variant={canManage ? 'success' : 'secondary'}>你的角色：{roleLabels[role]}</Badge>
+        <Badge variant={canManage ? 'success' : 'secondary'}>空间角色：{roleLabels[role]}</Badge>
       </CardHeader>
       <CardContent>
         {!selectedSpace ? (
@@ -167,7 +170,7 @@ export function SpaceProfilePanel() {
               <div><dt>部门标识</dt><dd>{selectedSpace.metadata.departmentId || '未设置'}</dd></div>
               <div><dt>项目编码</dt><dd>{selectedSpace.metadata.projectCode || '未设置'}</dd></div>
             </dl>
-            <p>当前为只读成员。请联系空间负责人 {owner?.user.email ?? '申请编辑权限'} 修改空间资料。</p>
+            <p>当前为空间查看者。系统管理员身份不替代空间成员权限；请联系空间负责人 {owner?.user.email ?? '申请编辑权限'} 修改空间资料。</p>
           </div>
         )}
       </CardContent>

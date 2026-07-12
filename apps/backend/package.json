@@ -18,6 +18,7 @@
     "prisma:generate": "prisma generate --config prisma.config.ts",
     "prisma:migrate": "prisma migrate dev --config prisma.config.ts",
     "prisma:seed": "prisma db seed --config prisma.config.ts",
+    "seed:role-test": "pnpm prisma:generate && ts-node src/infrastructure/prisma/run-role-test-seed.ts",
     "prisma:validate": "prisma validate --config prisma.config.ts",
     "provider:smoke": "pnpm prisma:generate && ts-node src/infrastructure/observability/run-provider-smoke.ts",
     "search:reindex": "pnpm prisma:generate && ts-node src/infrastructure/search/run-reindex.ts",

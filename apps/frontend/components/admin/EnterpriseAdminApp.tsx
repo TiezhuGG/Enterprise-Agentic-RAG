@@ -2,6 +2,7 @@
 
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
+import Image from 'next/image';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Activity,
@@ -9,6 +10,7 @@ import {
   Bot,
   CheckCircle2,
   Database,
+  Download,
   Eye,
   FileArchive,
   FileText,
@@ -81,7 +83,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { documentService } from '@/services/document.service';
+import { documentService, type DocumentFileBlob } from '@/services/document.service';
 import { pipelineService } from '@/services/pipeline.service';
 import { useChatStore, type AgentTraceItem, type ChatMessage } from '@/store/chat.store';
 import { useObservabilityStore } from '@/store/observability.store';
@@ -392,7 +394,10 @@ function DocumentSpacesPage() {
   const spaceMembers = useWorkbenchStore((state) => state.spaceMembers);
   const spaces = useWorkbenchStore((state) => state.spaces);
   const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
-  const currentMember = spaceMembers.find((member) => member.userId === authUser?.id) ?? null;
+  const currentMember =
+    selectedSpace?.members.find((member) => member.userId === authUser?.id) ??
+    spaceMembers.find((member) => member.userId === authUser?.id) ??
+    null;
   const canDelete = currentMember?.role === 'OWNER';
   const [creationOpen, setCreationOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -449,7 +454,9 @@ function DocumentSpacesPage() {
             </CardHeader>
             <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <p className="text-sm text-muted-foreground">
-                {canDelete ? '仅负责人可以删除空间。' : '当前仅负责人可以删除空间。'}
+                {canDelete
+                  ? '你是空间负责人，可以删除该空间。系统管理员身份不会替代空间角色。'
+                  : '仅空间负责人可以删除空间；系统管理员身份不会自动获得此权限。'}
               </p>
               {canDelete ? <Button onClick={() => setDeleteOpen(true)} variant="destructive"><Trash2 />删除空间</Button> : null}
             </CardContent>
@@ -595,7 +602,13 @@ function DocumentsPage() {
   const uploadState = useWorkbenchStore((state) => state.uploadState);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [file, setFile] = useState<File | null>(null);
+  const [fileActionError, setFileActionError] = useState<string | null>(null);
   const [keyword, setKeyword] = useState('');
+  const [rawPreviewDocument, setRawPreviewDocument] = useState<KnowledgeDocument | null>(null);
+  const [rawPreviewFile, setRawPreviewFile] = useState<DocumentFileBlob | null>(null);
+  const [rawPreviewLoading, setRawPreviewLoading] = useState(false);
+  const [rawPreviewOpen, setRawPreviewOpen] = useState(false);
+  const [rawPreviewText, setRawPreviewText] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'ALL'>('ALL');
   const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
   const filteredDocuments = useMemo(() => documents.filter((document) => document.title.toLowerCase().includes(keyword.trim().toLowerCase()) && (statusFilter === 'ALL' || document.status === statusFilter)), [documents, keyword, statusFilter]);
@@ -613,6 +626,45 @@ function DocumentsPage() {
     await ingestSelectedDocument();
   };
 
+  const closeRawPreview = () => {
+    if (rawPreviewFile) {
+      URL.revokeObjectURL(rawPreviewFile.url);
+    }
+    setRawPreviewDocument(null);
+    setRawPreviewFile(null);
+    setRawPreviewText(null);
+    setRawPreviewLoading(false);
+  };
+
+  const handleRawPreview = async (document: KnowledgeDocument) => {
+    closeRawPreview();
+    setFileActionError(null);
+    setRawPreviewDocument(document);
+    setRawPreviewOpen(true);
+    setRawPreviewLoading(true);
+
+    try {
+      const file = await documentService.preview(document);
+      setRawPreviewFile(file);
+      if (document.type === 'TXT' || document.type === 'MARKDOWN') {
+        setRawPreviewText(await file.blob.text());
+      }
+    } catch (error) {
+      setFileActionError(error instanceof Error ? error.message : '原文件预览失败。');
+    } finally {
+      setRawPreviewLoading(false);
+    }
+  };
+
+  const handleDownload = async (document: KnowledgeDocument) => {
+    setFileActionError(null);
+    try {
+      await documentService.download(document);
+    } catch (error) {
+      setFileActionError(error instanceof Error ? error.message : '原文件下载失败。');
+    }
+  };
+
   return (
     <div className="grid min-w-0 gap-4">
       <PageHeader
@@ -625,6 +677,7 @@ function DocumentsPage() {
         <StatusStep label="文档上传" value={uploadState.status === 'uploading' ? '上传中' : file ? '待上传' : '就绪'} tone={uploadState.status === 'uploading' ? 'warning' : 'default'} />
         <StatusStep label="自动入库" value={ingestionState.status === 'queued' ? '排队中' : ingestionState.status === 'running' ? '处理中' : selectedDocument ? workspaceStatusLabels[selectedDocument.status] : '待选择'} tone={selectedDocument?.status === 'READY' ? 'success' : ingestionState.status === 'queued' || ingestionState.status === 'running' ? 'warning' : 'default'} />
       </section>
+      {fileActionError ? <ErrorBanner message={fileActionError} /> : null}
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
         <Card className="min-w-0">
           <CardHeader className="gap-4">
@@ -633,7 +686,7 @@ function DocumentsPage() {
             {file ? <p className="text-xs text-muted-foreground">已选择：{file.name}</p> : null}
           </CardHeader>
           <CardContent>
-            {!selectedSpaceId ? <EmptyState action={<Button onClick={() => router.push(buildConsoleHref('document-spaces'))} variant="outline">前往知识空间</Button>} description="先创建或选择知识空间，再上传文档。" icon={Database} title="请选择知识空间" /> : loadingDocuments ? <div className="grid gap-3"><Skeleton className="h-12" /><Skeleton className="h-12" /><Skeleton className="h-12" /></div> : filteredDocuments.length === 0 ? <EmptyState description="当前筛选条件下没有文档。" icon={FileText} title="暂无文档" /> : <div className="overflow-x-auto"><Table className="min-w-[720px]"><TableHeader><TableRow><TableHead>文档名称</TableHead><TableHead>类型</TableHead><TableHead>大小</TableHead><TableHead>处理状态</TableHead><TableHead>更新时间</TableHead><TableHead className="text-right">操作</TableHead></TableRow></TableHeader><TableBody>{filteredDocuments.map((document) => <TableRow className={cn(document.id === selectedDocumentId && 'bg-muted/60')} key={document.id} onClick={() => void selectDocument(document.id)}><TableCell><div className="flex min-w-0 items-center gap-2"><DocumentTypeIcon type={document.type} /><span className="max-w-64 truncate font-medium" title={document.title}>{document.title}</span></div></TableCell><TableCell>{typeLabel[document.type]}</TableCell><TableCell>{formatSize(document.size)}</TableCell><TableCell><div className="grid min-w-32 gap-1"><Badge className="w-fit" variant={statusVariant[document.status]}>{workspaceStatusLabels[document.status]}</Badge><Progress className="h-1.5" value={statusProgress[document.status]} /></div></TableCell><TableCell>{formatDateTime(document.updatedAt)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost"><MoreHorizontal /><span className="sr-only">打开操作</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void selectDocument(document.id); }}><Eye className="size-4" />查看详情</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); router.push(buildConsoleHref('document-access', { document: document.id, space: selectedSpaceId })); }}><ShieldCheck className="size-4" />管理访问范围</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleReprocess(document.id); }}><RefreshCw className="size-4" />{document.status === 'FAILED' ? '重试入库' : '重新处理'}</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={(event) => { event.stopPropagation(); void selectDocument(document.id).then(() => deleteSelectedDocument()); }}><Trash2 className="size-4" />删除文档</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)}</TableBody></Table></div>}
+            {!selectedSpaceId ? <EmptyState action={<Button onClick={() => router.push(buildConsoleHref('document-spaces'))} variant="outline">前往知识空间</Button>} description="先创建或选择知识空间，再上传文档。" icon={Database} title="请选择知识空间" /> : loadingDocuments ? <div className="grid gap-3"><Skeleton className="h-12" /><Skeleton className="h-12" /><Skeleton className="h-12" /></div> : filteredDocuments.length === 0 ? <EmptyState description="当前筛选条件下没有文档。" icon={FileText} title="暂无文档" /> : <div className="overflow-x-auto"><Table className="min-w-[720px]"><TableHeader><TableRow><TableHead>文档名称</TableHead><TableHead>类型</TableHead><TableHead>大小</TableHead><TableHead>处理状态</TableHead><TableHead>更新时间</TableHead><TableHead className="text-right">操作</TableHead></TableRow></TableHeader><TableBody>{filteredDocuments.map((document) => <TableRow className={cn(document.id === selectedDocumentId && 'bg-muted/60')} key={document.id} onClick={() => void selectDocument(document.id)}><TableCell><div className="flex min-w-0 items-center gap-2"><DocumentTypeIcon type={document.type} /><span className="max-w-64 truncate font-medium" title={document.title}>{document.title}</span></div></TableCell><TableCell>{typeLabel[document.type]}</TableCell><TableCell>{formatSize(document.size)}</TableCell><TableCell><div className="grid min-w-32 gap-1"><Badge className="w-fit" variant={statusVariant[document.status]}>{workspaceStatusLabels[document.status]}</Badge><Progress className="h-1.5" value={statusProgress[document.status]} /></div></TableCell><TableCell>{formatDateTime(document.updatedAt)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost"><MoreHorizontal /><span className="sr-only">打开操作</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleRawPreview(document); }}><Eye className="size-4" />预览原文件</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleDownload(document); }}><Download className="size-4" />下载原文件</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void selectDocument(document.id); }}><FileText className="size-4" />查看处理详情</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); router.push(buildConsoleHref('document-access', { document: document.id, space: selectedSpaceId })); }}><ShieldCheck className="size-4" />管理访问范围</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleReprocess(document.id); }}><RefreshCw className="size-4" />{document.status === 'FAILED' ? '重试入库' : '重新处理'}</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={(event) => { event.stopPropagation(); void selectDocument(document.id).then(() => deleteSelectedDocument()); }}><Trash2 className="size-4" />删除文档</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)}</TableBody></Table></div>}
           </CardContent>
         </Card>
         <div className="grid min-w-0 gap-4">
@@ -641,6 +694,14 @@ function DocumentsPage() {
           <Card className="min-w-0"><CardHeader><CardTitle>文档处理</CardTitle><CardDescription>{selectedDocument?.title ?? '选择一份文档后查看处理状态。'}</CardDescription></CardHeader><CardContent className="grid gap-4">{selectedDocument ? <><div className="grid gap-3 rounded-md border bg-muted/35 p-3 text-sm"><MetricLine label="文档状态" value={workspaceStatusLabels[selectedDocument.status]} /><MetricLine label="分块数量" value={ingestionStatus?.chunkCount ?? '-'} /><MetricLine label="向量数量" value={ingestionStatus?.embeddingCount ?? '-'} /><MetricLine label="图谱实体" value={ingestionStatus?.graphEntityCount ?? '-'} /></div><label className="flex items-center gap-2 rounded-md border p-3 text-sm"><input checked={ingestionOptions.includeGraph} onChange={(event) => setIngestionOptions({ includeGraph: event.target.checked })} type="checkbox" /><span>重新处理时抽取知识图谱</span></label><Button disabled={ingestionState.status === 'queued' || ingestionState.status === 'running'} onClick={() => void ingestSelectedDocument()}>{ingestionState.status === 'queued' || ingestionState.status === 'running' ? <Loader2 className="animate-spin" /> : <RefreshCw />}{ingestionState.status === 'queued' ? '排队中' : ingestionState.status === 'running' ? '处理中' : selectedDocument.status === 'FAILED' ? '重试入库' : '重新处理'}</Button><p className="text-xs leading-6 text-muted-foreground">上传后默认执行解析、分块、向量化和索引。图谱抽取只在重新处理时按当前选项执行。</p></> : <EmptyState description="从文档列表选择一份文档。" icon={FileText} title="未选择文档" />}</CardContent></Card>
         </div>
       </div>
+      <Dialog onOpenChange={(open) => { setRawPreviewOpen(open); if (!open) closeRawPreview(); }} open={rawPreviewOpen}>
+        <DialogContent className="max-w-5xl">
+          <DialogHeader><DialogTitle>原文件预览</DialogTitle><DialogDescription>{rawPreviewDocument?.title ?? '尚未选择文档'}</DialogDescription></DialogHeader>
+          <div className="min-h-[420px] overflow-hidden rounded-md border bg-slate-50">
+            {rawPreviewLoading ? <div className="grid h-[420px] place-items-center text-sm text-muted-foreground">正在加载原文件...</div> : rawPreviewDocument?.type === 'PDF' && rawPreviewFile ? <iframe className="h-[70vh] w-full bg-white" src={rawPreviewFile.url} title={rawPreviewDocument.title} /> : rawPreviewDocument?.type === 'IMAGE' && rawPreviewFile ? <div className="grid max-h-[70vh] place-items-center overflow-auto p-4"><Image alt={rawPreviewDocument.title} className="max-h-[66vh] max-w-full rounded-md" height={1000} src={rawPreviewFile.url} unoptimized width={1600} /></div> : rawPreviewText !== null ? <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap bg-white p-4 text-sm leading-7">{rawPreviewText}</pre> : <div className="grid h-[420px] place-items-center p-6 text-center"><div><FileText className="mx-auto mb-3 size-9 text-slate-400" /><p className="font-medium">此文件类型不支持在线预览</p><p className="mt-2 text-sm text-muted-foreground">可下载原文件后在本地查看。</p>{rawPreviewDocument ? <Button className="mt-4" onClick={() => void handleDownload(rawPreviewDocument)} variant="outline"><Download />下载原文件</Button> : null}</div></div>}
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

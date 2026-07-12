@@ -3673,8 +3673,10 @@ textarea:disabled {
   color: var(--muted-foreground);
   height: 15px;
   left: 10px;
+  pointer-events: none;
   position: absolute;
-  top: 33px;
+  top: 50%;
+  transform: translateY(-50%);
   width: 15px;
 }
 

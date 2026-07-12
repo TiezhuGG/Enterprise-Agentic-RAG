@@ -54,7 +54,13 @@ export function DocumentAccessScopePanel() {
   const spaceMembers = useWorkbenchStore((state) => state.spaceMembers);
   const updateDocumentAccessScope = useWorkbenchStore((state) => state.updateDocumentAccessScope);
   const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
-  const currentMember = spaceMembers.find((member) => member.userId === authUser?.id) ?? null;
+  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
+  const spaces = useWorkbenchStore((state) => state.spaces);
+  const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
+  const currentMember =
+    selectedSpace?.members.find((member) => member.userId === authUser?.id) ??
+    spaceMembers.find((member) => member.userId === authUser?.id) ??
+    null;
   const owner = spaceMembers.find((member) => member.role === 'OWNER') ?? null;
   const role = currentMember?.role ?? 'VIEWER';
   const canManage = role === 'OWNER' || role === 'EDITOR';
@@ -89,7 +95,7 @@ export function DocumentAccessScopePanel() {
           <CardTitle>访问范围</CardTitle>
           <CardDescription>{selectedDocument ? '控制谁可以查看、检索、预览和引用当前文档。' : '请先选择一份文档。'}</CardDescription>
         </div>
-        <Badge variant={canManage ? 'success' : 'secondary'}>你的角色：{roleLabels[role]}</Badge>
+        <Badge variant={canManage ? 'success' : 'secondary'}>空间角色：{roleLabels[role]}</Badge>
       </CardHeader>
       <CardContent>
         {documentAccessScopeError ? <div className="workbench-error">{documentAccessScopeError}</div> : null}
