@@ -88,7 +88,10 @@ export class IngestionService {
     this.observabilityService.ensureExecutionId(context);
 
     const activeDocument = await this.findWritableDocument(context, documentId);
-    const pipelineJob = await this.pipelineService.startQueuedDocumentJob(context, activeDocument, {
+    const queuedDocument = await this.documentRepository.update(activeDocument.id, {
+      status: 'CREATED',
+    });
+    const pipelineJob = await this.pipelineService.startQueuedDocumentJob(context, queuedDocument, {
       force: options.force,
       includeEmbedding: options.includeEmbedding,
       includeGraph: options.includeGraph,
@@ -107,9 +110,9 @@ export class IngestionService {
     });
 
     return {
-      documentId: activeDocument.id,
+      documentId: queuedDocument.id,
       pipelineJobId: pipelineJob.id,
-      spaceId: activeDocument.spaceId,
+      spaceId: queuedDocument.spaceId,
       status: 'QUEUED',
     };
   }

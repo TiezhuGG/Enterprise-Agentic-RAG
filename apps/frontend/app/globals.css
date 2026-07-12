@@ -1318,6 +1318,25 @@ textarea:disabled {
   margin: 0;
 }
 
+.document-access-scope__readonly,
+.space-profile-panel__readonly {
+  display: grid;
+  gap: 14px;
+  min-width: 0;
+}
+
+.document-access-scope__readonly > p,
+.space-profile-panel__readonly > p {
+  background: #f8fafc;
+  border: 1px dashed var(--border);
+  color: var(--muted-foreground);
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0;
+  overflow-wrap: anywhere;
+  padding: 10px 12px;
+}
+
 .space-switcher-form,
 .space-profile-panel {
   display: grid;
@@ -1398,6 +1417,37 @@ textarea:disabled {
 
 .space-profile-panel__hint {
   margin: 0;
+}
+
+.space-profile-panel__details {
+  display: grid;
+  gap: 0;
+  margin: 0;
+  min-width: 0;
+}
+
+.space-profile-panel__details div {
+  align-items: start;
+  border-bottom: 1px solid var(--border);
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(96px, 0.35fr) minmax(0, 1fr);
+  padding: 9px 0;
+}
+
+.space-profile-panel__details div:first-child {
+  border-top: 1px solid var(--border);
+}
+
+.space-profile-panel__details dt {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.space-profile-panel__details dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
 }
 
 .document-preview-panel {
@@ -4280,5 +4330,10 @@ textarea:disabled {
   .space-members-panel__form > button {
     justify-self: stretch;
     width: 100%;
+  }
+
+  .space-profile-panel__details div {
+    gap: 4px;
+    grid-template-columns: 1fr;
   }
 }

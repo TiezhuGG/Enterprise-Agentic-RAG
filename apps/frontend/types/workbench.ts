@@ -128,7 +128,13 @@ export interface DocumentVersion {
 
 export interface UploadDocumentVersionResponse {
   document: KnowledgeDocument;
+  ingestionJob: IngestionJobResponse | null;
   version: DocumentVersion;
+}
+
+export interface UploadDocumentResponse {
+  document: KnowledgeDocument;
+  ingestionJob: IngestionJobResponse | null;
 }
 
 export interface DocumentContentCleanerMetadata {

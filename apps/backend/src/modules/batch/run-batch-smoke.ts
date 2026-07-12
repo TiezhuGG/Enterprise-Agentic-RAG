@@ -37,11 +37,12 @@ async function main() {
       spaceIds: [...new Set([...context.spaceIds, space.id])],
     };
 
-    const [policyDocument, guidelineDocument] = await Promise.all([
+    const [policyUpload, guidelineUpload] = await Promise.all([
       uploadService.uploadDocument(
         context,
         space.id,
         {
+          autoIngest: false,
           description: 'Batch smoke reimbursement policy',
           title: `Batch Smoke Reimbursement ${stamp}`,
         },
@@ -64,6 +65,7 @@ async function main() {
         context,
         space.id,
         {
+          autoIngest: false,
           description: 'Batch smoke knowledge base guideline',
           title: `Batch Smoke Guideline ${stamp}`,
         },
@@ -79,6 +81,9 @@ async function main() {
         ),
       ),
     ]);
+
+    const policyDocument = policyUpload.document;
+    const guidelineDocument = guidelineUpload.document;
 
     const [category, policyTag, smokeTag] = await Promise.all([
       taxonomyService.createCategory(context, space.id, {

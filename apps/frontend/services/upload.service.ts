@@ -1,4 +1,4 @@
-import type { KnowledgeDocument, UploadDocumentVersionResponse } from '@/types/workbench';
+import type { UploadDocumentResponse, UploadDocumentVersionResponse } from '@/types/workbench';
 import { createApiUrl, getAuthToken, readApiError } from './api-client';
 
 export const uploadService = {
@@ -6,7 +6,7 @@ export const uploadService = {
     spaceId: string,
     file: File,
     input: { title?: string; description?: string } = {},
-  ): Promise<KnowledgeDocument> {
+  ): Promise<UploadDocumentResponse> {
     const formData = new FormData();
     formData.append('file', file);
 
@@ -29,7 +29,7 @@ export const uploadService = {
       throw await readApiError(response);
     }
 
-    return (await response.json()) as KnowledgeDocument;
+    return (await response.json()) as UploadDocumentResponse;
   },
 
   async uploadDocumentVersion(

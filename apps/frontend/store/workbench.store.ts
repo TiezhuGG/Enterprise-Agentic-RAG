@@ -87,11 +87,17 @@ interface WorkbenchStore {
   clearDocumentSelection: () => void;
   createSpace: (
     name: string,
-    profile?: { metadata?: KnowledgeSpaceMetadata; type?: KnowledgeSpaceType },
+    profile?: {
+      description?: string;
+      metadata?: KnowledgeSpaceMetadata;
+      type?: KnowledgeSpaceType;
+      visibility?: KnowledgeSpace['visibility'];
+    },
   ) => Promise<void>;
   createCategory: (name: string) => Promise<void>;
   createTag: (name: string) => Promise<void>;
   deleteSelectedDocument: () => Promise<void>;
+  deleteSelectedSpace: () => Promise<void>;
   addSpaceMember: (email: string, role: SpaceMemberRole) => Promise<void>;
   ingestSelectedDocument: () => Promise<void>;
   initialize: () => Promise<void>;
@@ -117,6 +123,7 @@ interface WorkbenchStore {
   updateDocumentTaxonomy: (input: UpdateDocumentTaxonomyRequest) => Promise<void>;
   updateDocumentAccessScope: (accessScope: DocumentAccessScope) => Promise<void>;
   updateSelectedSpaceProfile: (profile: {
+    description?: string;
     metadata?: KnowledgeSpaceMetadata;
     name?: string;
     type?: KnowledgeSpaceType;
@@ -416,7 +423,12 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
   async createSpace(
     name: string,
-    profile?: { metadata?: KnowledgeSpaceMetadata; type?: KnowledgeSpaceType },
+    profile?: {
+      description?: string;
+      metadata?: KnowledgeSpaceMetadata;
+      type?: KnowledgeSpaceType;
+      visibility?: KnowledgeSpace['visibility'];
+    },
   ) {
     const trimmedName = name.trim();
 
@@ -428,9 +440,11 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
     try {
       const space = await knowledgeSpaceService.create({
+        description: profile?.description,
         metadata: profile?.metadata,
         name: trimmedName,
         type: profile?.type,
+        visibility: profile?.visibility,
       });
 
       set((state) => ({
@@ -544,6 +558,57 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     }
   },
 
+  async deleteSelectedSpace() {
+    const spaceId = get().selectedSpaceId;
+
+    if (!spaceId) {
+      return;
+    }
+
+    set({ error: null, loading: true });
+
+    try {
+      await knowledgeSpaceService.delete(spaceId);
+      const spaces = await knowledgeSpaceService.list();
+      const nextSpaceId = spaces[0]?.id ?? null;
+
+      persistSelectedSpaceId(nextSpaceId);
+      set({
+        categories: [],
+        documentAccessScope: null,
+        documentAccessScopeError: null,
+        documentMetadata: null,
+        documentPreview: null,
+        documentPreviewError: null,
+        documentTaxonomy: null,
+        documentTaxonomyError: null,
+        documentVersions: [],
+        documentVersionsError: null,
+        documents: [],
+        ingestionState: { status: 'idle' },
+        ingestionStatus: null,
+        loading: false,
+        pipelineEvents: [],
+        pipelineJobs: [],
+        selectedDocumentId: null,
+        selectedDocumentIds: [],
+        selectedPipelineJobId: null,
+        selectedSpaceId: nextSpaceId,
+        spaceMembers: [],
+        spaceMembersError: null,
+        spaces,
+        tags: [],
+        taxonomyError: null,
+      });
+
+      if (nextSpaceId) {
+        await get().selectSpace(nextSpaceId);
+      }
+    } catch (error) {
+      set({ error: toErrorMessage(error), loading: false });
+    }
+  },
+
   async ingestSelectedDocument() {
     const documentId = get().selectedDocumentId;
     const spaceId = get().selectedSpaceId;
@@ -570,7 +635,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
           document.id === documentId
             ? {
                 ...document,
-                status: 'PROCESSING',
+                status: 'CREATED',
               }
             : document,
         ),
@@ -1390,7 +1455,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     });
 
     try {
-      const document = await uploadService.uploadDocument(spaceId, file, {
+      const response = await uploadService.uploadDocument(spaceId, file, {
         title: file.name,
       });
 
@@ -1402,7 +1467,11 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       });
 
       await get().loadDocuments(spaceId);
-      await get().selectDocument(document.id);
+      await get().selectDocument(response.document.id);
+      if (response.ingestionJob) {
+        await get().loadPipeline(response.document.id, response.ingestionJob.pipelineJobId);
+        get().pollIngestionJob(response.document.id, response.ingestionJob.pipelineJobId);
+      }
     } catch (error) {
       set({
         error: toErrorMessage(error),
@@ -1444,6 +1513,10 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       await get().loadDocuments(spaceId);
       await get().selectDocument(response.document.id);
       await get().loadDocumentPreview(response.document.id);
+      if (response.ingestionJob) {
+        await get().loadPipeline(response.document.id, response.ingestionJob.pipelineJobId);
+        get().pollIngestionJob(response.document.id, response.ingestionJob.pipelineJobId);
+      }
     } catch (error) {
       set({
         error: toErrorMessage(error),

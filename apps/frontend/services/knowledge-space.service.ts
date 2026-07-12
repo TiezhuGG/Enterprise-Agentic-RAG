@@ -8,6 +8,7 @@ import type {
 import { createApiUrl, createJsonHeaders, readApiError } from './api-client';
 
 export interface CreateKnowledgeSpaceRequest {
+  description?: string;
   metadata?: KnowledgeSpaceMetadata;
   name: string;
   type?: KnowledgeSpaceType;
@@ -71,6 +72,19 @@ export const knowledgeSpaceService = {
     const response = await fetch(createApiUrl(`/spaces/${spaceId}`), {
       headers: createJsonHeaders(),
       method: 'GET',
+    });
+
+    if (!response.ok) {
+      throw await readApiError(response);
+    }
+
+    return (await response.json()) as KnowledgeSpace;
+  },
+
+  async delete(spaceId: string): Promise<KnowledgeSpace> {
+    const response = await fetch(createApiUrl(`/spaces/${spaceId}`), {
+      headers: createJsonHeaders(),
+      method: 'DELETE',
     });
 
     if (!response.ok) {

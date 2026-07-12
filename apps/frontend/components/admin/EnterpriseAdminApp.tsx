@@ -2,19 +2,16 @@
 
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Activity,
   BookOpen,
   Bot,
   CheckCircle2,
-  CircleHelp,
   Database,
-  Download,
   Eye,
   FileArchive,
   FileText,
-  FolderOpen,
   Gauge,
   Loader2,
   LogOut,
@@ -32,6 +29,7 @@ import {
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 'recharts';
 import { AgentDebugWorkbench } from '@/components/agent-debug';
 import { ConsoleShell } from '@/components/admin/ConsoleShell';
+import { SpaceCreationDialog } from '@/components/workbench/SpaceCreationDialog';
 import { SearchCenter } from '@/components/search';
 import { DocumentAccessScopePanel } from '@/components/workbench/DocumentAccessScopePanel';
 import { DocumentPreviewPanel } from '@/components/workbench/DocumentPreviewPanel';
@@ -83,7 +81,7 @@ import {
 } from '@/components/ui/table';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
-import { documentService, type DocumentFileBlob } from '@/services/document.service';
+import { documentService } from '@/services/document.service';
 import { pipelineService } from '@/services/pipeline.service';
 import { useChatStore, type AgentTraceItem, type ChatMessage } from '@/store/chat.store';
 import { useObservabilityStore } from '@/store/observability.store';
@@ -158,10 +156,10 @@ const loginHighlights: Array<{ label: string; icon: LucideIcon }> = [
 
 const statusLabel: Record<DocumentStatus, string> = {
   ARCHIVED: '已归档',
-  CREATED: '待解析',
-  FAILED: '解析失败',
-  PROCESSING: '解析中',
-  READY: '解析完成',
+  CREATED: '待入库',
+  FAILED: '处理失败',
+  PROCESSING: '处理中',
+  READY: '可检索',
 };
 
 const statusVariant: Record<DocumentStatus, BadgeProps['variant']> = {
@@ -196,12 +194,6 @@ const statusColor: Record<DocumentStatus, string> = {
   FAILED: '#ef4444',
   PROCESSING: '#f59e0b',
   READY: '#22c55e',
-};
-
-const executionStatusLabels: Record<string, string> = {
-  FAILED: '失败',
-  RUNNING: '运行中',
-  SUCCEEDED: '成功',
 };
 
 const executionSourceLabels: Record<string, string> = {
@@ -239,9 +231,6 @@ const executionEventTypeLabels: Record<string, string> = {
   stage: '阶段',
 };
 
-const previewableDocumentTypes = new Set<DocumentType>(['PDF', 'IMAGE', 'TXT', 'MARKDOWN']);
-const textPreviewDocumentTypes = new Set<DocumentType>(['TXT', 'MARKDOWN']);
-
 const formatDateTime = (value?: string | null): string => {
   if (!value) {
     return '-';
@@ -255,9 +244,6 @@ const formatDateTime = (value?: string | null): string => {
     year: 'numeric',
   }).format(new Date(value));
 };
-
-const getExecutionStatusLabel = (status: string): string =>
-  executionStatusLabels[status] ?? status;
 
 const getExecutionSourceLabel = (source: string): string => {
   const normalized = source.toLowerCase();
@@ -292,17 +278,6 @@ const formatSize = (size: number | null): string => {
   }
 
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
-};
-
-const formatSpaceType = (type?: string | null): string => {
-  const labels: Record<string, string> = {
-    CUSTOMER: '客户空间',
-    DEPARTMENT: '部门空间',
-    GENERAL: '通用空间',
-    PROJECT: '项目空间',
-  };
-
-  return type ? labels[type] ?? type : '-';
 };
 
 const formatSpaceVisibility = (visibility?: string | null): string => {
@@ -384,6 +359,341 @@ function SectionContent({
     default:
       return <DashboardPage />;
   }
+}
+
+const workspaceStatusLabels: Record<DocumentStatus, string> = {
+  ARCHIVED: '已归档',
+  CREATED: '待入库',
+  FAILED: '处理失败',
+  PROCESSING: '处理中',
+  READY: '可检索',
+};
+
+const pipelineStatusLabels: Record<PipelineJobStatus, string> = {
+  CANCELED: '已取消',
+  FAILED: '失败',
+  QUEUED: '排队中',
+  RUNNING: '处理中',
+  SUCCEEDED: '成功',
+};
+
+const workspaceSpaceTypeLabels = {
+  CUSTOMER: '客户知识库',
+  DEPARTMENT: '部门知识库',
+  GENERAL: '通用知识库',
+  PROJECT: '项目知识库',
+} as const;
+
+function DocumentSpacesPage() {
+  const router = useRouter();
+  const authUser = useWorkbenchStore((state) => state.authUser);
+  const deleteSelectedSpace = useWorkbenchStore((state) => state.deleteSelectedSpace);
+  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
+  const spaceMembers = useWorkbenchStore((state) => state.spaceMembers);
+  const spaces = useWorkbenchStore((state) => state.spaces);
+  const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
+  const currentMember = spaceMembers.find((member) => member.userId === authUser?.id) ?? null;
+  const canDelete = currentMember?.role === 'OWNER';
+  const [creationOpen, setCreationOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deleteConfirmation, setDeleteConfirmation] = useState('');
+
+  const handleDelete = async () => {
+    if (!selectedSpace || deleteConfirmation.trim() !== selectedSpace.name) {
+      return;
+    }
+
+    await deleteSelectedSpace();
+    setDeleteOpen(false);
+    setDeleteConfirmation('');
+    router.replace(buildConsoleHref('document-spaces'));
+  };
+
+  return (
+    <div className="grid min-w-0 gap-4">
+      <PageHeader
+        actions={<Button onClick={() => setCreationOpen(true)}><Plus />创建知识空间</Button>}
+        description="知识空间是成员、资料和 AI 检索范围的隔离边界；按部门、项目或客户创建独立的知识域。"
+        title="知识空间"
+      />
+      {!selectedSpace ? (
+        <EmptyState
+          action={<Button onClick={() => setCreationOpen(true)}><Plus />创建第一个知识空间</Button>}
+          description="创建后即可邀请成员、上传资料，并将检索与问答限定在这个知识范围内。"
+          icon={Database}
+          title="还没有知识空间"
+        />
+      ) : (
+        <>
+          <section className="grid min-w-0 gap-4 border border-border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+            <div className="min-w-0">
+              <div className="flex min-w-0 items-center gap-2">
+                <h2 className="truncate text-base font-semibold" title={selectedSpace.name}>{selectedSpace.name}</h2>
+                <Badge variant="secondary">{workspaceSpaceTypeLabels[selectedSpace.type]}</Badge>
+              </div>
+              <p className="mt-1 max-w-3xl break-words text-sm text-muted-foreground">{selectedSpace.description || '未填写空间说明。'}</p>
+            </div>
+            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
+              <span>可见范围：{formatSpaceVisibility(selectedSpace.visibility)}</span>
+              <span>{spaceMembers.length} 名成员</span>
+            </div>
+          </section>
+          <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+            <div className="min-w-0"><SpaceProfilePanel /></div>
+            <div className="min-w-0"><SpaceMembersPanel /></div>
+          </div>
+          <Card className="min-w-0 border-destructive/30">
+            <CardHeader>
+              <CardTitle className="text-base">空间生命周期</CardTitle>
+              <CardDescription>删除空间会将其从常规工作区中移除，后端继续保留软删除审计记录。</CardDescription>
+            </CardHeader>
+            <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+              <p className="text-sm text-muted-foreground">
+                {canDelete ? '仅负责人可以删除空间。' : '当前仅负责人可以删除空间。'}
+              </p>
+              {canDelete ? <Button onClick={() => setDeleteOpen(true)} variant="destructive"><Trash2 />删除空间</Button> : null}
+            </CardContent>
+          </Card>
+        </>
+      )}
+      <SpaceCreationDialog onOpenChange={setCreationOpen} open={creationOpen} />
+      <Dialog onOpenChange={setDeleteOpen} open={deleteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>删除知识空间</DialogTitle>
+            <DialogDescription>
+              此操作会停止该空间的日常访问。请输入空间名称“{selectedSpace?.name}”确认。
+            </DialogDescription>
+          </DialogHeader>
+          <Input onChange={(event) => setDeleteConfirmation(event.target.value)} placeholder={selectedSpace?.name} value={deleteConfirmation} />
+          <DialogFooter>
+            <Button onClick={() => setDeleteOpen(false)} variant="outline">取消</Button>
+            <Button disabled={!selectedSpace || deleteConfirmation.trim() !== selectedSpace.name} onClick={() => void handleDelete()} variant="destructive"><Trash2 />确认删除</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </div>
+  );
+}
+
+function DocumentAccessPage() {
+  const searchParams = useSearchParams();
+  const documents = useWorkbenchStore((state) => state.documents);
+  const selectedDocumentId = useWorkbenchStore((state) => state.selectedDocumentId);
+  const selectDocument = useWorkbenchStore((state) => state.selectDocument);
+  const documentIdFromUrl = searchParams.get('document');
+  const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
+
+  useEffect(() => {
+    if (
+      documentIdFromUrl &&
+      documentIdFromUrl !== selectedDocumentId &&
+      documents.some((document) => document.id === documentIdFromUrl)
+    ) {
+      void selectDocument(documentIdFromUrl);
+    }
+  }, [documentIdFromUrl, documents, selectDocument, selectedDocumentId]);
+
+  return (
+    <div className="grid min-w-0 gap-4">
+      <PageHeader
+        description="为文档设置安全级别和部门访问范围。空间成员角色决定是否可以修改这些规则。"
+        title="访问权限"
+      />
+      <section className="grid min-w-0 gap-3 border border-border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">当前文档</p>
+          <p className="mt-1 truncate text-base font-semibold text-foreground" title={selectedDocument?.title}>{selectedDocument?.title ?? '尚未选择文档'}</p>
+        </div>
+        {selectedDocument ? <Badge variant={statusVariant[selectedDocument.status]}>{workspaceStatusLabels[selectedDocument.status]}</Badge> : null}
+      </section>
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(280px,0.7fr)_minmax(0,1.3fr)]">
+        <Card className="min-w-0">
+          <CardHeader><CardTitle>选择文档</CardTitle><CardDescription>先选择需要查看或调整访问范围的文档。</CardDescription></CardHeader>
+          <CardContent className="grid max-h-[65vh] gap-1 overflow-auto">
+            {documents.length === 0 ? <p className="text-sm text-muted-foreground">当前空间还没有文档。</p> : null}
+            {documents.map((document) => (
+              <Button className="justify-start" key={document.id} onClick={() => void selectDocument(document.id)} variant={document.id === selectedDocumentId ? 'secondary' : 'ghost'}>
+                <FileText className="size-4" /><span className="truncate" title={document.title}>{document.title}</span>
+              </Button>
+            ))}
+          </CardContent>
+        </Card>
+        <div className="min-w-0"><DocumentAccessScopePanel /></div>
+      </div>
+    </div>
+  );
+}
+
+function DocumentTasksPage() {
+  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
+  const [error, setError] = useState<string | null>(null);
+  const [jobs, setJobs] = useState<SpacePipelineJob[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<PipelineJobStatus | 'ALL'>('ALL');
+
+  useEffect(() => {
+    if (!selectedSpaceId) {
+      setJobs([]);
+      return;
+    }
+    let active = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const result = await pipelineService.listSpaceJobs(selectedSpaceId, { limit: 50, status: status === 'ALL' ? undefined : status });
+        if (active) {
+          setError(null);
+          setJobs(result.items);
+        }
+      } catch (loadError) {
+        if (active) setError(loadError instanceof Error ? loadError.message : '加载入库任务失败。');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+    void load();
+    const timer = window.setInterval(load, 2000);
+    return () => {
+      active = false;
+      window.clearInterval(timer);
+    };
+  }, [selectedSpaceId, status]);
+
+  return (
+    <div className="grid min-w-0 gap-4">
+      <PageHeader
+        actions={<Select onValueChange={(value) => setStatus(value as PipelineJobStatus | 'ALL')} value={status}><SelectTrigger className="w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">全部状态</SelectItem>{Object.entries(pipelineStatusLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>}
+        description="上传后的文档会自动进入队列。这里用于查看等待、处理、失败和重新处理的任务记录。"
+        title="入库任务"
+      />
+      <Card className="min-w-0"><CardContent className="grid gap-3 p-4">
+        {!selectedSpaceId ? <p className="text-sm text-muted-foreground">请先在顶部选择知识空间。</p> : null}
+        {error ? <ErrorBanner message={error} /> : null}
+        {loading && jobs.length === 0 ? <p className="text-sm text-muted-foreground">正在加载任务...</p> : null}
+        {!loading && selectedSpaceId && jobs.length === 0 ? <p className="text-sm text-muted-foreground">当前空间暂无入库任务。</p> : null}
+        {jobs.map((job) => <article className="grid min-w-0 gap-2 border-b border-border pb-3 text-sm last:border-0 last:pb-0 md:grid-cols-[minmax(0,1fr)_auto] md:items-center" key={job.id}><div className="min-w-0"><p className="truncate font-medium">{job.document.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{job.latestEvent?.stage ?? '等待处理'} · {formatDateTime(job.updatedAt)}</p></div><Badge className="w-fit" variant={job.status === 'SUCCEEDED' ? 'success' : job.status === 'FAILED' ? 'destructive' : 'warning'}>{pipelineStatusLabels[job.status]}</Badge></article>)}
+      </CardContent></Card>
+    </div>
+  );
+}
+
+function DocumentsPage() {
+  const router = useRouter();
+  const deleteSelectedDocument = useWorkbenchStore((state) => state.deleteSelectedDocument);
+  const documents = useWorkbenchStore((state) => state.documents);
+  const ingestSelectedDocument = useWorkbenchStore((state) => state.ingestSelectedDocument);
+  const ingestionOptions = useWorkbenchStore((state) => state.ingestionOptions);
+  const ingestionState = useWorkbenchStore((state) => state.ingestionState);
+  const ingestionStatus = useWorkbenchStore((state) => state.ingestionStatus);
+  const loadingDocuments = useWorkbenchStore((state) => state.loadingDocuments);
+  const selectedDocumentId = useWorkbenchStore((state) => state.selectedDocumentId);
+  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
+  const selectDocument = useWorkbenchStore((state) => state.selectDocument);
+  const setIngestionOptions = useWorkbenchStore((state) => state.setIngestionOptions);
+  const uploadDocument = useWorkbenchStore((state) => state.uploadDocument);
+  const uploadState = useWorkbenchStore((state) => state.uploadState);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [file, setFile] = useState<File | null>(null);
+  const [keyword, setKeyword] = useState('');
+  const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'ALL'>('ALL');
+  const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
+  const filteredDocuments = useMemo(() => documents.filter((document) => document.title.toLowerCase().includes(keyword.trim().toLowerCase()) && (statusFilter === 'ALL' || document.status === statusFilter)), [documents, keyword, statusFilter]);
+
+  const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!file) return;
+    await uploadDocument(file);
+    setFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  const handleReprocess = async (documentId: string) => {
+    await selectDocument(documentId);
+    await ingestSelectedDocument();
+  };
+
+  return (
+    <div className="grid min-w-0 gap-4">
+      <PageHeader
+        actions={!selectedSpaceId ? <Button onClick={() => router.push(buildConsoleHref('document-spaces'))} variant="outline"><Database />创建知识空间</Button> : undefined}
+        description="在当前知识空间上传资料。系统会自动将文件排队、解析、分块、向量化并建立检索索引。"
+        title="文档中心"
+      />
+      <section className="grid min-w-0 gap-3 border border-border bg-card p-4 md:grid-cols-3">
+        <StatusStep label="知识空间" value={selectedSpaceId ? '已选择' : '待选择'} tone={selectedSpaceId ? 'success' : 'default'} />
+        <StatusStep label="文档上传" value={uploadState.status === 'uploading' ? '上传中' : file ? '待上传' : '就绪'} tone={uploadState.status === 'uploading' ? 'warning' : 'default'} />
+        <StatusStep label="自动入库" value={ingestionState.status === 'queued' ? '排队中' : ingestionState.status === 'running' ? '处理中' : selectedDocument ? workspaceStatusLabels[selectedDocument.status] : '待选择'} tone={selectedDocument?.status === 'READY' ? 'success' : ingestionState.status === 'queued' || ingestionState.status === 'running' ? 'warning' : 'default'} />
+      </section>
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <Card className="min-w-0">
+          <CardHeader className="gap-4">
+            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><CardTitle>文档列表</CardTitle><CardDescription>当前显示 {filteredDocuments.length} / {documents.length} 份文档。</CardDescription></div><form className="flex flex-wrap gap-2" onSubmit={handleUpload}><input accept={acceptedDocumentTypes} hidden onChange={(event) => setFile(event.target.files?.[0] ?? null)} ref={fileInputRef} type="file" /><Button disabled={!selectedSpaceId || uploadState.status === 'uploading'} onClick={() => fileInputRef.current?.click()} type="button" variant="outline"><UploadCloud />选择文件</Button><Button disabled={!selectedSpaceId || !file || uploadState.status === 'uploading'} type="submit">{uploadState.status === 'uploading' ? <Loader2 className="animate-spin" /> : <UploadCloud />}上传并自动入库</Button></form></div>
+            <div className="grid min-w-0 gap-2 md:grid-cols-[minmax(0,1fr)_180px]"><Input onChange={(event) => setKeyword(event.target.value)} placeholder="搜索文档名称" value={keyword} /><Select onValueChange={(value) => setStatusFilter(value as DocumentStatus | 'ALL')} value={statusFilter}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">全部状态</SelectItem>{Object.entries(workspaceStatusLabels).map(([status, label]) => <SelectItem key={status} value={status}>{label}</SelectItem>)}</SelectContent></Select></div>
+            {file ? <p className="text-xs text-muted-foreground">已选择：{file.name}</p> : null}
+          </CardHeader>
+          <CardContent>
+            {!selectedSpaceId ? <EmptyState action={<Button onClick={() => router.push(buildConsoleHref('document-spaces'))} variant="outline">前往知识空间</Button>} description="先创建或选择知识空间，再上传文档。" icon={Database} title="请选择知识空间" /> : loadingDocuments ? <div className="grid gap-3"><Skeleton className="h-12" /><Skeleton className="h-12" /><Skeleton className="h-12" /></div> : filteredDocuments.length === 0 ? <EmptyState description="当前筛选条件下没有文档。" icon={FileText} title="暂无文档" /> : <div className="overflow-x-auto"><Table className="min-w-[720px]"><TableHeader><TableRow><TableHead>文档名称</TableHead><TableHead>类型</TableHead><TableHead>大小</TableHead><TableHead>处理状态</TableHead><TableHead>更新时间</TableHead><TableHead className="text-right">操作</TableHead></TableRow></TableHeader><TableBody>{filteredDocuments.map((document) => <TableRow className={cn(document.id === selectedDocumentId && 'bg-muted/60')} key={document.id} onClick={() => void selectDocument(document.id)}><TableCell><div className="flex min-w-0 items-center gap-2"><DocumentTypeIcon type={document.type} /><span className="max-w-64 truncate font-medium" title={document.title}>{document.title}</span></div></TableCell><TableCell>{typeLabel[document.type]}</TableCell><TableCell>{formatSize(document.size)}</TableCell><TableCell><div className="grid min-w-32 gap-1"><Badge className="w-fit" variant={statusVariant[document.status]}>{workspaceStatusLabels[document.status]}</Badge><Progress className="h-1.5" value={statusProgress[document.status]} /></div></TableCell><TableCell>{formatDateTime(document.updatedAt)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost"><MoreHorizontal /><span className="sr-only">打开操作</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void selectDocument(document.id); }}><Eye className="size-4" />查看详情</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); router.push(buildConsoleHref('document-access', { document: document.id, space: selectedSpaceId })); }}><ShieldCheck className="size-4" />管理访问范围</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleReprocess(document.id); }}><RefreshCw className="size-4" />{document.status === 'FAILED' ? '重试入库' : '重新处理'}</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={(event) => { event.stopPropagation(); void selectDocument(document.id).then(() => deleteSelectedDocument()); }}><Trash2 className="size-4" />删除文档</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)}</TableBody></Table></div>}
+          </CardContent>
+        </Card>
+        <div className="grid min-w-0 gap-4">
+          <DocumentPreviewPanel />
+          <Card className="min-w-0"><CardHeader><CardTitle>文档处理</CardTitle><CardDescription>{selectedDocument?.title ?? '选择一份文档后查看处理状态。'}</CardDescription></CardHeader><CardContent className="grid gap-4">{selectedDocument ? <><div className="grid gap-3 rounded-md border bg-muted/35 p-3 text-sm"><MetricLine label="文档状态" value={workspaceStatusLabels[selectedDocument.status]} /><MetricLine label="分块数量" value={ingestionStatus?.chunkCount ?? '-'} /><MetricLine label="向量数量" value={ingestionStatus?.embeddingCount ?? '-'} /><MetricLine label="图谱实体" value={ingestionStatus?.graphEntityCount ?? '-'} /></div><label className="flex items-center gap-2 rounded-md border p-3 text-sm"><input checked={ingestionOptions.includeGraph} onChange={(event) => setIngestionOptions({ includeGraph: event.target.checked })} type="checkbox" /><span>重新处理时抽取知识图谱</span></label><Button disabled={ingestionState.status === 'queued' || ingestionState.status === 'running'} onClick={() => void ingestSelectedDocument()}>{ingestionState.status === 'queued' || ingestionState.status === 'running' ? <Loader2 className="animate-spin" /> : <RefreshCw />}{ingestionState.status === 'queued' ? '排队中' : ingestionState.status === 'running' ? '处理中' : selectedDocument.status === 'FAILED' ? '重试入库' : '重新处理'}</Button><p className="text-xs leading-6 text-muted-foreground">上传后默认执行解析、分块、向量化和索引。图谱抽取只在重新处理时按当前选项执行。</p></> : <EmptyState description="从文档列表选择一份文档。" icon={FileText} title="未选择文档" />}</CardContent></Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function StatusStep({ label, tone, value }: { label: string; tone: 'default' | 'success' | 'warning'; value: string }) {
+  return <div className="min-w-0 border border-border bg-slate-50 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{label}</span><Badge variant={tone === 'success' ? 'success' : tone === 'warning' ? 'warning' : 'secondary'}>{value}</Badge></div></div>;
+}
+
+function SystemPage({ activeTab }: { activeTab: 'status' | 'executions' | 'debug' }) {
+  const authToken = useWorkbenchStore((state) => state.authToken);
+  const clearAuth = useWorkbenchStore((state) => state.clearAuth);
+  const setAuthToken = useWorkbenchStore((state) => state.setAuthToken);
+  const executionRuns = useObservabilityStore((state) => state.executionRuns);
+  const loadingReadiness = useObservabilityStore((state) => state.loadingReadiness);
+  const metricsBreakdown = useObservabilityStore((state) => state.metricsBreakdown);
+  const readiness = useObservabilityStore((state) => state.readiness);
+  const refresh = useObservabilityStore((state) => state.refresh);
+  const selectExecution = useObservabilityStore((state) => state.selectExecution);
+  const selectedRun = useObservabilityStore((state) => state.selectedRun);
+  const timeline = useObservabilityStore((state) => state.timeline);
+  const [manualToken, setManualTokenDraft] = useState(authToken);
+  const page = {
+    debug: { description: '用于排查认证与 Agent 执行问题的受限工具。', title: '高级调试' },
+    executions: { description: '查看检索、问答和入库等操作的执行时间线。', title: '执行记录' },
+    status: { description: '监控服务可用性、依赖检查和运行指标。', title: '系统健康' },
+  }[activeTab];
+
+  const handleManualToken = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    await setAuthToken(manualToken);
+  };
+
+  return (
+    <div className="grid gap-4">
+      <PageHeader actions={<Button onClick={() => void refresh()} variant="outline"><RefreshCw />刷新</Button>} description={page.description} title={page.title} />
+      {activeTab === 'status' ? <>
+        <div className="grid gap-4 md:grid-cols-3">
+          <StatCard icon={Gauge} label="总体状态" tone={readiness?.status === 'ok' ? 'success' : 'warning'} value={readiness?.status === 'ok' ? '正常' : '待检查'} />
+          <StatCard icon={Activity} label="监控指标" value={metricsBreakdown ? '已接入' : '待刷新'} />
+          <StatCard icon={Database} label="检查项" value={readiness?.checks.length ?? 0} />
+        </div>
+        <Card><CardHeader><CardTitle>服务健康检查</CardTitle><CardDescription>来自 `/health/readiness` 的依赖与服务检查结果。</CardDescription></CardHeader><CardContent>{loadingReadiness ? <div className="grid gap-3"><Skeleton className="h-10" /><Skeleton className="h-10" /></div> : !readiness ? <EmptyState description="点击刷新获取系统健康状态。" icon={Gauge} title="暂无状态" /> : <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">{readiness.checks.map((check) => <div className="rounded-md border p-3" key={check.name}><div className="flex items-center justify-between gap-2"><span className="font-medium">{check.name}</span><Badge variant={check.status === 'ok' ? 'success' : check.status === 'failed' ? 'destructive' : 'secondary'}>{check.status === 'ok' ? '正常' : check.status === 'failed' ? '失败' : '跳过'}</Badge></div><p className="mt-2 text-xs text-muted-foreground">{check.message ?? `${check.durationMs ?? 0} ms`}</p></div>)}</div>}</CardContent></Card>
+      </> : null}
+      {activeTab === 'executions' ? <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
+        <Card><CardHeader><CardTitle>最近执行</CardTitle><CardDescription>{executionRuns.length} 条记录</CardDescription></CardHeader><CardContent className="grid max-h-[65vh] gap-2 overflow-auto">{executionRuns.length === 0 ? <EmptyState description="问答、搜索或入库后会生成执行记录。" icon={Activity} title="暂无记录" /> : executionRuns.map((run) => <button className="rounded-md border p-3 text-left text-sm transition hover:bg-muted" key={run.executionId} onClick={() => void selectExecution(run.executionId)} type="button"><div className="flex items-center justify-between gap-2"><span className="truncate font-medium">{getExecutionSourceLabel(run.source)}</span><Badge variant={run.status === 'SUCCEEDED' ? 'success' : run.status === 'FAILED' ? 'destructive' : 'warning'}>{run.status === 'SUCCEEDED' ? '成功' : run.status === 'FAILED' ? '失败' : '运行中'}</Badge></div><div className="mt-1 text-xs text-muted-foreground">{formatDateTime(run.startedAt)}</div></button>)}</CardContent></Card>
+        <Card><CardHeader><CardTitle>执行时间线</CardTitle><CardDescription>{selectedRun?.executionId ?? '选择一条执行记录查看详情。'}</CardDescription></CardHeader><CardContent className="grid gap-3">{timeline.length === 0 ? <EmptyState description="选择执行记录后显示处理节点和耗时。" icon={Activity} title="暂无时间线" /> : timeline.map((event) => <div className="grid gap-2 rounded-md border p-3 text-sm" key={event.id}><div className="flex items-center justify-between gap-2"><span className="font-medium">{getExecutionStageLabel(event.stage)}</span><Badge variant={event.status === 'SUCCEEDED' ? 'success' : event.status === 'FAILED' ? 'destructive' : 'secondary'}>{event.status === 'SUCCEEDED' ? '成功' : event.status === 'FAILED' ? '失败' : '跳过'}</Badge></div><div className="flex flex-wrap gap-3 text-xs text-muted-foreground"><span>{getExecutionEventTypeLabel(event.type)}</span><span>{formatDateTime(event.timestamp)}</span><span>{event.durationMs ?? 0} ms</span></div>{event.errorMessage ? <ErrorBanner message={event.errorMessage} /> : null}</div>)}</CardContent></Card>
+      </div> : null}
+      {activeTab === 'debug' ? <>
+        <Card><CardHeader><CardTitle>访问凭证</CardTitle><CardDescription>仅在高级调试场景使用；日常工作区会自动使用当前登录凭证。</CardDescription></CardHeader><CardContent><form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]" onSubmit={handleManualToken}><Input onChange={(event) => setManualTokenDraft(event.target.value)} placeholder="粘贴 JWT Token" type="password" value={manualToken} /><Button type="submit" variant="outline">保存凭证</Button><Button onClick={clearAuth} type="button" variant="outline">清除</Button></form></CardContent></Card>
+        <Card><CardHeader><CardTitle>高级调试面板</CardTitle><CardDescription>用于排查 Agent 的执行链路和节点输出。</CardDescription></CardHeader><CardContent><AgentDebugWorkbench /></CardContent></Card>
+      </> : null}
+    </div>
+  );
 }
 
 export function LoginPage() {
@@ -812,781 +1122,8 @@ function DashboardPage() {
   );
 }
 
-function DocumentSpacesPage() {
-  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
-  const spaces = useWorkbenchStore((state) => state.spaces);
-  const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
-
-  return (
-    <div className="grid min-w-0 gap-4">
-      <PageHeader
-        description="按部门、项目或客户隔离知识资产、成员和检索范围。"
-        title="知识空间"
-      />
-      <section className="grid min-w-0 gap-3 border border-border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">当前知识空间</p>
-          <p className="mt-1 truncate text-base font-semibold text-foreground" title={selectedSpace?.name}>
-            {selectedSpace?.name ?? '尚未选择知识空间'}
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
-          <span>可见性：{formatSpaceVisibility(selectedSpace?.visibility)}</span>
-          <span>空间类型：{formatSpaceType(selectedSpace?.type)}</span>
-        </div>
-      </section>
-      <div className="grid min-w-0 gap-4 xl:grid-cols-2">
-        <div className="min-w-0"><SpaceProfilePanel /></div>
-        <div className="min-w-0"><SpaceMembersPanel /></div>
-      </div>
-    </div>
-  );
-}
-
-function DocumentAccessPage() {
-  const documents = useWorkbenchStore((state) => state.documents);
-  const selectedDocumentId = useWorkbenchStore((state) => state.selectedDocumentId);
-  const selectDocument = useWorkbenchStore((state) => state.selectDocument);
-  const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
-
-  return (
-    <div className="grid min-w-0 gap-4">
-      <PageHeader
-        description="为每份文档定义安全级别、所属部门和允许访问的部门范围。"
-        title="访问权限"
-      />
-      <section className="grid min-w-0 gap-3 border border-border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">当前文档</p>
-          <p className="mt-1 truncate text-base font-semibold text-foreground" title={selectedDocument?.title}>
-            {selectedDocument?.title ?? '尚未选择文档'}
-          </p>
-        </div>
-        {selectedDocument ? (
-          <Badge variant={statusVariant[selectedDocument.status]}>{statusLabel[selectedDocument.status]}</Badge>
-        ) : null}
-      </section>
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(260px,0.7fr)_minmax(0,1.3fr)]">
-        <Card className="min-w-0">
-          <CardHeader>
-            <CardTitle>选择文档</CardTitle>
-            <CardDescription>从当前空间选择需要查看或调整访问范围的文档。</CardDescription>
-          </CardHeader>
-          <CardContent className="grid gap-1">
-            {documents.length === 0 ? <p className="text-sm text-muted-foreground">当前空间还没有文档。</p> : null}
-            {documents.map((document) => (
-              <Button
-                className="justify-start"
-                key={document.id}
-                onClick={() => void selectDocument(document.id)}
-                variant={document.id === selectedDocumentId ? 'secondary' : 'ghost'}
-              >
-                <FileText className="size-4" />
-                <span className="truncate" title={document.title}>{document.title}</span>
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
-        <div className="min-w-0"><DocumentAccessScopePanel /></div>
-      </div>
-    </div>
-  );
-}
-
-function DocumentTasksPage() {
-  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
-  const [error, setError] = useState<string | null>(null);
-  const [jobs, setJobs] = useState<SpacePipelineJob[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<PipelineJobStatus | 'ALL'>('ALL');
-
-  useEffect(() => {
-    if (!selectedSpaceId) {
-      setJobs([]);
-      return;
-    }
-
-    let active = true;
-    const load = async () => {
-      try {
-        setLoading(true);
-        const result = await pipelineService.listSpaceJobs(selectedSpaceId, {
-          limit: 50,
-          status: status === 'ALL' ? undefined : status,
-        });
-        if (active) {
-          setError(null);
-          setJobs(result.items);
-        }
-      } catch (loadError) {
-        if (active) setError(loadError instanceof Error ? loadError.message : '加载解析任务失败。');
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-
-    void load();
-    const timer = window.setInterval(load, 2000);
-    return () => { active = false; window.clearInterval(timer); };
-  }, [selectedSpaceId, status]);
-
-  return (
-    <div className="grid min-w-0 gap-4">
-      <PageHeader
-        actions={
-          <Select onValueChange={(value) => setStatus(value as PipelineJobStatus | 'ALL')} value={status}>
-            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="ALL">全部状态</SelectItem>
-              <SelectItem value="QUEUED">排队中</SelectItem>
-              <SelectItem value="RUNNING">解析中</SelectItem>
-              <SelectItem value="SUCCEEDED">成功</SelectItem>
-              <SelectItem value="FAILED">失败</SelectItem>
-              <SelectItem value="CANCELED">已取消</SelectItem>
-            </SelectContent>
-          </Select>
-        }
-        description="查看当前知识空间的异步解析任务和最近处理阶段。"
-        title="入库任务"
-      />
-      <Card className="min-w-0">
-        <CardContent className="grid gap-3 p-4">
-          {!selectedSpaceId ? <p className="text-sm text-muted-foreground">请先在顶部选择知识空间。</p> : null}
-          {error ? <div className="workbench-error">{error}</div> : null}
-          {loading && jobs.length === 0 ? <p className="text-sm text-muted-foreground">正在加载任务...</p> : null}
-          {!loading && selectedSpaceId && jobs.length === 0 ? <p className="text-sm text-muted-foreground">当前空间暂无解析任务。</p> : null}
-          {jobs.map((job) => (
-            <article className="grid min-w-0 gap-2 border-b border-border pb-3 text-sm last:border-0 last:pb-0 md:grid-cols-[minmax(0,1fr)_auto] md:items-center" key={job.id}>
-              <div className="min-w-0">
-                <p className="truncate font-medium" title={job.document.title}>{job.document.title}</p>
-                <p className="mt-1 text-xs text-muted-foreground">
-                  {job.latestEvent ? job.latestEvent.stage : '等待处理'} · {formatDateTime(job.updatedAt)}
-                </p>
-              </div>
-              <Badge className="w-fit" variant={job.status === 'SUCCEEDED' ? 'success' : job.status === 'FAILED' ? 'destructive' : 'warning'}>
-                {job.status === 'QUEUED' ? '排队中' : job.status === 'RUNNING' ? '解析中' : job.status === 'SUCCEEDED' ? '成功' : job.status === 'FAILED' ? '失败' : '已取消'}
-              </Badge>
-            </article>
-          ))}
-        </CardContent>
-      </Card>
-    </div>
-  );
-}
-
-function DocumentsPage() {
-  const router = useRouter();
-  const createSpace = useWorkbenchStore((state) => state.createSpace);
-  const deleteSelectedDocument = useWorkbenchStore((state) => state.deleteSelectedDocument);
-  const documents = useWorkbenchStore((state) => state.documents);
-  const ingestSelectedDocument = useWorkbenchStore((state) => state.ingestSelectedDocument);
-  const ingestionOptions = useWorkbenchStore((state) => state.ingestionOptions);
-  const ingestionState = useWorkbenchStore((state) => state.ingestionState);
-  const ingestionStatus = useWorkbenchStore((state) => state.ingestionStatus);
-  const loading = useWorkbenchStore((state) => state.loading);
-  const loadingDocuments = useWorkbenchStore((state) => state.loadingDocuments);
-  const selectedDocumentId = useWorkbenchStore((state) => state.selectedDocumentId);
-  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
-  const selectDocument = useWorkbenchStore((state) => state.selectDocument);
-  const selectSpace = useWorkbenchStore((state) => state.selectSpace);
-  const setIngestionOptions = useWorkbenchStore((state) => state.setIngestionOptions);
-  const spaces = useWorkbenchStore((state) => state.spaces);
-  const uploadDocument = useWorkbenchStore((state) => state.uploadDocument);
-  const uploadState = useWorkbenchStore((state) => state.uploadState);
-  const metadata = useWorkbenchStore((state) => state.documentMetadata);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
-  const [createSpaceName, setCreateSpaceName] = useState('');
-  const [detailOpen, setDetailOpen] = useState(false);
-  const [documentActionError, setDocumentActionError] = useState<string | null>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [keyword, setKeyword] = useState('');
-  const [previewDocument, setPreviewDocument] = useState<KnowledgeDocument | null>(null);
-  const [previewError, setPreviewError] = useState<string | null>(null);
-  const [previewFile, setPreviewFile] = useState<DocumentFileBlob | null>(null);
-  const [previewLoading, setPreviewLoading] = useState(false);
-  const [previewOpen, setPreviewOpen] = useState(false);
-  const [previewParsedText, setPreviewParsedText] = useState<string | null>(null);
-  const [previewParsedTruncated, setPreviewParsedTruncated] = useState(false);
-  const [previewText, setPreviewText] = useState<string | null>(null);
-  const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'ALL'>('ALL');
-  const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
-  const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
-
-  const filteredDocuments = useMemo(
-    () =>
-      documents.filter((document) => {
-        const matchKeyword = document.title.toLowerCase().includes(keyword.trim().toLowerCase());
-        const matchStatus = statusFilter === 'ALL' || document.status === statusFilter;
-
-        return matchKeyword && matchStatus;
-      }),
-    [documents, keyword, statusFilter],
-  );
-
-  const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-
-    if (!file) {
-      return;
-    }
-
-    await uploadDocument(file);
-    setFile(null);
-
-    if (fileInputRef.current) {
-      fileInputRef.current.value = '';
-    }
-  };
-
-  const handleCreateSpace = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    await createSpace(createSpaceName);
-    setCreateSpaceName('');
-  };
-
-  const handleSpaceChange = async (spaceId: string) => {
-    await selectSpace(spaceId);
-    router.replace(buildConsoleHref('documents', { space: spaceId }));
-  };
-
-  const clearPreview = () => {
-    if (previewFile) {
-      URL.revokeObjectURL(previewFile.url);
-    }
-
-    setPreviewDocument(null);
-    setPreviewError(null);
-    setPreviewFile(null);
-    setPreviewLoading(false);
-    setPreviewParsedText(null);
-    setPreviewParsedTruncated(false);
-    setPreviewText(null);
-  };
-
-  const handlePreview = async (document: KnowledgeDocument) => {
-    clearPreview();
-    setDocumentActionError(null);
-    setPreviewDocument(document);
-    setPreviewOpen(true);
-    setPreviewLoading(true);
-
-    try {
-      const preview = await documentService.getPreview(document.id);
-      setPreviewParsedText(preview.parsedContent.available ? preview.parsedContent.content : null);
-      setPreviewParsedTruncated(preview.parsedContent.truncated);
-
-      if (previewableDocumentTypes.has(document.type)) {
-        const fileBlob = await documentService.preview(document);
-
-        setPreviewFile(fileBlob);
-
-        if (textPreviewDocumentTypes.has(document.type)) {
-          setPreviewText(await fileBlob.blob.text());
-        }
-      } else if (!preview.parsedContent.available) {
-        setPreviewError(
-          '当前文件类型暂不支持原文件在线预览，且暂未生成解析文本。请先完成文档解析或下载原文件查看。',
-        );
-      }
-    } catch (error) {
-      setPreviewError(error instanceof Error ? error.message : '文档预览失败');
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
-
-  const handleDownload = async (document: KnowledgeDocument) => {
-    setDocumentActionError(null);
-
-    try {
-      await documentService.download(document);
-    } catch (error) {
-      setDocumentActionError(error instanceof Error ? error.message : '文档下载失败');
-    }
-  };
-
-  return (
-    <div className="grid min-w-0 gap-4">
-      <PageHeader
-        actions={
-          <form className="flex flex-wrap gap-2" onSubmit={handleCreateSpace}>
-            <Input
-              className="w-44"
-              onChange={(event) => setCreateSpaceName(event.target.value)}
-              placeholder="新建知识空间"
-              value={createSpaceName}
-            />
-            <Button disabled={loading || !createSpaceName.trim()} type="submit" variant="outline">
-              <Plus />
-              创建
-            </Button>
-          </form>
-        }
-        description="选择知识空间、上传文档、开始解析，完成知识入库。"
-        title="文档中心"
-      />
-      {documentActionError ? <ErrorBanner message={documentActionError} /> : null}
-
-      <Card className="min-w-0">
-        <CardContent className="grid gap-3 p-4 lg:grid-cols-3">
-          <div className="min-w-0 rounded-md border border-border bg-slate-50 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-medium">1. 知识空间</span>
-              <Badge variant={selectedSpace ? 'success' : 'secondary'}>
-                {selectedSpace ? '已选择' : '待选择'}
-              </Badge>
-            </div>
-            <p className="mt-2 truncate text-sm text-muted-foreground">
-              {selectedSpace?.name ?? '创建或选择一个空间'}
-            </p>
-          </div>
-          <div className="min-w-0 rounded-md border border-border bg-slate-50 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-medium">2. 文档上传</span>
-              <Badge
-                variant={
-                  uploadState.status === 'uploading' ? 'warning' : file ? 'info' : 'secondary'
-                }
-              >
-                {uploadState.status === 'uploading' ? '上传中' : file ? '已选择' : '待上传'}
-              </Badge>
-            </div>
-            <p className="mt-2 truncate text-sm text-muted-foreground">
-              {file?.name ?? uploadState.filename ?? `${documents.length} 份文档`}
-            </p>
-          </div>
-          <div className="min-w-0 rounded-md border border-border bg-slate-50 p-3">
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-sm font-medium">3. 解析入库</span>
-              <Badge
-                variant={
-                  ingestionState.status === 'queued' || ingestionState.status === 'running'
-                    ? 'warning'
-                    : selectedDocument?.status === 'READY'
-                      ? 'success'
-                      : 'secondary'
-                }
-              >
-                {ingestionState.status === 'queued'
-                  ? '排队中'
-                  : ingestionState.status === 'running'
-                  ? '解析中'
-                  : selectedDocument
-                    ? statusLabel[selectedDocument.status]
-                    : '待选择'}
-              </Badge>
-            </div>
-            <p className="mt-2 truncate text-sm text-muted-foreground">
-              {selectedDocument?.title ?? '选择文档后开始解析'}
-            </p>
-          </div>
-        </CardContent>
-      </Card>
-
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <Card className="min-w-0">
-          <CardHeader className="gap-4">
-            <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div className="min-w-0">
-                <CardTitle>我的文档</CardTitle>
-                <CardDescription>
-                  共 {documents.length} 份文档，当前显示 {filteredDocuments.length} 份
-                </CardDescription>
-              </div>
-              <form className="flex flex-wrap gap-2" onSubmit={handleUpload}>
-                <input
-                  accept={acceptedDocumentTypes}
-                  hidden
-                  onChange={(event) => setFile(event.target.files?.[0] ?? null)}
-                  ref={fileInputRef}
-                  type="file"
-                />
-                <Button
-                  disabled={!selectedSpaceId || uploadState.status === 'uploading'}
-                  onClick={() => fileInputRef.current?.click()}
-                  type="button"
-                  variant="outline"
-                >
-                  <UploadCloud />
-                  选择文件
-                </Button>
-                <Button
-                  disabled={!selectedSpaceId || !file || uploadState.status === 'uploading'}
-                  type="submit"
-                >
-                  {uploadState.status === 'uploading' ? (
-                    <Loader2 className="animate-spin" />
-                  ) : (
-                    <UploadCloud />
-                  )}
-                  批量上传
-                </Button>
-              </form>
-            </div>
-            <div className="grid min-w-0 gap-2 xl:grid-cols-[240px_minmax(0,1fr)_180px]">
-              <Select
-                disabled={loading || spaces.length === 0}
-                onValueChange={(value) => void handleSpaceChange(value)}
-                value={selectedSpaceId ?? ''}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="选择知识空间" />
-                </SelectTrigger>
-                <SelectContent>
-                  {spaces.map((space) => (
-                    <SelectItem key={space.id} value={space.id}>
-                      {space.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Input
-                onChange={(event) => setKeyword(event.target.value)}
-                placeholder="搜索文档名称"
-                value={keyword}
-              />
-              <Select
-                onValueChange={(value) => setStatusFilter(value as DocumentStatus | 'ALL')}
-                value={statusFilter}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="ALL">全部状态</SelectItem>
-                  {Object.entries(statusLabel).map(([status, label]) => (
-                    <SelectItem key={status} value={status}>
-                      {label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            {file ? <p className="text-xs text-muted-foreground">已选择：{file.name}</p> : null}
-          </CardHeader>
-          <CardContent>
-            {!selectedSpaceId ? (
-              <EmptyState
-                description="创建或选择知识空间后，即可上传文档。"
-                icon={FolderOpen}
-                title="请选择知识空间"
-              />
-            ) : loadingDocuments ? (
-              <div className="grid gap-3">
-                <Skeleton className="h-12" />
-                <Skeleton className="h-12" />
-                <Skeleton className="h-12" />
-              </div>
-            ) : filteredDocuments.length === 0 ? (
-              <EmptyState description="当前筛选条件下没有文档。" icon={FileText} title="暂无文档" />
-            ) : (
-              <Table className="min-w-[760px]">
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>文档名称</TableHead>
-                    <TableHead>类型</TableHead>
-                    <TableHead>大小</TableHead>
-                    <TableHead>解析状态</TableHead>
-                    <TableHead>上传时间</TableHead>
-                    <TableHead className="text-right">操作</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {filteredDocuments.map((document) => (
-                    <TableRow
-                      className={cn(document.id === selectedDocumentId && 'bg-muted/60')}
-                      key={document.id}
-                      onClick={() => void selectDocument(document.id)}
-                    >
-                      <TableCell>
-                        <div className="flex min-w-0 items-center gap-2">
-                          <DocumentTypeIcon type={document.type} />
-                          <span className="truncate font-medium">{document.title}</span>
-                        </div>
-                      </TableCell>
-                      <TableCell>{typeLabel[document.type]}</TableCell>
-                      <TableCell>{formatSize(document.size)}</TableCell>
-                      <TableCell>
-                        <div className="grid min-w-32 gap-1">
-                          <Badge className="w-fit" variant={statusVariant[document.status]}>
-                            {statusLabel[document.status]}
-                          </Badge>
-                          <Progress className="h-1.5" value={statusProgress[document.status]} />
-                        </div>
-                      </TableCell>
-                      <TableCell>{formatDateTime(document.createdAt)}</TableCell>
-                      <TableCell className="text-right">
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button size="icon" variant="ghost">
-                              <MoreHorizontal />
-                              <span className="sr-only">打开操作</span>
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent align="end">
-                            <DropdownMenuItem
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void selectDocument(document.id);
-                                setDetailOpen(true);
-                              }}
-                            >
-                              <CircleHelp className="size-4" />
-                              查看详情
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handlePreview(document);
-                              }}
-                            >
-                              <Eye className="size-4" />
-                              在线预览
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void handleDownload(document);
-                              }}
-                            >
-                              <Download className="size-4" />
-                              下载原文件
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void selectDocument(document.id).then(() =>
-                                  ingestSelectedDocument(),
-                                );
-                              }}
-                            >
-                              <RefreshCw className="size-4" />
-                              重新解析
-                            </DropdownMenuItem>
-                            <DropdownMenuSeparator />
-                            <DropdownMenuItem
-                              className="text-destructive"
-                              onClick={(event) => {
-                                event.stopPropagation();
-                                void selectDocument(document.id).then(() =>
-                                  deleteSelectedDocument(),
-                                );
-                              }}
-                            >
-                              <Trash2 className="size-4" />
-                              删除文档
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            )}
-          </CardContent>
-        </Card>
-
-        <div className="grid gap-4">
-          <SpaceProfilePanel />
-          <DocumentPreviewPanel />
-          <DocumentAccessScopePanel />
-          <SpaceMembersPanel />
-
-          <Card>
-            <CardHeader>
-              <CardTitle>解析与详情</CardTitle>
-              <CardDescription>
-                {selectedDocument ? selectedDocument.title : '选择文档后查看详情'}
-              </CardDescription>
-            </CardHeader>
-            <CardContent className="grid gap-4">
-              {selectedDocument ? (
-                <>
-                  <div className="grid gap-3 rounded-md border bg-muted/35 p-3 text-sm">
-                    <MetricLine label="文档状态" value={statusLabel[selectedDocument.status]} />
-                    <MetricLine label="分块数量" value={ingestionStatus?.chunkCount ?? '-'} />
-                    <MetricLine label="向量数量" value={ingestionStatus?.embeddingCount ?? '-'} />
-                    <MetricLine label="图谱实体" value={ingestionStatus?.graphEntityCount ?? '-'} />
-                  </div>
-                  <label className="flex items-center gap-2 rounded-md border p-3 text-sm">
-                    <input
-                      checked={ingestionOptions.includeGraph}
-                      onChange={(event) =>
-                        setIngestionOptions({ includeGraph: event.target.checked })
-                      }
-                      type="checkbox"
-                    />
-                    <span>解析时抽取知识图谱</span>
-                  </label>
-                  <Button
-                    disabled={
-                      ingestionState.status === 'queued' || ingestionState.status === 'running'
-                    }
-                    onClick={() => void ingestSelectedDocument()}
-                  >
-                    {ingestionState.status === 'queued' || ingestionState.status === 'running' ? (
-                      <Loader2 className="animate-spin" />
-                    ) : (
-                      <RefreshCw />
-                    )}
-                    {ingestionState.status === 'queued'
-                      ? '排队中'
-                      : ingestionState.status === 'running'
-                        ? '解析中'
-                        : '开始解析'}
-                  </Button>
-                  <Button onClick={() => setDetailOpen(true)} variant="outline">
-                    <FileText />
-                    查看元数据
-                  </Button>
-                  <div className="grid gap-2 sm:grid-cols-2 xl:grid-cols-1">
-                    <Button onClick={() => void handlePreview(selectedDocument)} variant="outline">
-                      <Eye />
-                      在线预览
-                    </Button>
-                    <Button onClick={() => void handleDownload(selectedDocument)} variant="outline">
-                      <Download />
-                      下载原文件
-                    </Button>
-                  </div>
-                  <Separator />
-                  <div className="text-xs leading-6 text-muted-foreground">
-                    默认会执行文本解析、分块、向量化和索引。图谱抽取会调用现有入库参数，不会新增后端接口。
-                  </div>
-                </>
-              ) : (
-                <EmptyState
-                  description="从左侧文档表格选择一份文档。"
-                  icon={FileText}
-                  title="未选择文档"
-                />
-              )}
-            </CardContent>
-          </Card>
-        </div>
-      </div>
-
-      <Dialog onOpenChange={setDetailOpen} open={detailOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
-            <DialogTitle>文档元数据</DialogTitle>
-            <DialogDescription>{selectedDocument?.title ?? '暂无选中文档'}</DialogDescription>
-          </DialogHeader>
-          {metadata ? (
-            <div className="grid max-h-[60vh] gap-3 overflow-auto rounded-md border p-3 text-sm md:grid-cols-2">
-              <MetricLine label="文档类型" value={typeLabel[metadata.documentType]} />
-              <MetricLine label="语言" value={metadata.language} />
-              <MetricLine label="安全级别" value={metadata.securityLevel} />
-              <MetricLine label="解析器" value={metadata.parser} />
-              <MetricLine label="内容长度" value={metadata.contentLength} />
-              <MetricLine label="行数" value={metadata.lineCount} />
-              <MetricLine label="处理时间" value={formatDateTime(metadata.processedAt)} />
-              <MetricLine label="清洗后字符" value={metadata.cleaner.outputLength} />
-            </div>
-          ) : (
-            <EmptyState
-              description="文档解析完成后会显示元数据。"
-              icon={FileText}
-              title="暂无元数据"
-            />
-          )}
-          <DialogFooter>
-            <Button onClick={() => setDetailOpen(false)}>关闭</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      <Dialog
-        onOpenChange={(open) => {
-          setPreviewOpen(open);
-
-          if (!open) {
-            clearPreview();
-          }
-        }}
-        open={previewOpen}
-      >
-        <DialogContent className="max-w-5xl">
-          <DialogHeader>
-            <DialogTitle>文档预览</DialogTitle>
-            <DialogDescription>{previewDocument?.title ?? '暂无文档'}</DialogDescription>
-          </DialogHeader>
-          <div className="min-h-[420px] overflow-hidden rounded-md border bg-slate-50">
-            {previewLoading ? (
-              <div className="grid h-[420px] place-items-center text-sm text-muted-foreground">
-                正在加载文档...
-              </div>
-            ) : previewError ? (
-              <div className="grid h-[420px] place-items-center p-6 text-center">
-                <div>
-                  <FileText className="mx-auto mb-3 size-9 text-slate-400" />
-                  <p className="font-medium">暂不能在线预览</p>
-                  <p className="mt-2 max-w-md text-sm text-muted-foreground">{previewError}</p>
-                  {previewDocument ? (
-                    <Button
-                      className="mt-4"
-                      onClick={() => void handleDownload(previewDocument)}
-                      variant="outline"
-                    >
-                      <Download />
-                      下载原文件
-                    </Button>
-                  ) : null}
-                </div>
-              </div>
-            ) : previewDocument?.type === 'PDF' && previewFile ? (
-              <iframe
-                className="h-[70vh] w-full bg-white"
-                src={previewFile.url}
-                title={previewDocument.title}
-              />
-            ) : previewDocument?.type === 'IMAGE' && previewFile ? (
-              <div className="grid max-h-[70vh] place-items-center overflow-auto p-4">
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img
-                  alt={previewDocument.title}
-                  className="max-h-[66vh] max-w-full rounded-md"
-                  src={previewFile.url}
-                />
-              </div>
-            ) : textPreviewDocumentTypes.has(previewDocument?.type ?? 'TXT') &&
-              previewText !== null ? (
-              <pre className="max-h-[70vh] overflow-auto whitespace-pre-wrap bg-white p-4 text-sm leading-7">
-                {previewText}
-              </pre>
-            ) : previewParsedText !== null ? (
-              <div className="max-h-[70vh] overflow-auto bg-white">
-                {previewParsedTruncated ? (
-                  <div className="border-b bg-amber-50 px-4 py-2 text-xs text-amber-800">
-                    解析文本较长，当前仅展示预览片段。
-                  </div>
-                ) : null}
-                <pre className="whitespace-pre-wrap p-4 text-sm leading-7">{previewParsedText}</pre>
-              </div>
-            ) : (
-              <div className="grid h-[420px] place-items-center text-sm text-muted-foreground">
-                请选择文档后预览。
-              </div>
-            )}
-          </div>
-          <DialogFooter>
-            {previewDocument ? (
-              <Button onClick={() => void handleDownload(previewDocument)} variant="outline">
-                <Download />
-                下载原文件
-              </Button>
-            ) : null}
-            <Button onClick={() => setPreviewOpen(false)}>关闭</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
 function SearchPage() {
-  return <SearchCenter title="搜索中心" />;
+  return <SearchCenter />;
 }
 
 function AssistantPage() {
@@ -1892,254 +1429,6 @@ function ProfilePage() {
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
-}
-
-function SystemPage({ activeTab }: { activeTab: 'status' | 'executions' | 'debug' }) {
-  const router = useRouter();
-  const authToken = useWorkbenchStore((state) => state.authToken);
-  const clearAuth = useWorkbenchStore((state) => state.clearAuth);
-  const setAuthToken = useWorkbenchStore((state) => state.setAuthToken);
-  const executionRuns = useObservabilityStore((state) => state.executionRuns);
-  const loadingReadiness = useObservabilityStore((state) => state.loadingReadiness);
-  const metricsBreakdown = useObservabilityStore((state) => state.metricsBreakdown);
-  const readiness = useObservabilityStore((state) => state.readiness);
-  const refresh = useObservabilityStore((state) => state.refresh);
-  const selectExecution = useObservabilityStore((state) => state.selectExecution);
-  const selectedRun = useObservabilityStore((state) => state.selectedRun);
-  const timeline = useObservabilityStore((state) => state.timeline);
-  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
-  const [manualToken, setManualTokenDraft] = useState(authToken);
-
-  const navigateTab = (tab: 'status' | 'executions' | 'debug') => {
-    const key: Record<typeof tab, ConsoleRouteKey> = {
-      debug: 'system-debug',
-      executions: 'system-executions',
-      status: 'system-status',
-    };
-    router.push(buildConsoleHref(key[tab], { space: selectedSpaceId }));
-  };
-
-  const handleManualToken = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    await setAuthToken(manualToken);
-  };
-
-  return (
-    <div className="grid gap-4">
-      <PageHeader
-        actions={
-          <Button onClick={() => void refresh()} variant="outline">
-            <RefreshCw />
-            刷新全部
-          </Button>
-        }
-        description="查看系统可用性、执行记录和高级调试工具。"
-        title="系统管理"
-      />
-
-      <Tabs onValueChange={(value) => navigateTab(value as 'status' | 'executions' | 'debug')} value={activeTab}>
-        <TabsList className="grid w-full grid-cols-3 lg:w-[520px]">
-          <TabsTrigger value="status">系统状态</TabsTrigger>
-          <TabsTrigger value="executions">执行记录</TabsTrigger>
-          <TabsTrigger value="debug">高级调试</TabsTrigger>
-        </TabsList>
-
-        <TabsContent className="grid gap-4" value="status">
-          <div className="grid gap-4 md:grid-cols-3">
-            <StatCard
-              icon={Gauge}
-              label="总体状态"
-              tone={readiness?.status === 'ok' ? 'success' : 'warning'}
-              value={readiness?.status === 'ok' ? '正常' : '降级'}
-            />
-            <StatCard
-              icon={Activity}
-              label="监控指标"
-              value={metricsBreakdown ? '已接入' : '待刷新'}
-            />
-            <StatCard icon={Database} label="检查项" value={readiness?.checks.length ?? 0} />
-          </div>
-          <Card>
-            <CardHeader>
-              <CardTitle>服务健康检查</CardTitle>
-              <CardDescription>来自 `/health/readiness` 的检查结果</CardDescription>
-            </CardHeader>
-            <CardContent>
-              {loadingReadiness ? (
-                <div className="grid gap-3">
-                  <Skeleton className="h-10" />
-                  <Skeleton className="h-10" />
-                </div>
-              ) : !readiness ? (
-                <EmptyState
-                  description="点击刷新全部获取健康状态。"
-                  icon={Gauge}
-                  title="暂无状态"
-                />
-              ) : (
-                <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                  {readiness.checks.map((check) => (
-                    <div className="rounded-md border p-3" key={check.name}>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium">{readinessLabel(check.name)}</span>
-                        <Badge
-                          variant={
-                            check.status === 'ok'
-                              ? 'success'
-                              : check.status === 'failed'
-                                ? 'destructive'
-                                : 'secondary'
-                          }
-                        >
-                          {check.status === 'ok'
-                            ? '正常'
-                            : check.status === 'failed'
-                              ? '失败'
-                              : '跳过'}
-                        </Badge>
-                      </div>
-                      <p className="mt-2 text-xs text-muted-foreground">
-                        {check.message ?? `${check.durationMs ?? 0} ms`}
-                      </p>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent className="grid gap-4" value="executions">
-          <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
-            <Card>
-              <CardHeader>
-                <CardTitle>最近执行</CardTitle>
-                <CardDescription>{executionRuns.length} 条记录</CardDescription>
-              </CardHeader>
-              <CardContent className="grid max-h-[65vh] gap-2 overflow-auto">
-                {executionRuns.length === 0 ? (
-                  <EmptyState
-                    description="问答或搜索后会生成执行记录。"
-                    icon={Activity}
-                    title="暂无记录"
-                  />
-                ) : (
-                  executionRuns.map((run) => (
-                    <button
-                      className="rounded-md border p-3 text-left text-sm transition hover:bg-muted"
-                      key={run.executionId}
-                      onClick={() => void selectExecution(run.executionId)}
-                      type="button"
-                    >
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="truncate font-medium">
-                          {getExecutionSourceLabel(run.source)}
-                        </span>
-                        <Badge
-                          variant={
-                            run.status === 'SUCCEEDED'
-                              ? 'success'
-                              : run.status === 'FAILED'
-                                ? 'destructive'
-                                : 'warning'
-                          }
-                        >
-                          {getExecutionStatusLabel(run.status)}
-                        </Badge>
-                      </div>
-                      <div className="mt-1 text-xs text-muted-foreground">
-                        {formatDateTime(run.startedAt)}
-                      </div>
-                    </button>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader>
-                <CardTitle>执行时间线</CardTitle>
-                <CardDescription>
-                  {selectedRun ? selectedRun.executionId : '选择一条执行记录查看详情'}
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="grid gap-3">
-                {timeline.length === 0 ? (
-                  <EmptyState
-                    description="选择执行记录后显示节点步骤。"
-                    icon={Activity}
-                    title="暂无时间线"
-                  />
-                ) : (
-                  timeline.map((event) => (
-                    <div className="grid gap-2 rounded-md border p-3 text-sm" key={event.id}>
-                      <div className="flex items-center justify-between gap-2">
-                        <span className="font-medium">{getExecutionStageLabel(event.stage)}</span>
-                        <Badge
-                          variant={
-                            event.status === 'SUCCEEDED'
-                              ? 'success'
-                              : event.status === 'FAILED'
-                                ? 'destructive'
-                                : 'secondary'
-                          }
-                        >
-                          {getExecutionStatusLabel(event.status)}
-                        </Badge>
-                      </div>
-                      <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-                        <span>{getExecutionEventTypeLabel(event.type)}</span>
-                        <span>{formatDateTime(event.timestamp)}</span>
-                        <span>{event.durationMs ?? 0} ms</span>
-                      </div>
-                      {event.errorMessage ? <ErrorBanner message={event.errorMessage} /> : null}
-                    </div>
-                  ))
-                )}
-              </CardContent>
-            </Card>
-          </div>
-        </TabsContent>
-
-        <TabsContent className="grid gap-4" value="debug">
-          <Card>
-            <CardHeader>
-              <CardTitle>访问凭证</CardTitle>
-              <CardDescription>仅高级调试场景使用，普通用户无需手动填写。</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <form
-                className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]"
-                onSubmit={handleManualToken}
-              >
-                <Input
-                  onChange={(event) => setManualTokenDraft(event.target.value)}
-                  placeholder="粘贴 JWT Token"
-                  type="password"
-                  value={manualToken}
-                />
-                <Button type="submit" variant="outline">
-                  保存凭证
-                </Button>
-                <Button onClick={clearAuth} type="button" variant="outline">
-                  清除
-                </Button>
-              </form>
-            </CardContent>
-          </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle>高级调试面板</CardTitle>
-              <CardDescription>保留原有工程调试能力，便于排查 Agent 执行链路。</CardDescription>
-            </CardHeader>
-            <CardContent>
-              <AgentDebugWorkbench />
-            </CardContent>
-          </Card>
-        </TabsContent>
-      </Tabs>
     </div>
   );
 }
@@ -2540,23 +1829,4 @@ function renderPlainMarkdown(content: string) {
 
     return <p key={`p-${index}`}>{trimmed.replace(/^#+\s*/, '')}</p>;
   });
-}
-
-function readinessLabel(name: string) {
-  const labels: Record<string, string> = {
-    asr: '语音识别',
-    database: '数据库',
-    embedding: '向量模型',
-    graph: '图数据库',
-    llm: '大模型',
-    ocr: 'OCR',
-    redis: '缓存',
-    reranker: '重排模型',
-    search: '搜索引擎',
-    storage: '对象存储',
-    vector: '向量库',
-    video: '视频理解',
-  };
-
-  return labels[name] ?? name;
 }

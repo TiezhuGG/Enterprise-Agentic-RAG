@@ -17,6 +17,7 @@ import {
   type DocumentType,
   type DocumentVersionEntity,
 } from '../document';
+import { IngestionService, type IngestionJobResponse } from '../ingestion';
 import { KnowledgeSpaceRepository, type SpaceMemberRole } from '../knowledge-space';
 import type { UploadDocumentDto } from './dto/upload-document.dto';
 import {
@@ -54,13 +55,20 @@ const genericMimeDocumentTypes = new Set<DocumentType>(['MARKDOWN', 'PDF', 'TXT'
 
 export interface UploadDocumentVersionResponse {
   document: DocumentEntity;
+  ingestionJob: IngestionJobResponse | null;
   version: DocumentVersionEntity;
+}
+
+export interface UploadDocumentResponse {
+  document: DocumentEntity;
+  ingestionJob: IngestionJobResponse | null;
 }
 
 @Injectable()
 export class UploadService {
   constructor(
     private readonly documentRepository: DocumentRepository,
+    private readonly ingestionService: IngestionService,
     private readonly knowledgeSpaceRepository: KnowledgeSpaceRepository,
     private readonly observabilityService: ObservabilityService,
     private readonly storageService: StorageService,
@@ -71,7 +79,7 @@ export class UploadService {
     spaceId: string,
     input: UploadDocumentDto,
     file: UploadedDocumentFile | undefined,
-  ): Promise<DocumentEntity> {
+  ): Promise<UploadDocumentResponse> {
     const startedAt = Date.now();
     let uploadFile: UploadedDocumentFile | undefined;
 
@@ -112,7 +120,7 @@ export class UploadService {
             mimeType: uploadFile.mimetype,
             size: uploadFile.size,
             sourceHash: this.createSourceHash(uploadFile.buffer),
-            status: 'PROCESSING',
+            status: 'CREATED',
             storageKey,
             title: document.title,
             type: document.type,
@@ -120,7 +128,7 @@ export class UploadService {
           {
             mimeType: uploadFile.mimetype,
             size: uploadFile.size,
-            status: 'PROCESSING',
+            status: 'CREATED',
             storageKey,
           },
         );
@@ -134,7 +142,18 @@ export class UploadService {
         status: 'success',
       });
 
-      return updatedDocument;
+      const ingestionJob =
+        input.autoIngest === false
+          ? null
+          : await this.ingestionService.enqueueDocumentIngestion(context, updatedDocument.id, {
+              includeEmbedding: true,
+              includeGraph: false,
+            });
+
+      return {
+        document: updatedDocument,
+        ingestionJob,
+      };
     } catch (error) {
       this.observabilityService.recordUpload({
         context,
@@ -201,7 +220,7 @@ export class UploadService {
           mimeType: uploadFile.mimetype,
           size: uploadFile.size,
           sourceHash: this.createSourceHash(uploadFile.buffer),
-          status: 'PROCESSING',
+          status: 'CREATED',
           storageKey,
           title,
           type,
@@ -210,7 +229,7 @@ export class UploadService {
           description,
           mimeType: uploadFile.mimetype,
           size: uploadFile.size,
-          status: 'PROCESSING',
+          status: 'CREATED',
           storageKey,
           title,
           type,
@@ -226,7 +245,18 @@ export class UploadService {
         status: 'success',
       });
 
-      return result;
+      const ingestionJob =
+        input.autoIngest === false
+          ? null
+          : await this.ingestionService.enqueueDocumentIngestion(context, result.document.id, {
+              includeEmbedding: true,
+              includeGraph: false,
+            });
+
+      return {
+        ...result,
+        ingestionJob,
+      };
     } catch (error) {
       this.observabilityService.recordUpload({
         context,

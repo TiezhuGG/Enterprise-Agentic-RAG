@@ -10,10 +10,13 @@ import {
 import { FileInterceptor } from '@nestjs/platform-express';
 import { RequestContextService, type ExecutionContext } from '../../common';
 import { CurrentUser, JwtAuthGuard, type AuthenticatedUser } from '../auth';
-import type { DocumentEntity } from '../document';
 import { UploadDocumentDto } from './dto/upload-document.dto';
 import { maxUploadFileSizeBytes, type UploadedDocumentFile } from './upload.types';
-import { UploadService, type UploadDocumentVersionResponse } from './upload.service';
+import {
+  UploadService,
+  type UploadDocumentResponse,
+  type UploadDocumentVersionResponse,
+} from './upload.service';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -37,7 +40,7 @@ export class UploadController {
     @Param('spaceId') spaceId: string,
     @Body() uploadDocumentDto: UploadDocumentDto,
     @UploadedFile() file: UploadedDocumentFile | undefined,
-  ): Promise<DocumentEntity> {
+  ): Promise<UploadDocumentResponse> {
     return this.uploadService.uploadDocument(
       this.createExecutionContext(user),
       spaceId,

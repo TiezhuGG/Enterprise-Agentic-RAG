@@ -476,10 +476,11 @@ async function findOrUploadDocument(
 
   const buffer = await readFile(datasetDocument.path);
 
-  return services.uploadService.uploadDocument(
+  const upload = await services.uploadService.uploadDocument(
     context,
     space.id,
     {
+      autoIngest: false,
       description: datasetDocument.description,
       title: datasetDocument.title,
     },
@@ -490,6 +491,8 @@ async function findOrUploadDocument(
       size: buffer.length,
     },
   );
+
+  return upload.document;
 }
 
 async function findOrCreateConversation(
