@@ -97,7 +97,7 @@ import type {
   PipelineJobStatus,
   SpacePipelineJob,
 } from '@/types/workbench';
-import { buildConsoleHref, consoleRoutes, type ConsoleRouteKey } from '@/lib/console-routes';
+import { buildConsoleHref, buildKnowledgeBaseHref, consoleRoutes, type ConsoleRouteKey } from '@/lib/console-routes';
 import { cn } from '@/lib/utils';
 
 const acceptedDocumentTypes = [
@@ -300,7 +300,7 @@ const getUserInitial = (email?: string | null): string => {
   return email.slice(0, 1).toUpperCase();
 };
 
-export function EnterpriseAdminApp({ routeKey }: { routeKey: ConsoleRouteKey }) {
+export function EnterpriseAdminApp({ routeKey, spaceId }: { routeKey: ConsoleRouteKey; spaceId?: string }) {
   const route = consoleRoutes[routeKey];
   const activeSection = route.section;
   const authToken = useWorkbenchStore((state) => state.authToken);
@@ -322,7 +322,7 @@ export function EnterpriseAdminApp({ routeKey }: { routeKey: ConsoleRouteKey }) 
   return (
     <ConsoleShell routeKey={routeKey}>
       {error ? <ErrorBanner message={error} /> : null}
-      {loading ? <WorkspaceSkeleton /> : <SectionContent activeSection={activeSection} routeKey={routeKey} />}
+      {loading ? <WorkspaceSkeleton /> : <SectionContent activeSection={activeSection} routeKey={routeKey} spaceId={spaceId} />}
     </ConsoleShell>
   );
 }
@@ -331,14 +331,19 @@ export function EnterpriseAdminApp({ routeKey }: { routeKey: ConsoleRouteKey }) 
 function SectionContent({
   activeSection,
   routeKey,
+  spaceId,
 }: {
   activeSection: AppSection;
   routeKey: ConsoleRouteKey;
+  spaceId?: string;
 }) {
   switch (activeSection) {
     case 'assistant':
       return <AssistantPage />;
     case 'documents':
+      if (routeKey === 'knowledge-base-detail') {
+        return <KnowledgeBaseDetailPage spaceId={spaceId} />;
+      }
       if (routeKey === 'document-spaces') {
         return <DocumentSpacesPage />;
       }
@@ -389,19 +394,72 @@ const workspaceSpaceTypeLabels = {
 function DocumentSpacesPage() {
   const router = useRouter();
   const authUser = useWorkbenchStore((state) => state.authUser);
+  const spaces = useWorkbenchStore((state) => state.spaces);
+  const [creationOpen, setCreationOpen] = useState(false);
+  const [keyword, setKeyword] = useState('');
+  const [status, setStatus] = useState<'ACTIVE' | 'ARCHIVED' | 'ALL'>('ALL');
+  const [type, setType] = useState<'ALL' | keyof typeof workspaceSpaceTypeLabels>('ALL');
+  const filteredSpaces = useMemo(
+    () =>
+      spaces.filter((space) =>
+        (type === 'ALL' || space.type === type) &&
+        (status === 'ALL' || space.status === status) &&
+        `${space.name} ${space.description ?? ''}`.toLowerCase().includes(keyword.trim().toLowerCase()),
+      ),
+    [keyword, spaces, status, type],
+  );
+
+  return (
+    <div className="grid min-w-0 gap-4">
+      <PageHeader
+        actions={<Button onClick={() => setCreationOpen(true)}><Plus />创建知识库</Button>}
+        description="知识库是成员、资料和 AI 检索范围的隔离单元。按部门、项目或客户建立独立的知识边界。"
+        title="知识库管理"
+      />
+      <div className="grid min-w-0 gap-2 border border-border bg-card p-4 md:grid-cols-[minmax(0,1fr)_180px_180px]">
+        <Input onChange={(event) => setKeyword(event.target.value)} placeholder="搜索知识库名称或说明" value={keyword} />
+        <Select onValueChange={(value) => setType(value as typeof type)} value={type}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent><SelectItem value="ALL">全部类型</SelectItem>{Object.entries(workspaceSpaceTypeLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
+        </Select>
+        <Select onValueChange={(value) => setStatus(value as typeof status)} value={status}>
+          <SelectTrigger><SelectValue /></SelectTrigger>
+          <SelectContent><SelectItem value="ALL">全部状态</SelectItem><SelectItem value="ACTIVE">使用中</SelectItem><SelectItem value="ARCHIVED">已归档</SelectItem></SelectContent>
+        </Select>
+      </div>
+      {filteredSpaces.length === 0 ? <EmptyState action={<Button onClick={() => setCreationOpen(true)}><Plus />创建知识库</Button>} description="创建后即可配置成员、上传资料，并将检索和问答限定在该知识范围内。" icon={Database} title="暂无知识库" /> : <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">{filteredSpaces.map((space) => {
+        const role = space.members.find((member) => member.userId === authUser?.id)?.role ?? 'VIEWER';
+        return <button className="grid min-h-48 min-w-0 content-between border bg-card p-4 text-left transition-colors hover:bg-muted" key={space.id} onClick={() => router.push(buildKnowledgeBaseHref(space.id))} type="button"><div className="min-w-0"><div className="flex items-start justify-between gap-3"><Database className="mt-0.5 size-4 shrink-0 text-primary" /><Badge variant="secondary">{workspaceSpaceTypeLabels[space.type]}</Badge></div><h2 className="mt-4 truncate text-base font-semibold" title={space.name}>{space.name}</h2><p className="mt-1 line-clamp-3 min-h-15 text-sm leading-6 text-muted-foreground">{space.description || '未填写知识库说明。'}</p></div><div className="grid grid-cols-2 gap-2 border-t pt-3 text-xs text-muted-foreground"><span>{space.documentCount} 份文档</span><span>{space.memberCount} 名成员</span><span className="truncate">{formatSpaceVisibility(space.visibility)}</span><span>你的角色：{role === 'OWNER' ? '负责人' : role === 'EDITOR' ? '编辑者' : '查看者'}</span><span className="col-span-2">更新于 {formatDateTime(space.updatedAt)}</span></div></button>;
+      })}</div>}
+      <SpaceCreationDialog onOpenChange={setCreationOpen} open={creationOpen} />
+    </div>
+  );
+}
+
+function KnowledgeBaseDetailPage({ spaceId }: { spaceId?: string }) {
+  const router = useRouter();
+  const authUser = useWorkbenchStore((state) => state.authUser);
   const deleteSelectedSpace = useWorkbenchStore((state) => state.deleteSelectedSpace);
   const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const spaceMembers = useWorkbenchStore((state) => state.spaceMembers);
   const spaces = useWorkbenchStore((state) => state.spaces);
-  const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
+  const selectedSpace = spaceId ? spaces.find((space) => space.id === spaceId) ?? null : null;
+  const selectSpace = useWorkbenchStore((state) => state.selectSpace);
+  const isSelectedSpaceSynchronized = selectedSpaceId === spaceId;
   const currentMember =
     selectedSpace?.members.find((member) => member.userId === authUser?.id) ??
-    spaceMembers.find((member) => member.userId === authUser?.id) ??
+    (isSelectedSpaceSynchronized ? spaceMembers.find((member) => member.userId === authUser?.id) : null) ??
     null;
   const canDelete = currentMember?.role === 'OWNER';
   const [creationOpen, setCreationOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [deleteConfirmation, setDeleteConfirmation] = useState('');
+
+  useEffect(() => {
+    if (spaceId && spaceId !== selectedSpaceId && spaces.some((space) => space.id === spaceId)) {
+      void selectSpace(spaceId);
+    }
+  }, [selectedSpaceId, selectSpace, spaceId, spaces]);
 
   const handleDelete = async () => {
     if (!selectedSpace || deleteConfirmation.trim() !== selectedSpace.name) {
@@ -417,17 +475,23 @@ function DocumentSpacesPage() {
   return (
     <div className="grid min-w-0 gap-4">
       <PageHeader
-        actions={<Button onClick={() => setCreationOpen(true)}><Plus />创建知识空间</Button>}
-        description="知识空间是成员、资料和 AI 检索范围的隔离边界；按部门、项目或客户创建独立的知识域。"
-        title="知识空间"
+        actions={selectedSpace && isSelectedSpaceSynchronized ? <><Button onClick={() => router.push(buildConsoleHref('documents', { space: selectedSpace.id }))} variant="outline"><FileText />管理文档</Button><Button onClick={() => router.push(buildConsoleHref('document-access', { space: selectedSpace.id }))} variant="outline"><ShieldCheck />访问权限</Button></> : undefined}
+        description={selectedSpace ? `知识库管理 / ${selectedSpace.name}` : '知识库详情'}
+        title="知识库详情"
       />
       {!selectedSpace ? (
         <EmptyState
-          action={<Button onClick={() => setCreationOpen(true)}><Plus />创建第一个知识空间</Button>}
+          action={<Button onClick={() => setCreationOpen(true)}><Plus />创建第一个知识库</Button>}
           description="创建后即可邀请成员、上传资料，并将检索与问答限定在这个知识范围内。"
           icon={Database}
-          title="还没有知识空间"
+          title="知识库不存在或无访问权限"
         />
+      ) : !isSelectedSpaceSynchronized ? (
+        <section className="grid min-w-0 gap-3 border border-border bg-card p-4">
+          <Skeleton className="h-5 w-48" />
+          <Skeleton className="h-4 w-full max-w-2xl" />
+          <Skeleton className="h-36 w-full" />
+        </section>
       ) : (
         <>
           <section className="grid min-w-0 gap-4 border border-border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">

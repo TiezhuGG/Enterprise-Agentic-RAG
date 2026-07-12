@@ -4,6 +4,7 @@ export type ConsoleRouteKey =
   | 'dashboard'
   | 'documents'
   | 'document-spaces'
+  | 'knowledge-base-detail'
   | 'document-tasks'
   | 'document-access'
   | 'search'
@@ -37,7 +38,8 @@ export interface ConsoleNavigationGroupDefinition {
 export const consoleRoutes: Record<ConsoleRouteKey, ConsoleRouteDefinition> = {
   dashboard: { key: 'dashboard', path: '/console', section: 'dashboard', title: '仪表盘' },
   documents: { key: 'documents', path: '/console/documents', section: 'documents', title: '文档列表' },
-  'document-spaces': { key: 'document-spaces', path: '/console/documents/spaces', section: 'documents', title: '知识空间' },
+  'document-spaces': { key: 'document-spaces', path: '/console/knowledge-bases', section: 'documents', title: '知识库管理' },
+  'knowledge-base-detail': { key: 'knowledge-base-detail', path: '/console/knowledge-bases/[spaceId]', section: 'documents', title: '知识库详情' },
   'document-tasks': { key: 'document-tasks', path: '/console/documents/tasks', section: 'documents', title: '入库任务' },
   'document-access': { key: 'document-access', path: '/console/documents/access', section: 'documents', title: '访问权限' },
   search: { key: 'search', path: '/console/search', section: 'search', title: '智能搜索' },
@@ -59,7 +61,7 @@ export const consoleNavigationGroups: ConsoleNavigationGroupDefinition[] = [
 
 export const consoleNavigationItems: ConsoleNavigationItem[] = [
   { group: 'overview', key: 'dashboard', label: '工作概览' },
-  { group: 'knowledge', key: 'document-spaces', label: '知识空间' },
+  { group: 'knowledge', key: 'document-spaces', label: '知识库' },
   { group: 'knowledge', key: 'documents', label: '文档' },
   { group: 'knowledge', key: 'document-tasks', label: '入库任务' },
   { group: 'applications', key: 'search', label: '智能搜索' },
@@ -72,13 +74,25 @@ export const consoleNavigationItems: ConsoleNavigationItem[] = [
 ];
 
 const pathToRoute = new Map(
-  Object.values(consoleRoutes).map((route) => [route.path.replace('/console/', '').replace('/console', ''), route]),
+  Object.values(consoleRoutes)
+    .filter((route) => route.key !== 'knowledge-base-detail')
+    .map((route) => [route.path.replace('/console/', '').replace('/console', ''), route]),
 );
 
 export const getConsoleRouteFromSegments = (segments: string[] | undefined): ConsoleRouteDefinition | null => {
   const path = segments?.join('/') ?? '';
+
+  if (segments?.[0] === 'knowledge-bases') {
+    if (segments.length === 1) return consoleRoutes['document-spaces'];
+    if (segments.length === 2 && segments[1]) return consoleRoutes['knowledge-base-detail'];
+    return null;
+  }
+
+  if (path === 'documents/spaces') return consoleRoutes['document-spaces'];
   return pathToRoute.get(path) ?? null;
 };
+
+export const buildKnowledgeBaseHref = (spaceId: string): string => `/console/knowledge-bases/${spaceId}`;
 
 export const getConsoleRouteForSection = (section: AppSection): ConsoleRouteDefinition => {
   const key: Record<AppSection, ConsoleRouteKey> = {

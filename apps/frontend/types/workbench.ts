@@ -44,7 +44,11 @@ export interface KnowledgeSpace {
   createdAt: string;
   updatedAt: string;
   members: SpaceMember[];
+  documentCount: number;
+  memberCount: number;
 }
+
+export type KnowledgeBaseSummary = KnowledgeSpace;
 
 export type DocumentType = 'PDF' | 'WORD' | 'TXT' | 'MARKDOWN' | 'IMAGE' | 'AUDIO' | 'VIDEO';
 export type DocumentStatus = 'CREATED' | 'PROCESSING' | 'READY' | 'FAILED' | 'ARCHIVED';

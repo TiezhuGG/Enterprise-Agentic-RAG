@@ -41,6 +41,7 @@ import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/co
 import { SpaceCreationDialog } from '@/components/workbench/SpaceCreationDialog';
 import {
   buildConsoleHref,
+  buildKnowledgeBaseHref,
   consoleNavigationGroups,
   consoleNavigationItems,
   type ConsoleRouteKey,
@@ -58,6 +59,7 @@ const navigationIcons: Record<ConsoleRouteKey, LucideIcon> = {
   'document-tasks': FileArchive,
   documents: FileText,
   graph: Network,
+  'knowledge-base-detail': Database,
   profile: UserRound,
   search: Search,
   'system-debug': BrainCircuit,
@@ -133,7 +135,11 @@ function ConsoleTopBar({ routeKey }: { routeKey: ConsoleRouteKey }) {
 
   const handleSpaceChange = async (spaceId: string) => {
     await selectSpace(spaceId);
-    router.replace(buildConsoleHref(routeKey, { space: spaceId }));
+    router.replace(
+      routeKey === 'knowledge-base-detail'
+        ? buildKnowledgeBaseHref(spaceId)
+        : buildConsoleHref(routeKey, { space: spaceId }),
+    );
   };
 
   return (

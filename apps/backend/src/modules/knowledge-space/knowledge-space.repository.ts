@@ -43,9 +43,13 @@ type SpaceMemberDetailModel = SpaceMemberModel & {
   user: SpaceMemberUserEntity;
 };
 
-type KnowledgeSpaceModel = Omit<KnowledgeSpaceEntity, 'members' | 'metadata'> & {
+type KnowledgeSpaceModel = Omit<
+  KnowledgeSpaceEntity,
+  'documentCount' | 'memberCount' | 'members' | 'metadata'
+> & {
   metadata: unknown;
   members?: SpaceMemberModel[];
+  _count?: { documents: number; members: number };
 };
 
 const toSpaceMemberEntity = (member: SpaceMemberModel): SpaceMemberEntity => ({
@@ -79,6 +83,8 @@ const toKnowledgeSpaceEntity = (space: KnowledgeSpaceModel): KnowledgeSpaceEntit
   createdAt: space.createdAt,
   updatedAt: space.updatedAt,
   members: space.members?.map(toSpaceMemberEntity) ?? [],
+  documentCount: space._count?.documents ?? 0,
+  memberCount: space._count?.members ?? space.members?.length ?? 0,
 });
 
 const toPrismaKnowledgeSpaceMetadata = (
@@ -114,6 +120,7 @@ export class KnowledgeSpaceRepository {
       },
       include: {
         members: true,
+        _count: { select: { documents: true, members: true } },
       },
     });
 
@@ -135,6 +142,7 @@ export class KnowledgeSpaceRepository {
       },
       include: {
         members: true,
+        _count: { select: { documents: true, members: true } },
       },
       orderBy: {
         updatedAt: 'desc',
@@ -188,6 +196,7 @@ export class KnowledgeSpaceRepository {
       },
       include: {
         members: true,
+        _count: { select: { documents: true, members: true } },
       },
     });
 
@@ -339,6 +348,7 @@ export class KnowledgeSpaceRepository {
       },
       include: {
         members: true,
+        _count: { select: { documents: true, members: true } },
       },
     });
 

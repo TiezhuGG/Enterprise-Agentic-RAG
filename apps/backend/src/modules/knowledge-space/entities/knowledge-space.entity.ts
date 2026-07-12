@@ -51,6 +51,8 @@ export interface KnowledgeSpaceEntity {
   createdAt: Date;
   updatedAt: Date;
   members: SpaceMemberEntity[];
+  documentCount: number;
+  memberCount: number;
 }
 
 const isRecord = (value: unknown): value is Record<string, unknown> =>
