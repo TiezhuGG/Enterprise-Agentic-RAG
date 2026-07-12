@@ -4,6 +4,7 @@ import { FormEvent, ReactNode, useEffect, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Activity,
+  Building2,
   BookOpen,
   Bot,
   BrainCircuit,
@@ -38,6 +39,14 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { Input } from '@/components/ui/input';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
 import { SpaceCreationDialog } from '@/components/workbench/SpaceCreationDialog';
 import {
@@ -56,6 +65,7 @@ const navigationIcons: Record<ConsoleRouteKey, LucideIcon> = {
   assistant: Bot,
   dashboard: Home,
   'document-access': ShieldCheck,
+  'organization-departments': Building2,
   'document-spaces': Database,
   'document-tasks': FileArchive,
   documents: FileText,
@@ -105,8 +115,30 @@ export function ConsoleShell({ children, routeKey }: ConsoleShellProps) {
           </section>
         </div>
       </div>
+      <PasswordChangeDialog />
     </main>
   );
+}
+
+function PasswordChangeDialog() {
+  const authError = useWorkbenchStore((state) => state.authError);
+  const authUser = useWorkbenchStore((state) => state.authUser);
+  const changePassword = useWorkbenchStore((state) => state.changePassword);
+  const [currentPassword, setCurrentPassword] = useState('');
+  const [newPassword, setNewPassword] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const required = authUser?.mustChangePassword ?? false;
+  const submit = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    setSubmitting(true);
+    const changed = await changePassword(currentPassword, newPassword);
+    setSubmitting(false);
+    if (changed) {
+      setCurrentPassword('');
+      setNewPassword('');
+    }
+  };
+  return <Dialog open={required}><DialogContent className="max-w-md"><DialogHeader><DialogTitle>请先修改临时密码</DialogTitle><DialogDescription>为保护组织资料，请在继续使用控制台前设置新密码。</DialogDescription></DialogHeader><form className="grid gap-4" onSubmit={submit}><label className="grid gap-2 text-sm font-medium">当前临时密码<Input autoFocus onChange={(event) => setCurrentPassword(event.target.value)} type="password" value={currentPassword} /></label><label className="grid gap-2 text-sm font-medium">新密码<Input minLength={6} onChange={(event) => setNewPassword(event.target.value)} type="password" value={newPassword} /></label>{authError ? <p className="text-sm text-destructive">{authError}</p> : null}<DialogFooter><Button disabled={submitting || currentPassword.length < 6 || newPassword.length < 6 || currentPassword === newPassword} type="submit">确认修改</Button></DialogFooter></form></DialogContent></Dialog>;
 }
 
 function ConsoleTopBar({ routeKey }: { routeKey: ConsoleRouteKey }) {
@@ -222,6 +254,7 @@ function ConsoleTopBar({ routeKey }: { routeKey: ConsoleRouteKey }) {
 function ConsoleSideNav({ compact = false, routeKey }: { compact?: boolean; routeKey: ConsoleRouteKey }) {
   const router = useRouter();
   const documents = useWorkbenchStore((state) => state.documents);
+  const authUser = useWorkbenchStore((state) => state.authUser);
   const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const spaces = useWorkbenchStore((state) => state.spaces);
   const readiness = useObservabilityStore((state) => state.readiness);
@@ -236,7 +269,10 @@ function ConsoleSideNav({ compact = false, routeKey }: { compact?: boolean; rout
       </button>
       <nav className={cn('min-h-0 flex-1 overflow-y-auto py-3', compact ? 'px-2 xl:px-3' : 'px-3')}>
         {consoleNavigationGroups.map((group) => {
-          const items = consoleNavigationItems.filter((item) => item.group === group.key);
+          const items = consoleNavigationItems.filter((item) =>
+            item.group === group.key &&
+            (item.group !== 'governance' || item.key === 'document-access' || authUser?.roles.includes('admin')),
+          );
           if (items.length === 0) return null;
           return <div className="mb-4" key={group.key}>
             <p className={cn('mb-1 px-2 text-[11px] font-medium text-muted-foreground', compact && 'hidden xl:block')}>{group.label}</p>

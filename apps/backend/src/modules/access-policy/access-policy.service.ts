@@ -163,7 +163,7 @@ export class AccessPolicyService {
     subject: AccessPolicySubject,
     resource: KnowledgeResourceAccess,
   ): boolean {
-    if (resource.spaceRole === 'OWNER' || subject.roles.includes(adminRole)) {
+    if (resource.spaceRole === 'OWNER') {
       return true;
     }
 

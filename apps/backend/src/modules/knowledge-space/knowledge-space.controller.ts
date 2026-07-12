@@ -1,7 +1,8 @@
-import { Body, Controller, Delete, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, Patch, Post, Query, UseGuards } from '@nestjs/common';
 import { RequestContextService, type ExecutionContext } from '../../common';
 import { CurrentUser, JwtAuthGuard, type AuthenticatedUser } from '../auth';
 import { AddSpaceMemberDto } from './dto/add-space-member.dto';
+import { AddSpaceMembersDto } from './dto/add-space-members.dto';
 import { CreateKnowledgeSpaceDto } from './dto/create-knowledge-space.dto';
 import { UpdateSpaceMemberDto } from './dto/update-space-member.dto';
 import { UpdateKnowledgeSpaceDto } from './dto/update-knowledge-space.dto';
@@ -62,6 +63,28 @@ export class KnowledgeSpaceController {
       id,
       addSpaceMemberDto,
     );
+  }
+
+  @Get(':id/member-candidates')
+  listMemberCandidates(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') spaceId: string,
+    @Query('q') search?: string,
+  ) {
+    return this.knowledgeSpaceService.listMemberCandidates(
+      this.createExecutionContext(user),
+      spaceId,
+      search,
+    );
+  }
+
+  @Post(':id/members/batch')
+  addMembers(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') spaceId: string,
+    @Body() input: AddSpaceMembersDto,
+  ): Promise<SpaceMemberDetailEntity[]> {
+    return this.knowledgeSpaceService.addMembers(this.createExecutionContext(user), spaceId, input);
   }
 
   @Patch(':id/members/:userId')

@@ -44,15 +44,6 @@ const formatKnowledgeBaseDate = (value?: string | null): string => {
   }).format(new Date(value));
 };
 
-const formatVisibility = (visibility?: string | null): string => {
-  const labels: Record<string, string> = {
-    INTERNAL: '内部可见',
-    PRIVATE: '私有',
-    PUBLIC: '知识库内公开',
-  };
-  return visibility ? labels[visibility] ?? visibility : '-';
-};
-
 const formatDateTime = (value?: string | null): string => {
   if (!value) return '-';
   return new Intl.DateTimeFormat('zh-CN', {
@@ -92,7 +83,7 @@ function KnowledgeBaseListPage() {
     () => spaces.filter((space) =>
       (type === 'ALL' || space.type === type) &&
       (status === 'ALL' || space.status === status) &&
-      `${space.name} ${space.description ?? ''}`.toLowerCase().includes(keyword.trim().toLowerCase())),
+      `${space.name} ${space.description ?? ''} ${space.department?.name ?? ''}`.toLowerCase().includes(keyword.trim().toLowerCase())),
     [keyword, spaces, status, type],
   );
 
@@ -106,7 +97,7 @@ function KnowledgeBaseListPage() {
       </div>
       {filteredSpaces.length === 0 ? <ConsoleEmptyState action={<Button onClick={() => setCreationOpen(true)}><Plus />创建知识库</Button>} description="创建后即可配置成员、上传资料，并将检索和问答限定在该知识范围内。" icon={Database} title="暂无知识库" /> : <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">{filteredSpaces.map((space) => {
         const role = space.members.find((member) => member.userId === authUser?.id)?.role ?? 'VIEWER';
-        return <button className="grid min-h-48 min-w-0 content-between border bg-card p-4 text-left transition-colors hover:bg-muted" key={space.id} onClick={() => router.push(buildKnowledgeBaseHref(space.id))} type="button"><div className="min-w-0"><div className="flex items-start justify-between gap-3"><Database className="mt-0.5 size-4 shrink-0 text-primary" /><Badge variant="secondary">{knowledgeBaseTypeLabels[space.type]}</Badge></div><h2 className="mt-4 truncate text-base font-semibold" title={space.name}>{space.name}</h2><p className="mt-1 line-clamp-3 min-h-15 text-sm leading-6 text-muted-foreground">{space.description || '未填写知识库说明。'}</p></div><div className="grid grid-cols-2 gap-2 border-t pt-3 text-xs text-muted-foreground"><span>{space.documentCount} 份文档</span><span>{space.memberCount} 名成员</span><span className="truncate">{formatVisibility(space.visibility)}</span><span>你的角色：{role === 'OWNER' ? '负责人' : role === 'EDITOR' ? '编辑者' : '查看者'}</span><span className="col-span-2">更新于 {formatKnowledgeBaseDate(space.updatedAt)}</span></div></button>;
+        return <button className="grid min-h-48 min-w-0 content-between border bg-card p-4 text-left transition-colors hover:bg-muted" key={space.id} onClick={() => router.push(buildKnowledgeBaseHref(space.id))} type="button"><div className="min-w-0"><div className="flex items-start justify-between gap-3"><Database className="mt-0.5 size-4 shrink-0 text-primary" /><Badge variant="secondary">{knowledgeBaseTypeLabels[space.type]}</Badge></div><h2 className="mt-4 truncate text-base font-semibold" title={space.name}>{space.name}</h2><p className="mt-1 line-clamp-3 min-h-15 text-sm leading-6 text-muted-foreground">{space.description || '未填写知识库说明。'}</p></div><div className="grid grid-cols-2 gap-2 border-t pt-3 text-xs text-muted-foreground"><span>{space.documentCount} 份文档</span><span>{space.memberCount} 名成员</span><span className="truncate" title={space.department?.name}>归属：{space.department?.name ?? '未绑定部门'}</span><span>你的角色：{role === 'OWNER' ? '负责人' : role === 'EDITOR' ? '编辑者' : '查看者'}</span><span className="col-span-2">更新于 {formatKnowledgeBaseDate(space.updatedAt)}</span></div></button>;
       })}</div>}
       <SpaceCreationDialog onOpenChange={setCreationOpen} open={creationOpen} />
     </div>
@@ -145,7 +136,7 @@ function KnowledgeBaseDetailPage({ spaceId }: { spaceId?: string }) {
     <div className="grid min-w-0 gap-4">
       <ConsolePageHeader actions={selectedSpace && isSynchronized ? <><Button onClick={() => router.push(buildConsoleHref('documents', { space: selectedSpace.id }))} variant="outline"><FileText />管理文档</Button><Button onClick={() => router.push(buildConsoleHref('document-access', { space: selectedSpace.id }))} variant="outline"><ShieldCheck />访问权限</Button></> : undefined} description={selectedSpace ? `知识库管理 / ${selectedSpace.name}` : '知识库详情'} title="知识库详情" />
       {!selectedSpace ? <ConsoleEmptyState action={<Button onClick={() => setCreationOpen(true)}><Plus />创建第一个知识库</Button>} description="创建后即可邀请成员、上传资料，并将检索与问答限定在这个知识范围内。" icon={Database} title="知识库不存在或无访问权限" /> : !isSynchronized ? <Card><CardContent className="grid gap-3 p-4"><div className="h-5 w-48 animate-pulse bg-muted" /><div className="h-4 w-full max-w-2xl animate-pulse bg-muted" /><div className="h-36 w-full animate-pulse bg-muted" /></CardContent></Card> : <>
-        <section className="grid min-w-0 gap-4 border border-border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"><div className="min-w-0"><div className="flex min-w-0 items-center gap-2"><h2 className="truncate text-base font-semibold" title={selectedSpace.name}>{selectedSpace.name}</h2><Badge variant="secondary">{knowledgeBaseTypeLabels[selectedSpace.type]}</Badge></div><p className="mt-1 max-w-3xl break-words text-sm text-muted-foreground">{selectedSpace.description || '未填写知识库说明。'}</p></div><div className="flex flex-wrap gap-3 text-xs text-muted-foreground"><span>可见范围：{formatVisibility(selectedSpace.visibility)}</span><span>{spaceMembers.length} 名成员</span></div></section>
+        <section className="grid min-w-0 gap-4 border border-border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center"><div className="min-w-0"><div className="flex min-w-0 items-center gap-2"><h2 className="truncate text-base font-semibold" title={selectedSpace.name}>{selectedSpace.name}</h2><Badge variant="secondary">{knowledgeBaseTypeLabels[selectedSpace.type]}</Badge></div><p className="mt-1 max-w-3xl break-words text-sm text-muted-foreground">{selectedSpace.description || '未填写知识库说明。'}</p></div><div className="flex flex-wrap gap-3 text-xs text-muted-foreground"><span>归属部门：{selectedSpace.department?.name ?? '未绑定部门'}</span><span>{spaceMembers.length} 名成员</span></div></section>
         <div className="grid min-w-0 gap-4 xl:grid-cols-2"><div className="min-w-0"><SpaceProfilePanel /></div><div className="min-w-0"><SpaceMembersPanel /></div></div>
         <Card className="min-w-0 border-destructive/30"><CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between"><p className="text-sm text-muted-foreground">{canDelete ? '你是知识库负责人，可以删除该知识库。系统管理员身份不会替代知识库成员角色。' : '仅知识库负责人可以删除知识库；系统管理员身份不会自动获得此权限。'}</p>{canDelete ? <Button onClick={() => setDeleteOpen(true)} variant="destructive"><Trash2 />删除知识库</Button> : null}</CardContent></Card>
       </>}

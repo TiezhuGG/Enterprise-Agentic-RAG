@@ -32,6 +32,20 @@ export interface DepartmentEntity extends EnterpriseSummary {
   updatedAt: Date;
 }
 
+export interface GovernedDepartmentEntity extends DepartmentEntity {
+  knowledgeBaseCount: number;
+  userCount: number;
+}
+
+export interface GovernedOrganizationEntity extends OrganizationEntity {
+  departments: GovernedDepartmentEntity[];
+}
+
+export interface EnterpriseStructureEntity {
+  organizations: GovernedOrganizationEntity[];
+  tenant: TenantEntity | null;
+}
+
 export interface EnterpriseContextEntity {
   department: DepartmentEntity | null;
   organization: OrganizationEntity | null;
@@ -67,4 +81,27 @@ export interface AssignUserEnterpriseInput {
   departmentId?: string;
   organizationId?: string;
   tenantId?: string;
+}
+
+export interface CreateOrganizationInput {
+  name: string;
+  tenantId: string;
+}
+
+export interface UpdateOrganizationInput {
+  name?: string;
+  status?: EnterpriseStatus;
+}
+
+export interface CreateDepartmentInput {
+  name: string;
+  organizationId: string;
+  parentId?: string;
+  tenantId: string;
+}
+
+export interface UpdateDepartmentInput {
+  name?: string;
+  parentId?: string | null;
+  status?: EnterpriseStatus;
 }

@@ -3,11 +3,13 @@ import type {
   KnowledgeSpaceMetadata,
   KnowledgeSpaceType,
   SpaceMemberDetail,
+  SpaceMemberCandidate,
   SpaceMemberRole,
 } from '@/types/workbench';
 import { createApiUrl, createJsonHeaders, readApiError } from './api-client';
 
 export interface CreateKnowledgeSpaceRequest {
+  departmentId?: string;
   description?: string;
   metadata?: KnowledgeSpaceMetadata;
   name: string;
@@ -16,6 +18,7 @@ export interface CreateKnowledgeSpaceRequest {
 }
 
 export interface UpdateKnowledgeSpaceRequest {
+  departmentId?: string | null;
   description?: string;
   metadata?: KnowledgeSpaceMetadata;
   name?: string;
@@ -122,6 +125,30 @@ export const knowledgeSpaceService = {
     }
 
     return (await response.json()) as SpaceMemberDetail[];
+  },
+
+  async addMembers(
+    spaceId: string,
+    input: { members: Array<{ role: SpaceMemberRole; userId: string }> },
+  ): Promise<SpaceMemberDetail[]> {
+    const response = await fetch(createApiUrl(`/spaces/${spaceId}/members/batch`), {
+      body: JSON.stringify(input),
+      headers: createJsonHeaders(),
+      method: 'POST',
+    });
+    if (!response.ok) throw await readApiError(response);
+    return (await response.json()) as SpaceMemberDetail[];
+  },
+
+  async listMemberCandidates(spaceId: string, query = ''): Promise<SpaceMemberCandidate[]> {
+    const search = new URLSearchParams();
+    if (query.trim()) search.set('q', query.trim());
+    const response = await fetch(createApiUrl(`/spaces/${spaceId}/member-candidates?${search.toString()}`), {
+      headers: createJsonHeaders(),
+      method: 'GET',
+    });
+    if (!response.ok) throw await readApiError(response);
+    return (await response.json()) as SpaceMemberCandidate[];
   },
 
   async updateMember(

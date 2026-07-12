@@ -22,6 +22,7 @@ export interface CreateKnowledgeSpaceInput {
   metadata?: KnowledgeSpaceMetadata;
   ownerId: string;
   tenantId?: string;
+  departmentId?: string;
 }
 
 export interface UpdateKnowledgeSpaceInput {
@@ -31,6 +32,7 @@ export interface UpdateKnowledgeSpaceInput {
   type?: KnowledgeSpaceType;
   metadata?: KnowledgeSpaceMetadata;
   status?: KnowledgeSpaceStatus;
+  departmentId?: string | null;
 }
 
 type SpaceMemberModel = {
@@ -45,9 +47,16 @@ type SpaceMemberDetailModel = SpaceMemberModel & {
 
 type KnowledgeSpaceModel = Omit<
   KnowledgeSpaceEntity,
-  'documentCount' | 'memberCount' | 'members' | 'metadata'
+  'department' | 'documentCount' | 'memberCount' | 'members' | 'metadata'
 > & {
   metadata: unknown;
+  department?: {
+    code: string;
+    id: string;
+    name: string;
+    organizationId: string;
+    parentId: string | null;
+  } | null;
   members?: SpaceMemberModel[];
   _count?: { documents: number; members: number };
 };
@@ -79,6 +88,8 @@ const toKnowledgeSpaceEntity = (space: KnowledgeSpaceModel): KnowledgeSpaceEntit
   status: space.status,
   ownerId: space.ownerId,
   tenantId: space.tenantId,
+  departmentId: space.departmentId,
+  department: space.department ?? null,
   metadata: normalizeKnowledgeSpaceMetadata(space.metadata),
   createdAt: space.createdAt,
   updatedAt: space.updatedAt,
@@ -111,6 +122,7 @@ export class KnowledgeSpaceRepository {
         metadata: toPrismaKnowledgeSpaceMetadata(input.metadata),
         ownerId: input.ownerId,
         tenantId: input.tenantId,
+        departmentId: input.departmentId,
         members: {
           create: {
             userId: input.ownerId,
@@ -119,6 +131,9 @@ export class KnowledgeSpaceRepository {
         },
       },
       include: {
+        department: {
+          select: { code: true, id: true, name: true, organizationId: true, parentId: true },
+        },
         members: true,
         _count: { select: { documents: true, members: true } },
       },
@@ -141,6 +156,9 @@ export class KnowledgeSpaceRepository {
         },
       },
       include: {
+        department: {
+          select: { code: true, id: true, name: true, organizationId: true, parentId: true },
+        },
         members: true,
         _count: { select: { documents: true, members: true } },
       },
@@ -195,6 +213,9 @@ export class KnowledgeSpaceRepository {
         },
       },
       include: {
+        department: {
+          select: { code: true, id: true, name: true, organizationId: true, parentId: true },
+        },
         members: true,
         _count: { select: { documents: true, members: true } },
       },
@@ -347,6 +368,9 @@ export class KnowledgeSpaceRepository {
         metadata: toPrismaKnowledgeSpaceMetadata(input.metadata),
       },
       include: {
+        department: {
+          select: { code: true, id: true, name: true, organizationId: true, parentId: true },
+        },
         members: true,
         _count: { select: { documents: true, members: true } },
       },

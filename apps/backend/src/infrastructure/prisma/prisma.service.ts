@@ -112,6 +112,10 @@ export class PrismaService implements OnModuleInit, OnModuleDestroy {
     return this.client.executionTraceEvent;
   }
 
+  get governanceAuditEvent() {
+    return this.client.governanceAuditEvent;
+  }
+
   async healthCheck(): Promise<void> {
     await this.client.$queryRaw`SELECT 1`;
   }

@@ -34,6 +34,11 @@ export class UpdateKnowledgeSpaceDto {
   type?: KnowledgeSpaceType;
 
   @IsOptional()
+  @IsString()
+  @Length(1, 128)
+  departmentId?: string | null;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => KnowledgeSpaceMetadataDto)
   metadata?: KnowledgeSpaceMetadataDto;

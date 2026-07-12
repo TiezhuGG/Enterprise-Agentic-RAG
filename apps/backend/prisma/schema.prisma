@@ -112,6 +112,7 @@ model User {
   email                 String                 @unique
   name                  String?
   passwordHash          String?                @map("password_hash")
+  mustChangePassword    Boolean                @default(false) @map("must_change_password")
   isActive              Boolean                @default(true) @map("is_active")
   tenantId              String?                @map("tenant_id")
   organizationId        String?                @map("organization_id")
@@ -124,6 +125,7 @@ model User {
   department            Department?            @relation(fields: [departmentId], references: [id], onDelete: SetNull)
   executionRuns         ExecutionRun[]
   executionTraceEvents  ExecutionTraceEvent[]
+  governanceAuditEvents GovernanceAuditEvent[] @relation("GovernanceAuditActor")
   multimodalAttachments MultimodalAttachment[]
   organization          Organization?          @relation(fields: [organizationId], references: [id], onDelete: SetNull)
   ownedSpaces           KnowledgeSpace[]       @relation("KnowledgeSpaceOwner")
@@ -148,6 +150,7 @@ model Tenant {
   departments    Department[]
   organizations  Organization[]
   spaces         KnowledgeSpace[]
+  governanceAuditEvents GovernanceAuditEvent[]
   users          User[]
 
   @@index([status])
@@ -189,6 +192,7 @@ model Department {
   parent         Department?      @relation("DepartmentHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
   tenant         Tenant           @relation(fields: [tenantId], references: [id], onDelete: Cascade)
   users          User[]
+  knowledgeSpaces KnowledgeSpace[]            @relation("KnowledgeSpaceDepartment")
 
   @@unique([tenantId, code])
   @@index([tenantId])
@@ -257,6 +261,7 @@ model KnowledgeSpace {
   status      KnowledgeSpaceStatus     @default(ACTIVE)
   ownerId     String                   @map("owner_id")
   tenantId    String?                  @map("tenant_id")
+  departmentId String?                 @map("department_id")
   metadata    Json                     @default("{}")
   createdAt   DateTime                 @default(now()) @map("created_at")
   updatedAt   DateTime                 @updatedAt @map("updated_at")
@@ -267,11 +272,31 @@ model KnowledgeSpace {
   pipelineJobs PipelineJob[]
   tags        DocumentTag[]
   tenant      Tenant?                  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+  department  Department?              @relation("KnowledgeSpaceDepartment", fields: [departmentId], references: [id], onDelete: SetNull)
 
   @@index([ownerId])
   @@index([tenantId])
+  @@index([departmentId])
   @@index([type])
   @@map("knowledge_spaces")
+}
+
+model GovernanceAuditEvent {
+  id          String   @id @default(cuid())
+  tenantId    String?  @map("tenant_id")
+  actorUserId String   @map("actor_user_id")
+  action      String
+  targetType  String   @map("target_type")
+  targetId    String   @map("target_id")
+  before      Json?    @map("before")
+  after       Json?    @map("after")
+  createdAt   DateTime @default(now()) @map("created_at")
+  actor       User     @relation("GovernanceAuditActor", fields: [actorUserId], references: [id], onDelete: Restrict)
+  tenant      Tenant?  @relation(fields: [tenantId], references: [id], onDelete: SetNull)
+
+  @@index([tenantId, createdAt])
+  @@index([targetType, targetId, createdAt])
+  @@map("governance_audit_events")
 }
 
 model SpaceMember {

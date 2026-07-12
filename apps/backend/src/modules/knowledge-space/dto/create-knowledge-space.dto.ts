@@ -27,6 +27,11 @@ export class CreateKnowledgeSpaceDto {
   type?: KnowledgeSpaceType;
 
   @IsOptional()
+  @IsString()
+  @Length(1, 128)
+  departmentId?: string;
+
+  @IsOptional()
   @ValidateNested()
   @Type(() => KnowledgeSpaceMetadataDto)
   metadata?: KnowledgeSpaceMetadataDto;

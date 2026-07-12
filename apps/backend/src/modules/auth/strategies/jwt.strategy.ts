@@ -26,6 +26,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       tenantId: payload.tenantId,
       organizationId: payload.organizationId,
       departmentId: payload.departmentId,
+      mustChangePassword: payload.mustChangePassword ?? false,
       metadata: payload.metadata ?? {},
     };
   }

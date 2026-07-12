@@ -5,6 +5,7 @@ export interface AuthenticatedUser {
   tenantId?: string;
   organizationId?: string;
   departmentId?: string;
+  mustChangePassword: boolean;
   permissions: string[];
   roles: string[];
   spaceIds: string[];

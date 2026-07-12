@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/prisma';
+import type { Prisma } from '../../infrastructure/prisma/generated/client';
 
 export interface UpsertRoleInput {
   code: string;
@@ -27,6 +28,16 @@ export interface PermissionRecord {
   code: string;
   name: string;
   description: string | null;
+}
+
+export interface GovernanceAuditInput {
+  action: string;
+  actorUserId: string;
+  after?: Record<string, unknown>;
+  before?: Record<string, unknown>;
+  targetId: string;
+  targetType: string;
+  tenantId?: string;
 }
 
 export interface AuthorizationAuditRole {
@@ -64,6 +75,7 @@ export interface UserCredentialsRecord {
   email: string;
   passwordHash: string | null;
   isActive: boolean;
+  mustChangePassword: boolean;
   roles: Array<{
     code: string;
     permissions: string[];
@@ -88,6 +100,7 @@ const toUserCredentialsRecord = (user: UserCredentialsModel): UserCredentialsRec
   email: user.email,
   passwordHash: user.passwordHash,
   isActive: user.isActive,
+  mustChangePassword: user.mustChangePassword,
   roles: user.roles.map(({ role }) => ({
     code: role.code,
     permissions: role.permissions.map(({ permission }) => permission.code),
@@ -106,6 +119,7 @@ export class AuthRepository {
         email: true,
         passwordHash: true,
         isActive: true,
+        mustChangePassword: true,
         roles: {
           select: {
             role: {
@@ -128,6 +142,20 @@ export class AuthRepository {
     });
 
     return user ? toUserCredentialsRecord(user) : null;
+  }
+
+  async recordGovernanceAudit(input: GovernanceAuditInput): Promise<void> {
+    await this.prisma.governanceAuditEvent.create({
+      data: {
+        action: input.action,
+        actorUserId: input.actorUserId,
+        after: input.after as Prisma.InputJsonValue | undefined,
+        before: input.before as Prisma.InputJsonValue | undefined,
+        targetId: input.targetId,
+        targetType: input.targetType,
+        tenantId: input.tenantId,
+      },
+    });
   }
 
   async listAuthorizationAuditRoles(): Promise<AuthorizationAuditRole[]> {

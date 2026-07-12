@@ -1,6 +1,20 @@
-import { Controller, Get, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { RequestContextService, type ExecutionContext } from '../../common';
-import { CurrentUser, JwtAuthGuard, type AuthenticatedUser } from '../auth';
+import {
+  CurrentUser,
+  JwtAuthGuard,
+  Permissions,
+  PermissionsGuard,
+  Roles,
+  RolesGuard,
+  type AuthenticatedUser,
+} from '../auth';
+import {
+  CreateDepartmentDto,
+  CreateOrganizationDto,
+  UpdateDepartmentDto,
+  UpdateOrganizationDto,
+} from './dto';
 import { EnterpriseService } from './enterprise.service';
 import type {
   DepartmentEntity,
@@ -35,6 +49,68 @@ export class EnterpriseController {
   @Get('departments')
   listDepartments(@CurrentUser() user: AuthenticatedUser): Promise<DepartmentEntity[]> {
     return this.enterpriseService.listDepartments(this.createExecutionContext(user));
+  }
+
+  @Get('structure')
+  @Roles('admin')
+  @Permissions('enterprise.manage')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  getStructure(@CurrentUser() user: AuthenticatedUser) {
+    return this.enterpriseService.listStructure(this.createExecutionContext(user));
+  }
+
+  @Post('organizations')
+  @Roles('admin')
+  @Permissions('enterprise.manage')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  createOrganization(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() input: CreateOrganizationDto,
+  ): Promise<OrganizationEntity> {
+    return this.enterpriseService.createOrganization(this.createExecutionContext(user), input);
+  }
+
+  @Patch('organizations/:id')
+  @Roles('admin')
+  @Permissions('enterprise.manage')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  updateOrganization(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') organizationId: string,
+    @Body() input: UpdateOrganizationDto,
+  ): Promise<OrganizationEntity> {
+    return this.enterpriseService.updateOrganization(
+      this.createExecutionContext(user),
+      organizationId,
+      input,
+    );
+  }
+
+  @Post('departments')
+  @Roles('admin')
+  @Permissions('enterprise.manage')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  createDepartment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Body() input: CreateDepartmentDto,
+  ): Promise<DepartmentEntity> {
+    return this.enterpriseService.createDepartment(this.createExecutionContext(user), input);
+  }
+
+  @Patch('departments/:id')
+  @Roles('admin')
+  @Permissions('enterprise.manage')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  updateDepartment(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') departmentId: string,
+    @Body() input: UpdateDepartmentDto,
+  ): Promise<DepartmentEntity> {
+    return this.enterpriseService.updateDepartment(
+      this.createExecutionContext(user),
+      departmentId,
+      input,
+    );
   }
 
   private createExecutionContext(user: AuthenticatedUser): ExecutionContext {

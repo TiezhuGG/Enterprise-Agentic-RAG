@@ -7,6 +7,7 @@ export interface JwtPayload {
   tenantId?: string;
   organizationId?: string;
   departmentId?: string;
+  mustChangePassword?: boolean;
   metadata?: Record<string, unknown>;
 }
 
@@ -19,6 +20,7 @@ export interface AuthenticatedUser {
   tenantId?: string;
   organizationId?: string;
   departmentId?: string;
+  mustChangePassword: boolean;
   metadata: Record<string, unknown>;
 }
 

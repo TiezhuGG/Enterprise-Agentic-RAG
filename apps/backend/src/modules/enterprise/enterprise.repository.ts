@@ -1,12 +1,18 @@
 import { Injectable } from '@nestjs/common';
+import { randomUUID } from 'node:crypto';
 import { PrismaService } from '../../infrastructure/prisma';
 import type { Prisma } from '../../infrastructure/prisma/generated/client';
 import type {
   AssignUserEnterpriseInput,
+  CreateDepartmentInput,
+  CreateOrganizationInput,
   DepartmentEntity,
+  EnterpriseStructureEntity,
   EnterpriseContextEntity,
   OrganizationEntity,
   TenantEntity,
+  UpdateDepartmentInput,
+  UpdateOrganizationInput,
   UpsertDepartmentInput,
   UpsertOrganizationInput,
   UpsertTenantInput,
@@ -30,6 +36,14 @@ type UserEnterpriseModel = {
   department: DepartmentModel | null;
   organization: OrganizationModel | null;
   tenant: TenantModel | null;
+};
+
+type GovernedDepartmentModel = DepartmentModel & {
+  _count: { knowledgeSpaces: number; users: number };
+};
+
+type GovernedOrganizationModel = OrganizationModel & {
+  departments: GovernedDepartmentModel[];
 };
 
 const toMetadata = (metadata: unknown): MetadataValue =>
@@ -146,6 +160,120 @@ export class EnterpriseRepository {
     });
 
     return organizations.map(toOrganizationEntity);
+  }
+
+  async listStructure(tenantId: string): Promise<EnterpriseStructureEntity> {
+    const [tenant, organizations] = await Promise.all([
+      this.prisma.tenant.findUnique({ where: { id: tenantId } }),
+      this.prisma.organization.findMany({
+        where: { tenantId },
+        include: {
+          departments: {
+            include: {
+              _count: { select: { knowledgeSpaces: true, users: true } },
+            },
+            orderBy: [{ parentId: 'asc' }, { name: 'asc' }],
+          },
+        },
+        orderBy: { name: 'asc' },
+      }),
+    ]);
+
+    return {
+      tenant: tenant ? toTenantEntity(tenant) : null,
+      organizations: (organizations as GovernedOrganizationModel[]).map((organization) => ({
+        ...toOrganizationEntity(organization),
+        departments: organization.departments.map((department) => ({
+          ...toDepartmentEntity(department),
+          knowledgeBaseCount: department._count.knowledgeSpaces,
+          userCount: department._count.users,
+        })),
+      })),
+    };
+  }
+
+  async findOrganizationById(organizationId: string): Promise<OrganizationEntity | null> {
+    const organization = await this.prisma.organization.findUnique({ where: { id: organizationId } });
+    return organization ? toOrganizationEntity(organization) : null;
+  }
+
+  async createOrganization(input: CreateOrganizationInput): Promise<OrganizationEntity> {
+    const organization = await this.prisma.organization.create({
+      data: {
+        code: this.generateCode('org'),
+        name: input.name,
+        tenantId: input.tenantId,
+      },
+    });
+
+    return toOrganizationEntity(organization);
+  }
+
+  async updateOrganization(
+    organizationId: string,
+    input: UpdateOrganizationInput,
+  ): Promise<OrganizationEntity> {
+    const organization = await this.prisma.organization.update({
+      where: { id: organizationId },
+      data: input,
+    });
+
+    return toOrganizationEntity(organization);
+  }
+
+  async findDepartmentById(departmentId: string): Promise<DepartmentEntity | null> {
+    const department = await this.prisma.department.findUnique({ where: { id: departmentId } });
+    return department ? toDepartmentEntity(department) : null;
+  }
+
+  async createDepartment(input: CreateDepartmentInput): Promise<DepartmentEntity> {
+    const department = await this.prisma.department.create({
+      data: {
+        code: this.generateCode('dept'),
+        name: input.name,
+        organizationId: input.organizationId,
+        parentId: input.parentId,
+        tenantId: input.tenantId,
+      },
+    });
+
+    return toDepartmentEntity(department);
+  }
+
+  async updateDepartment(
+    departmentId: string,
+    input: UpdateDepartmentInput,
+  ): Promise<DepartmentEntity> {
+    const department = await this.prisma.department.update({
+      where: { id: departmentId },
+      data: input,
+    });
+
+    return toDepartmentEntity(department);
+  }
+
+  async countDepartmentDependencies(departmentId: string): Promise<{
+    knowledgeBases: number;
+    users: number;
+  }> {
+    const [knowledgeBases, users] = await Promise.all([
+      this.prisma.knowledgeSpace.count({ where: { departmentId, status: { not: 'DELETED' } } }),
+      this.prisma.user.count({ where: { departmentId } }),
+    ]);
+
+    return { knowledgeBases, users };
+  }
+
+  async countActiveOrganizationDepartments(organizationId: string): Promise<number> {
+    return this.prisma.department.count({ where: { organizationId, status: 'ACTIVE' } });
+  }
+
+  async countActiveChildDepartments(departmentId: string): Promise<number> {
+    return this.prisma.department.count({ where: { parentId: departmentId, status: 'ACTIVE' } });
+  }
+
+  private generateCode(prefix: 'dept' | 'org'): string {
+    return `${prefix}-${randomUUID().replaceAll('-', '').slice(0, 12)}`;
   }
 
   async upsertDepartment(input: UpsertDepartmentInput): Promise<DepartmentEntity> {

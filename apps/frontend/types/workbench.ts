@@ -22,13 +22,27 @@ export interface SpaceMemberDetail extends SpaceMember {
   user: SpaceMemberUser;
 }
 
+export interface SpaceMemberCandidate {
+  department: { code: string; id: string; name: string } | null;
+  email: string;
+  id: string;
+  name: string | null;
+  roles: string[];
+}
+
 export interface KnowledgeSpaceMetadata extends Record<string, unknown> {
   customerCode?: string;
   customerName?: string;
-  departmentId?: string;
-  ownerDepartmentId?: string;
   projectCode?: string;
   projectName?: string;
+}
+
+export interface KnowledgeSpaceDepartment {
+  code: string;
+  id: string;
+  name: string;
+  organizationId: string;
+  parentId: string | null;
 }
 
 export interface KnowledgeSpace {
@@ -40,6 +54,8 @@ export interface KnowledgeSpace {
   status: 'ACTIVE' | 'ARCHIVED' | 'DELETED';
   ownerId: string;
   tenantId: string | null;
+  departmentId: string | null;
+  department: KnowledgeSpaceDepartment | null;
   metadata: KnowledgeSpaceMetadata;
   createdAt: string;
   updatedAt: string;
@@ -56,6 +72,7 @@ export type DocumentSecurityLevel = 'PUBLIC' | 'INTERNAL' | 'CONFIDENTIAL';
 
 export interface DocumentAccessScope {
   allowedDepartmentIds?: string[];
+  /** @deprecated Read-only compatibility for pre-governance records. */
   departmentId?: string;
   securityLevel: DocumentSecurityLevel;
 }

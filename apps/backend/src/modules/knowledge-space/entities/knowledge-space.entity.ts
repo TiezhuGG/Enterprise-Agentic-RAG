@@ -10,10 +10,16 @@ export type KnowledgeSpaceType = (typeof knowledgeSpaceTypes)[number];
 export interface KnowledgeSpaceMetadata extends Record<string, unknown> {
   customerCode?: string;
   customerName?: string;
-  departmentId?: string;
-  ownerDepartmentId?: string;
   projectCode?: string;
   projectName?: string;
+}
+
+export interface KnowledgeSpaceDepartmentEntity {
+  code: string;
+  id: string;
+  name: string;
+  organizationId: string;
+  parentId: string | null;
 }
 
 export const spaceMemberRoles = ['OWNER', 'EDITOR', 'VIEWER'] as const;
@@ -47,6 +53,8 @@ export interface KnowledgeSpaceEntity {
   status: KnowledgeSpaceStatus;
   ownerId: string;
   tenantId: string | null;
+  departmentId: string | null;
+  department: KnowledgeSpaceDepartmentEntity | null;
   metadata: KnowledgeSpaceMetadata;
   createdAt: Date;
   updatedAt: Date;
@@ -66,8 +74,6 @@ export const normalizeKnowledgeSpaceMetadata = (value: unknown): KnowledgeSpaceM
   const metadata: KnowledgeSpaceMetadata = {};
   const customerCode = toOptionalString(candidate.customerCode);
   const customerName = toOptionalString(candidate.customerName);
-  const departmentId = toOptionalString(candidate.departmentId);
-  const ownerDepartmentId = toOptionalString(candidate.ownerDepartmentId);
   const projectCode = toOptionalString(candidate.projectCode);
   const projectName = toOptionalString(candidate.projectName);
 
@@ -77,14 +83,6 @@ export const normalizeKnowledgeSpaceMetadata = (value: unknown): KnowledgeSpaceM
 
   if (customerName) {
     metadata.customerName = customerName;
-  }
-
-  if (departmentId) {
-    metadata.departmentId = departmentId;
-  }
-
-  if (ownerDepartmentId) {
-    metadata.ownerDepartmentId = ownerDepartmentId;
   }
 
   if (projectCode) {

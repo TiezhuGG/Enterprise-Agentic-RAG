@@ -7,6 +7,7 @@ export type ConsoleRouteKey =
   | 'knowledge-base-detail'
   | 'document-tasks'
   | 'document-access'
+  | 'organization-departments'
   | 'user-roles'
   | 'search'
   | 'assistant'
@@ -43,6 +44,7 @@ export const consoleRoutes: Record<ConsoleRouteKey, ConsoleRouteDefinition> = {
   'knowledge-base-detail': { key: 'knowledge-base-detail', path: '/console/knowledge-bases/[spaceId]', section: 'documents', title: '知识库详情' },
   'document-tasks': { key: 'document-tasks', path: '/console/documents/tasks', section: 'documents', title: '入库任务' },
   'document-access': { key: 'document-access', path: '/console/documents/access', section: 'governance', title: '访问权限' },
+  'organization-departments': { key: 'organization-departments', path: '/console/governance/organization', section: 'governance', title: '组织与部门' },
   'user-roles': { key: 'user-roles', path: '/console/governance/users', section: 'governance', title: '用户与角色' },
   search: { key: 'search', path: '/console/search', section: 'search', title: '智能搜索' },
   assistant: { key: 'assistant', path: '/console/assistant', section: 'assistant', title: 'AI 智能问答' },
@@ -69,6 +71,7 @@ export const consoleNavigationItems: ConsoleNavigationItem[] = [
   { group: 'applications', key: 'assistant', label: 'AI 问答' },
   { group: 'applications', key: 'graph', label: '知识图谱' },
   { group: 'governance', key: 'document-access', label: '访问权限' },
+  { group: 'governance', key: 'organization-departments', label: '组织与部门' },
   { group: 'governance', key: 'user-roles', label: '用户与角色' },
   { group: 'operations', key: 'system-status', label: '系统健康' },
   { group: 'operations', key: 'system-executions', label: '执行记录' },

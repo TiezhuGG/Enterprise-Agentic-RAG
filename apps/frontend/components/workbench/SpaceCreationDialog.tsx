@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useState } from 'react';
+import { FormEvent, useEffect, useState } from 'react';
 import { Building2, FolderKanban, Plus, UsersRound } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -13,9 +13,18 @@ import {
   DialogTitle,
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { cn } from '@/lib/utils';
+import { enterpriseService } from '@/services/enterprise.service';
 import { useWorkbenchStore } from '@/store/workbench.store';
+import type { EnterpriseDepartmentOption } from '@/types/enterprise';
 import type { KnowledgeSpaceType } from '@/types/workbench';
 
 const templates: Array<{
@@ -60,7 +69,14 @@ export function SpaceCreationDialog({ onOpenChange, open }: SpaceCreationDialogP
   const loading = useWorkbenchStore((state) => state.loading);
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
+  const [departmentId, setDepartmentId] = useState('');
+  const [departments, setDepartments] = useState<EnterpriseDepartmentOption[]>([]);
   const [type, setType] = useState<KnowledgeSpaceType>('GENERAL');
+
+  useEffect(() => {
+    if (!open) return;
+    void enterpriseService.listDepartments().then(setDepartments).catch(() => setDepartments([]));
+  }, [open]);
 
   const handleOpenChange = (nextOpen: boolean) => {
     onOpenChange(nextOpen);
@@ -68,6 +84,7 @@ export function SpaceCreationDialog({ onOpenChange, open }: SpaceCreationDialogP
     if (!nextOpen) {
       setName('');
       setDescription('');
+      setDepartmentId('');
       setType('GENERAL');
     }
   };
@@ -76,12 +93,13 @@ export function SpaceCreationDialog({ onOpenChange, open }: SpaceCreationDialogP
     event.preventDefault();
     const trimmedName = name.trim();
 
-    if (!trimmedName) {
+    if (!trimmedName || (type === 'DEPARTMENT' && !departmentId)) {
       return;
     }
 
     await createSpace(trimmedName, {
       description: description.trim() || undefined,
+      departmentId: departmentId || undefined,
       type,
       visibility: 'PRIVATE',
     });
@@ -134,6 +152,21 @@ export function SpaceCreationDialog({ onOpenChange, open }: SpaceCreationDialogP
             />
           </label>
           <label className="grid gap-2 text-sm font-medium">
+            归属部门{type === 'DEPARTMENT' ? '（必填）' : '（可选）'}
+            <Select onValueChange={(value) => setDepartmentId(value === 'none' ? '' : value)} value={departmentId || 'none'}>
+              <SelectTrigger><SelectValue placeholder="选择业务归属部门" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">不绑定部门</SelectItem>
+                {departments.map((department) => (
+                  <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+            <small className="text-xs font-normal leading-5 text-muted-foreground">
+              部门用于归属、筛选和文档附加限制；访问知识库仍需由负责人显式添加成员。
+            </small>
+          </label>
+          <label className="grid gap-2 text-sm font-medium">
             说明（可选）
             <Textarea
               className="min-h-20 resize-y"
@@ -151,7 +184,7 @@ export function SpaceCreationDialog({ onOpenChange, open }: SpaceCreationDialogP
             <Button onClick={() => handleOpenChange(false)} type="button" variant="outline">
               取消
             </Button>
-            <Button disabled={loading || !name.trim()} type="submit">
+            <Button disabled={loading || !name.trim() || (type === 'DEPARTMENT' && !departmentId)} type="submit">
               <Plus />
               创建空间
             </Button>

@@ -5,7 +5,7 @@ import { KnowledgeSpaceRepository, KnowledgeSpaceService } from '../../modules/k
 import { UserRepository } from '../../modules/user';
 import { PrismaService } from './prisma.service';
 
-const testPassword = 'RoleTest123!';
+const testPassword = '123456';
 const testSpaceName = '权限角色测试空间';
 
 const testUsers = [
@@ -29,6 +29,8 @@ async function seedRoleTestAccounts() {
     if (!admin?.tenantId || !admin.organizationId || !admin.departmentId) {
       throw new Error('admin@example.com must be seeded with an enterprise context first.');
     }
+
+    await userRepository.updatePassword(admin.id, await hash(testPassword, 10), false);
 
     const existingSpace = await prisma.knowledgeSpace.findFirst({
       where: {
@@ -71,8 +73,9 @@ async function seedRoleTestAccounts() {
         organizationId: admin.organizationId,
         passwordHash,
         tenantId: admin.tenantId,
+        mustChangePassword: false,
       });
-      await userRepository.assignRole(user.id, 'user');
+      await userRepository.replaceSystemRole(user.id, 'user');
       await knowledgeSpaceRepository.upsertMember(space.id, user.id, testUser.role);
     }
 

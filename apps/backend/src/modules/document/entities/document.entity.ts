@@ -61,12 +61,14 @@ export const normalizeDocumentAccessScope = (value: unknown): DocumentAccessScop
     securityLevel,
   };
 
-  if (departmentId) {
-    scope.departmentId = departmentId;
-  }
+  const effectiveDepartmentIds = allowedDepartmentIds.length > 0
+    ? allowedDepartmentIds
+    : departmentId
+      ? [departmentId]
+      : [];
 
-  if (allowedDepartmentIds.length > 0) {
-    scope.allowedDepartmentIds = allowedDepartmentIds;
+  if (effectiveDepartmentIds.length > 0) {
+    scope.allowedDepartmentIds = effectiveDepartmentIds;
   }
 
   return scope;

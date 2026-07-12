@@ -3,6 +3,7 @@ import { extname } from 'node:path';
 import type { ExecutionContext } from '../../common';
 import { StorageService } from '../../infrastructure/storage';
 import { AccessPolicyService } from '../access-policy';
+import { AuthRepository } from '../auth';
 import {
   KnowledgeSpaceRepository,
   type KnowledgeSpaceEntity,
@@ -66,6 +67,7 @@ export class DocumentService {
     private readonly documentRepository: DocumentRepository,
     private readonly knowledgeSpaceRepository: KnowledgeSpaceRepository,
     private readonly storageService: StorageService,
+    private readonly authRepository: AuthRepository,
   ) {}
 
   async create(
@@ -273,10 +275,26 @@ export class DocumentService {
   ): Promise<DocumentAccessScopeResponse> {
     const document = await this.findActiveDocument(id);
     await this.ensureSpaceRole(context, document.spaceId, writeRoles);
+    const normalizedScope = normalizeDocumentAccessScope(input);
     const updatedDocument = await this.documentRepository.updateAccessScope(
       id,
-      normalizeDocumentAccessScope(input),
+      normalizedScope,
     );
+    await this.authRepository.recordGovernanceAudit({
+      action: 'document.access_scope_updated',
+      actorUserId: context.userId,
+      after: {
+        allowedDepartmentIds: normalizedScope.allowedDepartmentIds ?? [],
+        securityLevel: normalizedScope.securityLevel,
+      },
+      before: {
+        allowedDepartmentIds: document.accessScope.allowedDepartmentIds ?? [],
+        securityLevel: document.accessScope.securityLevel,
+      },
+      targetId: document.id,
+      targetType: 'document',
+      tenantId: context.tenantId,
+    });
 
     return {
       accessScope: updatedDocument.accessScope,

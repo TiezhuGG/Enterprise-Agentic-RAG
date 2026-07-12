@@ -446,7 +446,7 @@ export function LoginPage() {
   const login = useWorkbenchStore((state) => state.login);
   const router = useRouter();
   const [email, setEmail] = useState('admin@example.com');
-  const [password, setPassword] = useState('Admin123!');
+  const [password, setPassword] = useState('123456');
 
   useEffect(() => {
     if (!authHydrated) {

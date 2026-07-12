@@ -83,11 +83,13 @@ interface WorkbenchStore {
   batchArchiveDocuments: () => Promise<void>;
   batchIngestDocuments: () => Promise<void>;
   batchUpdateTaxonomy: (input: UpdateDocumentTaxonomyRequest) => Promise<void>;
+  changePassword: (currentPassword: string, newPassword: string) => Promise<boolean>;
   clearAuth: () => void;
   clearDocumentSelection: () => void;
   createSpace: (
     name: string,
     profile?: {
+      departmentId?: string;
       description?: string;
       metadata?: KnowledgeSpaceMetadata;
       type?: KnowledgeSpaceType;
@@ -99,6 +101,7 @@ interface WorkbenchStore {
   deleteSelectedDocument: () => Promise<void>;
   deleteSelectedSpace: () => Promise<void>;
   addSpaceMember: (email: string, role: SpaceMemberRole) => Promise<void>;
+  addSpaceMembers: (members: Array<{ role: SpaceMemberRole; userId: string }>) => Promise<boolean>;
   ingestSelectedDocument: () => Promise<void>;
   initialize: () => Promise<void>;
   loadDocumentPreview: (documentId?: string) => Promise<void>;
@@ -123,6 +126,7 @@ interface WorkbenchStore {
   updateDocumentTaxonomy: (input: UpdateDocumentTaxonomyRequest) => Promise<void>;
   updateDocumentAccessScope: (accessScope: DocumentAccessScope) => Promise<void>;
   updateSelectedSpaceProfile: (profile: {
+    departmentId?: string | null;
     description?: string;
     metadata?: KnowledgeSpaceMetadata;
     name?: string;
@@ -415,6 +419,18 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
     });
   },
 
+  async changePassword(currentPassword: string, newPassword: string) {
+    try {
+      const response = await authService.changePassword({ currentPassword, newPassword });
+      persistAuthToken(response.accessToken);
+      set({ authError: null, authToken: response.accessToken, authUser: response.user });
+      return true;
+    } catch (error) {
+      set({ authError: toErrorMessage(error) });
+      return false;
+    }
+  },
+
   clearDocumentSelection() {
     set({
       selectedDocumentIds: [],
@@ -424,6 +440,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
   async createSpace(
     name: string,
     profile?: {
+      departmentId?: string;
       description?: string;
       metadata?: KnowledgeSpaceMetadata;
       type?: KnowledgeSpaceType;
@@ -440,6 +457,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
 
     try {
       const space = await knowledgeSpaceService.create({
+        departmentId: profile?.departmentId,
         description: profile?.description,
         metadata: profile?.metadata,
         name: trimmedName,
@@ -537,6 +555,23 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
         loadingSpaceMembers: false,
         spaceMembersError: toErrorMessage(error),
       });
+    }
+  },
+
+  async addSpaceMembers(members) {
+    const spaceId = get().selectedSpaceId;
+    if (!spaceId || members.length === 0) return false;
+    set({ loadingSpaceMembers: true, spaceMembersError: null });
+    try {
+      const [spaceMembers, spaces] = await Promise.all([
+        knowledgeSpaceService.addMembers(spaceId, { members }),
+        knowledgeSpaceService.list(),
+      ]);
+      set({ loadingSpaceMembers: false, spaceMembers, spaces });
+      return true;
+    } catch (error) {
+      set({ loadingSpaceMembers: false, spaceMembersError: toErrorMessage(error) });
+      return false;
     }
   },
 

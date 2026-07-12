@@ -5,7 +5,7 @@ import { AuthRepository } from '../../modules/auth';
 import { EnterpriseRepository } from '../../modules/enterprise';
 import { UserRepository } from '../../modules/user';
 
-export const seedAdminPassword = 'Admin123!';
+export const seedAdminPassword = '123456';
 const passwordSaltRounds = 10;
 
 const permissions = [
@@ -23,6 +23,11 @@ const permissions = [
     code: 'role.manage',
     name: '管理角色',
     description: '管理系统角色和权限。',
+  },
+  {
+    code: 'enterprise.manage',
+    name: '管理组织与部门',
+    description: '维护组织、部门和用户归属。',
   },
   {
     code: 'knowledge.read',
@@ -51,6 +56,7 @@ const roles = [
       'user.read',
       'user.write',
       'role.manage',
+      'enterprise.manage',
       'knowledge.read',
       'knowledge.retrieve',
       'knowledge.confidential.read',
@@ -94,7 +100,7 @@ async function seed() {
       isActive: true,
     });
 
-    await userRepository.assignRole(admin.id, 'admin');
+    await userRepository.replaceSystemRole(admin.id, 'admin');
 
     const tenant = await enterpriseRepository.upsertTenant({
       code: 'default',
@@ -126,6 +132,7 @@ async function seed() {
       organizationId: organization.id,
       tenantId: tenant.id,
     });
+    await userRepository.updatePassword(admin.id, await hash(seedAdminPassword, passwordSaltRounds), false);
 
     await enterpriseRepository.backfillUserKnowledgeSpacesTenant(admin.id, tenant.id);
   } finally {

@@ -14,7 +14,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
+import { enterpriseService } from '@/services/enterprise.service';
 import { useWorkbenchStore } from '@/store/workbench.store';
+import type { EnterpriseDepartmentOption } from '@/types/enterprise';
 import type { KnowledgeSpaceMetadata, KnowledgeSpaceType, SpaceMemberRole } from '@/types/workbench';
 
 const spaceTypeLabels: Record<KnowledgeSpaceType, string> = {
@@ -52,10 +54,12 @@ export function SpaceProfilePanel() {
   const owner = spaceMembers.find((member) => member.role === 'OWNER') ?? null;
   const role = currentMember?.role ?? 'VIEWER';
   const canManage = role === 'OWNER' || role === 'EDITOR';
+  const canManageDepartment = role === 'OWNER';
   const [name, setName] = useState(selectedSpace?.name ?? '');
   const [description, setDescription] = useState(selectedSpace?.description ?? '');
   const [spaceType, setSpaceType] = useState<KnowledgeSpaceType>(selectedSpace?.type ?? 'GENERAL');
-  const [departmentId, setDepartmentId] = useState(selectedSpace?.metadata.departmentId ?? '');
+  const [departmentId, setDepartmentId] = useState(selectedSpace?.departmentId ?? '');
+  const [departments, setDepartments] = useState<EnterpriseDepartmentOption[]>([]);
   const [projectCode, setProjectCode] = useState(selectedSpace?.metadata.projectCode ?? '');
   const [projectName, setProjectName] = useState(selectedSpace?.metadata.projectName ?? '');
   const [customerCode, setCustomerCode] = useState(selectedSpace?.metadata.customerCode ?? '');
@@ -66,18 +70,17 @@ export function SpaceProfilePanel() {
         ...selectedSpace?.metadata,
         customerCode,
         customerName,
-        departmentId,
         projectCode,
         projectName,
       }),
-    [customerCode, customerName, departmentId, projectCode, projectName, selectedSpace?.metadata],
+    [customerCode, customerName, projectCode, projectName, selectedSpace?.metadata],
   );
   const isDirty =
     Boolean(selectedSpace) &&
     (name.trim() !== selectedSpace?.name ||
       description.trim() !== (selectedSpace.description ?? '') ||
-      spaceType !== selectedSpace.type ||
-      departmentId.trim() !== (selectedSpace.metadata.departmentId ?? '') ||
+      (canManageDepartment && spaceType !== selectedSpace.type) ||
+      (canManageDepartment && departmentId !== (selectedSpace.departmentId ?? '')) ||
       projectCode.trim() !== (selectedSpace.metadata.projectCode ?? '') ||
       projectName.trim() !== (selectedSpace.metadata.projectName ?? '') ||
       customerCode.trim() !== (selectedSpace.metadata.customerCode ?? '') ||
@@ -87,20 +90,26 @@ export function SpaceProfilePanel() {
     setName(selectedSpace?.name ?? '');
     setDescription(selectedSpace?.description ?? '');
     setSpaceType(selectedSpace?.type ?? 'GENERAL');
-    setDepartmentId(selectedSpace?.metadata.departmentId ?? '');
+    setDepartmentId(selectedSpace?.departmentId ?? '');
     setProjectCode(selectedSpace?.metadata.projectCode ?? '');
     setProjectName(selectedSpace?.metadata.projectName ?? '');
     setCustomerCode(selectedSpace?.metadata.customerCode ?? '');
     setCustomerName(selectedSpace?.metadata.customerName ?? '');
   }, [selectedSpace]);
 
+  useEffect(() => {
+    if (!selectedSpace) return;
+    void enterpriseService.listDepartments().then(setDepartments).catch(() => setDepartments([]));
+  }, [selectedSpace]);
+
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     await updateSelectedSpaceProfile({
       description: description.trim() || undefined,
+      departmentId: canManageDepartment ? departmentId || null : undefined,
       metadata,
       name: name.trim(),
-      type: spaceType,
+      type: canManageDepartment ? spaceType : undefined,
     });
   };
 
@@ -134,7 +143,7 @@ export function SpaceProfilePanel() {
             </label>
             <label className="space-profile-panel__field">
               <span>空间类型</span>
-              <Select disabled={loading} onValueChange={(value) => setSpaceType(value as KnowledgeSpaceType)} value={spaceType}>
+              <Select disabled={!canManageDepartment || loading} onValueChange={(value) => setSpaceType(value as KnowledgeSpaceType)} value={spaceType}>
                 <SelectTrigger><SelectValue /></SelectTrigger>
                 <SelectContent>
                   {(['GENERAL', 'DEPARTMENT', 'PROJECT', 'CUSTOMER'] as KnowledgeSpaceType[]).map((type) => (
@@ -145,8 +154,15 @@ export function SpaceProfilePanel() {
               <small>{spaceTypeDescriptions[spaceType]}</small>
             </label>
             <label className="space-profile-panel__field">
-              <span>部门标识</span>
-              <Input onChange={(event) => setDepartmentId(event.target.value)} placeholder="dept-finance" value={departmentId} />
+              <span>归属部门{spaceType === 'DEPARTMENT' ? '（必填）' : '（可选）'}</span>
+              <Select disabled={!canManageDepartment || loading} onValueChange={(value) => setDepartmentId(value === 'none' ? '' : value)} value={departmentId || 'none'}>
+                <SelectTrigger><SelectValue placeholder="选择部门" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">不绑定部门</SelectItem>
+                  {departments.map((department) => <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>)}
+                </SelectContent>
+              </Select>
+              <small>{canManageDepartment ? '负责人可调整业务归属；成员权限不会因此自动变化。' : '仅知识库负责人可调整业务归属。'}</small>
             </label>
             <div className="space-profile-panel__split">
               <label className="space-profile-panel__field"><span>项目编码</span><Input onChange={(event) => setProjectCode(event.target.value)} placeholder="proj-erp-2026" value={projectCode} /></label>
@@ -156,7 +172,7 @@ export function SpaceProfilePanel() {
               <label className="space-profile-panel__field"><span>客户编码</span><Input onChange={(event) => setCustomerCode(event.target.value)} placeholder="cust-acme" value={customerCode} /></label>
               <label className="space-profile-panel__field"><span>客户名称</span><Input onChange={(event) => setCustomerName(event.target.value)} placeholder="ACME Corp" value={customerName} /></label>
             </div>
-            <Button disabled={!isDirty || loading || !name.trim()} type="submit"><Save />保存资料</Button>
+            <Button disabled={!isDirty || loading || !name.trim() || (spaceType === 'DEPARTMENT' && !departmentId)} type="submit"><Save />保存资料</Button>
           </form>
         ) : (
           <div className="space-profile-panel__readonly">
@@ -167,7 +183,7 @@ export function SpaceProfilePanel() {
             <dl className="space-profile-panel__details">
               <div><dt>空间名称</dt><dd>{selectedSpace.name}</dd></div>
               <div><dt>空间说明</dt><dd>{selectedSpace.description || '未填写'}</dd></div>
-              <div><dt>部门标识</dt><dd>{selectedSpace.metadata.departmentId || '未设置'}</dd></div>
+              <div><dt>归属部门</dt><dd>{selectedSpace.department?.name || '未设置'}</dd></div>
               <div><dt>项目编码</dt><dd>{selectedSpace.metadata.projectCode || '未设置'}</dd></div>
             </dl>
             <p>当前为空间查看者。系统管理员身份不替代空间成员权限；请联系空间负责人 {owner?.user.email ?? '申请编辑权限'} 修改空间资料。</p>
@@ -181,16 +197,12 @@ export function SpaceProfilePanel() {
 const createMetadata = (input: KnowledgeSpaceMetadata & {
   customerCode: string;
   customerName: string;
-  departmentId: string;
   projectCode: string;
   projectName: string;
 }): KnowledgeSpaceMetadata => ({
   ...input,
   ...(input.customerCode.trim() ? { customerCode: input.customerCode.trim() } : { customerCode: undefined }),
   ...(input.customerName.trim() ? { customerName: input.customerName.trim() } : { customerName: undefined }),
-  ...(input.departmentId.trim()
-    ? { departmentId: input.departmentId.trim(), ownerDepartmentId: input.departmentId.trim() }
-    : { departmentId: undefined, ownerDepartmentId: undefined }),
   ...(input.projectCode.trim() ? { projectCode: input.projectCode.trim() } : { projectCode: undefined }),
   ...(input.projectName.trim() ? { projectName: input.projectName.trim() } : { projectName: undefined }),
 });
