@@ -286,6 +286,37 @@ export class ProviderDiagnosticsService {
       };
     }
 
+    if (error instanceof Error && error.name === 'AbortError') {
+      return {
+        message: `${fallback}，请求超时`,
+        reachable: false,
+        stage: 'connectivity',
+      };
+    }
+
+    switch (this.getNetworkErrorCode(error)) {
+      case 'ECONNRESET':
+        return {
+          message: `${fallback}，网关主动断开连接，请检查服务状态、HTTPS 配置或网络代理`,
+          reachable: false,
+          stage: 'connectivity',
+        };
+      case 'ECONNREFUSED':
+        return {
+          message: `${fallback}，无法连接网关服务`,
+          reachable: false,
+          stage: 'connectivity',
+        };
+      case 'ENOTFOUND':
+        return {
+          message: `${fallback}，无法解析网关域名`,
+          reachable: false,
+          stage: 'connectivity',
+        };
+      default:
+        break;
+    }
+
     return {
       message: fallback,
       reachable: false,
@@ -295,5 +326,25 @@ export class ProviderDiagnosticsService {
 
   private isHttpFailure(error: unknown): error is ProviderDiagnosticHttpError {
     return error instanceof ProviderDiagnosticHttpError;
+  }
+
+  private getNetworkErrorCode(error: unknown): string | null {
+    if (!error || typeof error !== 'object') {
+      return null;
+    }
+
+    const candidate = error as { cause?: unknown; code?: unknown };
+
+    if (typeof candidate.code === 'string') {
+      return candidate.code;
+    }
+
+    if (!candidate.cause || typeof candidate.cause !== 'object') {
+      return null;
+    }
+
+    const cause = candidate.cause as { code?: unknown };
+
+    return typeof cause.code === 'string' ? cause.code : null;
   }
 }

@@ -11,12 +11,36 @@ import type {
   ExtractedEntity,
   GraphDocumentCounts,
   GraphEntity,
+  GraphEntityCategory,
   GraphExtractionResult,
+  GraphRelationCategory,
   GraphView,
   GraphRelation,
 } from './knowledge-graph.types';
 
 const normalizeName = (name: string): string => name.trim().toLowerCase();
+const entityDisplayTypes: Record<GraphEntityCategory, string> = {
+  BENEFIT: '福利',
+  DATA: '数据',
+  ORGANIZATION: '组织',
+  OTHER: '其他',
+  POLICY: '制度',
+  POSITION: '岗位',
+  PROCESS: '流程',
+  REQUIREMENT: '要求',
+  ROLE: '角色',
+  RULE: '规则',
+};
+const relationDisplayLabels: Record<GraphRelationCategory, string> = {
+  APPLIES_TO: '适用于',
+  APPROVAL: '审批',
+  CONTAINS: '包含',
+  OWNERSHIP: '归属 / 负责',
+  PRECEDES: '先于',
+  REFERENCE: '引用',
+  RELATED: '相关',
+  REQUIREMENT: '要求',
+};
 
 @Injectable()
 export class KnowledgeGraphService {
@@ -74,8 +98,12 @@ export class KnowledgeGraphService {
         );
 
         relations.push({
+          displayLabel: relationDisplayLabels[relation.relationCategory ?? 'RELATED'],
           documentId: document.id,
+          evidence: relation.evidence || chunk.content.slice(0, 240),
+          relationCategory: relation.relationCategory ?? 'RELATED',
           source: source.name,
+          sourceChunkId: chunk.id,
           sourceId: source.id,
           target: target.name,
           targetId: target.id,
@@ -109,8 +137,9 @@ export class KnowledgeGraphService {
 
   async getDocumentGraph(context: ExecutionContext, documentId: string): Promise<GraphView> {
     const document = await this.documentService.getById(context, documentId);
+    const view = await this.knowledgeGraphRepository.getDocumentGraph(document.id);
 
-    return this.knowledgeGraphRepository.getDocumentGraph(document.id);
+    return this.withDocumentTitles(view, new Map([[document.id, document.title]]));
   }
 
   async getSpaceGraph(
@@ -121,12 +150,17 @@ export class KnowledgeGraphService {
     await this.knowledgeSpaceService.getById(context, spaceId);
     const documents = await this.documentService.listBySpace(context, spaceId);
 
-    return this.knowledgeGraphRepository.getSpaceGraph({
+    const view = await this.knowledgeGraphRepository.getSpaceGraph({
       documentIds: documents.map((document) => document.id),
       limit: this.normalizeLimit(input.limit),
       query: input.query,
       spaceId,
     });
+
+    return this.withDocumentTitles(
+      view,
+      new Map(documents.map((document) => [document.id, document.title])),
+    );
   }
 
   private createEntityId(spaceId: string, documentId: string, name: string): string {
@@ -151,6 +185,8 @@ export class KnowledgeGraphService {
     }
 
     const entity = {
+      category: 'OTHER' as const,
+      displayType: entityDisplayTypes.OTHER,
       id: this.createEntityId(spaceId, documentId, name),
       name,
       type: 'UNKNOWN',
@@ -181,6 +217,8 @@ export class KnowledgeGraphService {
     entities: ExtractedEntity[],
   ): GraphEntity[] {
     return entities.map((entity) => ({
+      category: entity.category ?? 'OTHER',
+      displayType: entityDisplayTypes[entity.category ?? 'OTHER'],
       id: this.createEntityId(spaceId, documentId, entity.name),
       name: entity.name,
       type: entity.type,
@@ -189,9 +227,19 @@ export class KnowledgeGraphService {
     }));
   }
 
+  private withDocumentTitles(view: GraphView, titles: Map<string, string>): GraphView {
+    return {
+      ...view,
+      edges: view.edges.map((edge) => ({
+        ...edge,
+        documentTitle: titles.get(edge.documentId) ?? null,
+      })),
+    };
+  }
+
   private countEntityTypes(entities: GraphEntity[]): Record<string, number> {
     return entities.reduce<Record<string, number>>((distribution, entity) => {
-      const type = entity.type.trim() || 'UNKNOWN';
+      const type = entity.displayType;
 
       distribution[type] = (distribution[type] ?? 0) + 1;
 

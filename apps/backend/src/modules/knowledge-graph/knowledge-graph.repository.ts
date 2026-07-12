@@ -5,8 +5,10 @@ import type {
   GraphDocumentCounts,
   GraphEdge,
   GraphEntity,
+  GraphEntityCategory,
   GraphNode,
   GraphRelation,
+  GraphRelationCategory,
   GraphView,
 } from './knowledge-graph.types';
 
@@ -23,7 +25,9 @@ interface GraphContextRow {
 }
 
 interface GraphNodeRow {
+  category: GraphEntityCategory;
   documentId: string;
+  displayType: string;
   id: string;
   name: string;
   spaceId: string;
@@ -31,13 +35,101 @@ interface GraphNodeRow {
 }
 
 interface GraphEdgeRow {
+  displayLabel: string;
   documentId: string;
+  evidence: string | null;
+  relationCategory: GraphRelationCategory;
+  sourceChunkId: string | null;
   sourceId: string;
   targetId: string;
   type: string;
 }
 
 const toString = (value: unknown): string => String(value ?? '');
+const toNullableString = (value: unknown): string | null => {
+  const normalized = toString(value).trim();
+  return normalized || null;
+};
+
+const normalizeEntityCategory = (value: unknown): GraphEntityCategory => {
+  const normalized = toString(value).trim().toUpperCase();
+  const categories: GraphEntityCategory[] = [
+    'ORGANIZATION',
+    'ROLE',
+    'POSITION',
+    'PROCESS',
+    'POLICY',
+    'RULE',
+    'REQUIREMENT',
+    'BENEFIT',
+    'DATA',
+    'OTHER',
+  ];
+  if (categories.includes(normalized as GraphEntityCategory)) {
+    return normalized as GraphEntityCategory;
+  }
+
+  if (/(ORG|DEPARTMENT|TEAM|组织|部门|公司)/i.test(normalized)) return 'ORGANIZATION';
+  if (/(POSITION|JOB|岗位|职位|工程师|专员|主管)/i.test(normalized)) return 'POSITION';
+  if (/(ROLE|PERSON|USER|角色|人员|负责人)/i.test(normalized)) return 'ROLE';
+  if (/(PROCESS|WORKFLOW|流程|阶段|步骤)/i.test(normalized)) return 'PROCESS';
+  if (/(BENEFIT|WELFARE|福利|薪资|五险|奖金)/i.test(normalized)) return 'BENEFIT';
+  if (/(POLICY|制度|政策|规范|DOCUMENT)/i.test(normalized)) return 'POLICY';
+  if (/(RULE|TERM|CLAUSE|规则|条款)/i.test(normalized)) return 'RULE';
+  if (/(REQUIREMENT|MATERIAL|要求|材料|条件|资格)/i.test(normalized)) return 'REQUIREMENT';
+  if (/(DATA|CODE|AMOUNT|NUMBER|数据|编码|金额)/i.test(normalized)) return 'DATA';
+  return 'OTHER';
+};
+
+const normalizeRelationCategory = (value: unknown): GraphRelationCategory => {
+  const normalized = toString(value).trim().toUpperCase();
+  const categories: GraphRelationCategory[] = [
+    'OWNERSHIP',
+    'CONTAINS',
+    'APPROVAL',
+    'REFERENCE',
+    'REQUIREMENT',
+    'APPLIES_TO',
+    'PRECEDES',
+    'RELATED',
+  ];
+  if (categories.includes(normalized as GraphRelationCategory)) {
+    return normalized as GraphRelationCategory;
+  }
+
+  if (/(负责|归属|属于|OWNER|BELONG|MANAGE)/i.test(normalized)) return 'OWNERSHIP';
+  if (/(包含|组成|包括|CONTAIN|INCLUDE|PART|HAS_)/i.test(normalized)) return 'CONTAINS';
+  if (/(审批|审核|批准|APPROV|REVIEW)/i.test(normalized)) return 'APPROVAL';
+  if (/(引用|依据|参考|CITE|REFERENCE|REDIRECT)/i.test(normalized)) return 'REFERENCE';
+  if (/(要求|需要|必须|REQUIRE|NEED|MUST)/i.test(normalized)) return 'REQUIREMENT';
+  if (/(适用|面向|APPL|TARGET)/i.test(normalized)) return 'APPLIES_TO';
+  if (/(之前|之后|先于|PRECEDE|FOLLOW)/i.test(normalized)) return 'PRECEDES';
+  return 'RELATED';
+};
+
+const entityDisplayTypes: Record<GraphEntityCategory, string> = {
+  BENEFIT: '福利',
+  DATA: '数据',
+  ORGANIZATION: '组织',
+  OTHER: '其他',
+  POLICY: '制度',
+  POSITION: '岗位',
+  PROCESS: '流程',
+  REQUIREMENT: '要求',
+  ROLE: '角色',
+  RULE: '规则',
+};
+
+const relationDisplayLabels: Record<GraphRelationCategory, string> = {
+  APPLIES_TO: '适用于',
+  APPROVAL: '审批',
+  CONTAINS: '包含',
+  OWNERSHIP: '归属 / 负责',
+  PRECEDES: '先于',
+  REFERENCE: '引用',
+  RELATED: '相关',
+  REQUIREMENT: '要求',
+};
 
 const toNumber = (value: unknown): number => {
   if (typeof value === 'number') {
@@ -71,22 +163,38 @@ const toGraphContextRow = (row: unknown[]): GraphContextRow => ({
   spaceId: toString(row[8]),
 });
 
-const toGraphNodeRow = (row: unknown[]): GraphNodeRow => ({
-  id: toString(row[0]),
-  name: toString(row[1]),
-  type: toString(row[2]),
-  documentId: toString(row[3]),
-  spaceId: toString(row[4]),
-});
+const toGraphNodeRow = (row: unknown[]): GraphNodeRow => {
+  const category = normalizeEntityCategory(row[3] || `${toString(row[2])} ${toString(row[1])}`);
 
-const toGraphEdgeRow = (row: unknown[]): GraphEdgeRow => ({
-  sourceId: toString(row[0]),
-  targetId: toString(row[1]),
-  type: toString(row[2]),
-  documentId: toString(row[3]),
-});
+  return {
+    id: toString(row[0]),
+    name: toString(row[1]),
+    type: toString(row[2]),
+    category,
+    displayType: toString(row[4]) || entityDisplayTypes[category],
+    documentId: toString(row[5]),
+    spaceId: toString(row[6]),
+  };
+};
+
+const toGraphEdgeRow = (row: unknown[]): GraphEdgeRow => {
+  const relationCategory = normalizeRelationCategory(row[3] || row[2]);
+
+  return {
+    sourceId: toString(row[0]),
+    targetId: toString(row[1]),
+    type: toString(row[2]),
+    relationCategory,
+    displayLabel: toString(row[4]) || relationDisplayLabels[relationCategory],
+    documentId: toString(row[5]),
+    sourceChunkId: toNullableString(row[6]),
+    evidence: toNullableString(row[7]),
+  };
+};
 
 const toGraphNode = (row: GraphNodeRow): GraphNode => ({
+  category: row.category,
+  displayType: row.displayType,
   documentId: row.documentId,
   id: row.id,
   name: row.name,
@@ -95,8 +203,13 @@ const toGraphNode = (row: GraphNodeRow): GraphNode => ({
 });
 
 const toGraphEdge = (row: GraphEdgeRow): GraphEdge => ({
+  displayLabel: row.displayLabel,
+  documentTitle: null,
+  evidence: row.evidence,
   documentId: row.documentId,
   id: `${row.sourceId}:${row.type}:${row.targetId}:${row.documentId}`,
+  relationCategory: row.relationCategory,
+  sourceChunkId: row.sourceChunkId,
   sourceId: row.sourceId,
   targetId: row.targetId,
   type: row.type,
@@ -141,6 +254,8 @@ export class KnowledgeGraphRepository {
         MERGE (node:Entity {id: entity.id})
         SET node.name = entity.name,
             node.type = entity.type,
+            node.category = entity.category,
+            node.displayType = entity.displayType,
             node.spaceId = entity.spaceId,
             node.documentId = entity.documentId
         `,
@@ -162,6 +277,10 @@ export class KnowledgeGraphRepository {
           target: relation.target,
           documentId: relation.documentId
         }]->(target)
+        SET edge.relationCategory = relation.relationCategory,
+            edge.displayLabel = relation.displayLabel,
+            edge.sourceChunkId = relation.sourceChunkId,
+            edge.evidence = relation.evidence
         `,
         {
           relations,
@@ -252,7 +371,7 @@ export class KnowledgeGraphRepository {
       this.graphService.run(
         `
         MATCH (entity:Entity {documentId: $documentId})
-        RETURN entity.id, entity.name, entity.type, entity.documentId, entity.spaceId
+        RETURN entity.id, entity.name, entity.type, entity.category, entity.displayType, entity.documentId, entity.spaceId
         ORDER BY entity.name
         `,
         { documentId },
@@ -260,7 +379,7 @@ export class KnowledgeGraphRepository {
       this.graphService.run(
         `
         MATCH (source:Entity {documentId: $documentId})-[edge:RELATION {documentId: $documentId}]->(target:Entity {documentId: $documentId})
-        RETURN source.id, target.id, edge.type, edge.documentId
+        RETURN source.id, target.id, edge.type, edge.relationCategory, edge.displayLabel, edge.documentId, edge.sourceChunkId, edge.evidence
         ORDER BY source.name, target.name
         `,
         { documentId },
@@ -295,8 +414,9 @@ export class KnowledgeGraphRepository {
           OR toLower(source.name) CONTAINS $query
           OR toLower(target.name) CONTAINS $query
           OR toLower(edge.type) CONTAINS $query
+          OR toLower(coalesce(edge.displayLabel, '')) CONTAINS $query
         )
-      RETURN source.id, target.id, edge.type, edge.documentId
+      RETURN source.id, target.id, edge.type, edge.relationCategory, edge.displayLabel, edge.documentId, edge.sourceChunkId, edge.evidence
       LIMIT $limit
       `,
       {
@@ -315,7 +435,7 @@ export class KnowledgeGraphRepository {
         MATCH (entity:Entity {spaceId: $spaceId})
         WHERE entity.documentId IN $documentIds
           AND ($query = '' OR toLower(entity.name) CONTAINS $query)
-        RETURN entity.id, entity.name, entity.type, entity.documentId, entity.spaceId
+        RETURN entity.id, entity.name, entity.type, entity.category, entity.displayType, entity.documentId, entity.spaceId
         ORDER BY entity.name
         LIMIT $limit
         `,
@@ -338,7 +458,7 @@ export class KnowledgeGraphRepository {
       `
       MATCH (entity:Entity)
       WHERE entity.id IN $nodeIds
-      RETURN entity.id, entity.name, entity.type, entity.documentId, entity.spaceId
+      RETURN entity.id, entity.name, entity.type, entity.category, entity.displayType, entity.documentId, entity.spaceId
       ORDER BY entity.name
       `,
       { nodeIds },

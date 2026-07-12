@@ -62,8 +62,12 @@ export const readApiError = async (response: Response): Promise<Error> => {
   try {
     const body = (await response.json()) as { code?: string; message?: string | string[] };
     const message = Array.isArray(body.message) ? body.message.join(', ') : body.message;
+    const safeMessage = toShortSafeMessage(message ?? '');
+    const preserveProviderMessage = body.code === 'LLM_UNAVAILABLE';
     const localizedMessage =
-      getAppErrorMessage(body.code) ?? (toShortSafeMessage(message ?? '') || fallbackMessage);
+      (preserveProviderMessage && safeMessage
+        ? safeMessage
+        : getAppErrorMessage(body.code) ?? safeMessage) || fallbackMessage;
 
     return new ApiClientError(localizedMessage, response.status, body.code);
   } catch {

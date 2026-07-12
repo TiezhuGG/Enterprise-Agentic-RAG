@@ -14,6 +14,7 @@ import { useWorkbenchStore } from './workbench.store';
 
 interface GraphBrowserState {
   error: string | null;
+  focusLimit: number;
   hopDepth: GraphHopDepth;
   loading: boolean;
   query: string;
@@ -24,6 +25,7 @@ interface GraphBrowserState {
   typeFilter: string;
   view: GraphView | null;
   clearSelection: () => void;
+  expandFocus: () => void;
   loadGraph: () => Promise<void>;
   selectEdge: (edgeId: string | null) => void;
   selectNode: (nodeId: string | null) => void;
@@ -48,15 +50,23 @@ export interface GraphVisibleView extends GraphView {
 
 type GraphVisibleViewInput = Pick<
   GraphBrowserState,
-  'hopDepth' | 'selectedEdgeId' | 'selectedNodeId' | 'submittedQuery' | 'typeFilter' | 'view'
+  | 'focusLimit'
+  | 'hopDepth'
+  | 'selectedEdgeId'
+  | 'selectedNodeId'
+  | 'submittedQuery'
+  | 'typeFilter'
+  | 'view'
 >;
 
 const graphLimit = 160;
 const documentOverviewLimit = 28;
 const spaceOverviewLimit = 18;
+const initialFocusLimit = 13;
 
 export const useGraphBrowserStore = create<GraphBrowserState>((set, get) => ({
   error: null,
+  focusLimit: initialFocusLimit,
   hopDepth: 1,
   loading: false,
   query: '',
@@ -69,9 +79,14 @@ export const useGraphBrowserStore = create<GraphBrowserState>((set, get) => ({
 
   clearSelection() {
     set({
+      focusLimit: initialFocusLimit,
       selectedEdgeId: null,
       selectedNodeId: null,
     });
+  },
+
+  expandFocus() {
+    set((state) => ({ focusLimit: Math.min(state.focusLimit + 12, 49) }));
   },
 
   async loadGraph() {
@@ -131,13 +146,14 @@ export const useGraphBrowserStore = create<GraphBrowserState>((set, get) => ({
 
   selectNode(nodeId) {
     set({
+      focusLimit: initialFocusLimit,
       selectedEdgeId: null,
       selectedNodeId: nodeId,
     });
   },
 
   setHopDepth(hopDepth) {
-    set({ hopDepth });
+    set({ focusLimit: initialFocusLimit, hopDepth });
   },
 
   setQuery(query) {
@@ -146,6 +162,7 @@ export const useGraphBrowserStore = create<GraphBrowserState>((set, get) => ({
 
   setScope(scope) {
     set({
+      focusLimit: initialFocusLimit,
       scope,
       selectedEdgeId: null,
       selectedNodeId: null,
@@ -156,6 +173,7 @@ export const useGraphBrowserStore = create<GraphBrowserState>((set, get) => ({
 
   setTypeFilter(typeFilter) {
     set({
+      focusLimit: initialFocusLimit,
       selectedEdgeId: null,
       selectedNodeId: null,
       typeFilter,
@@ -164,6 +182,7 @@ export const useGraphBrowserStore = create<GraphBrowserState>((set, get) => ({
 
   async submitQuery() {
     set((state) => ({
+      focusLimit: initialFocusLimit,
       selectedEdgeId: null,
       selectedNodeId: null,
       submittedQuery: state.query.trim(),
@@ -177,9 +196,7 @@ export const createGraphVisibleView = (state: GraphVisibleViewInput): GraphVisib
     return null;
   }
 
-  const typeOptions = [
-    ...new Set(state.view.nodes.map((node) => node.type).filter(Boolean)),
-  ].sort();
+  const typeOptions = [...new Set(state.view.nodes.map((node) => node.category))].sort();
   const normalizedQuery = state.submittedQuery.trim().toLowerCase();
   const queryMatchedNodeIds = normalizedQuery
     ? collectQueryMatchedNodeIds(state.view.nodes, state.view.edges, normalizedQuery)
@@ -187,7 +204,7 @@ export const createGraphVisibleView = (state: GraphVisibleViewInput): GraphVisib
   const typeFilteredNodes =
     state.typeFilter === 'ALL'
       ? state.view.nodes
-      : state.view.nodes.filter((node) => node.type === state.typeFilter);
+      : state.view.nodes.filter((node) => node.category === state.typeFilter);
   const typeFilteredNodeIds = new Set(typeFilteredNodes.map((node) => node.id));
   const selectedNode = state.selectedNodeId
     ? (state.view.nodes.find((node) => node.id === state.selectedNodeId) ?? null)
@@ -196,8 +213,10 @@ export const createGraphVisibleView = (state: GraphVisibleViewInput): GraphVisib
     ? collectNeighborNodeIds(state.view.edges, selectedNode.id, state.hopDepth)
     : null;
   const { displayMode, visibleNodeIds } = resolveVisibleNodeIds({
+    focusLimit: state.focusLimit,
     queryMatchedNodeIds,
     selectedNodeIds,
+    selectedNodeId: selectedNode?.id ?? null,
     typeFilteredNodeIds,
     view: state.view,
   });
@@ -235,22 +254,27 @@ export const createGraphVisibleView = (state: GraphVisibleViewInput): GraphVisib
 };
 
 const resolveVisibleNodeIds = ({
+  focusLimit,
   queryMatchedNodeIds,
   selectedNodeIds,
+  selectedNodeId,
   typeFilteredNodeIds,
   view,
 }: {
+  focusLimit: number;
   queryMatchedNodeIds: Set<string> | null;
   selectedNodeIds: Set<string> | null;
+  selectedNodeId: string | null;
   typeFilteredNodeIds: Set<string>;
   view: GraphView;
 }): Pick<GraphVisibleView, 'displayMode'> & { visibleNodeIds: Set<string> } => {
   if (selectedNodeIds) {
+    const filteredNodeIds = new Set(
+      [...selectedNodeIds].filter((nodeId) => typeFilteredNodeIds.has(nodeId)),
+    );
     return {
       displayMode: 'focus',
-      visibleNodeIds: new Set(
-        [...selectedNodeIds].filter((nodeId) => typeFilteredNodeIds.has(nodeId)),
-      ),
+      visibleNodeIds: selectFocusNodeIds(filteredNodeIds, view.edges, selectedNodeId, focusLimit),
     };
   }
 
@@ -341,13 +365,19 @@ const collectQueryMatchedNodeIds = (
       .filter(
         (node) =>
           node.name.toLowerCase().includes(normalizedQuery) ||
-          node.type.toLowerCase().includes(normalizedQuery),
+          node.type.toLowerCase().includes(normalizedQuery) ||
+          node.displayType.toLowerCase().includes(normalizedQuery) ||
+          node.category.toLowerCase().includes(normalizedQuery),
       )
       .map((node) => node.id),
   );
 
   edges.forEach((edge) => {
-    if (edge.type.toLowerCase().includes(normalizedQuery)) {
+    if (
+      edge.type.toLowerCase().includes(normalizedQuery) ||
+      edge.displayLabel.toLowerCase().includes(normalizedQuery) ||
+      edge.evidence?.toLowerCase().includes(normalizedQuery)
+    ) {
       matchedNodeIds.add(edge.sourceId);
       matchedNodeIds.add(edge.targetId);
     }
@@ -415,6 +445,22 @@ const selectHubNodeIds = (nodes: GraphNode[], edges: GraphEdge[], limit: number)
       .slice(0, limit)
       .map((node) => node.id),
   );
+};
+
+const selectFocusNodeIds = (
+  nodeIds: Set<string>,
+  edges: GraphEdge[],
+  selectedNodeId: string | null,
+  limit: number,
+): Set<string> => {
+  const degrees = getNodeDegrees(edges);
+  const ordered = [...nodeIds].sort((left, right) => {
+    if (left === selectedNodeId) return -1;
+    if (right === selectedNodeId) return 1;
+    return (degrees.get(right) ?? 0) - (degrees.get(left) ?? 0);
+  });
+
+  return new Set(ordered.slice(0, limit));
 };
 
 const getNodeDegrees = (edges: GraphEdge[]): Map<string, number> => {

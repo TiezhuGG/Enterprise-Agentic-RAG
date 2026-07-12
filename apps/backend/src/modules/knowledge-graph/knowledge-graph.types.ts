@@ -1,15 +1,48 @@
+export const graphEntityCategories = [
+  'ORGANIZATION',
+  'ROLE',
+  'POSITION',
+  'PROCESS',
+  'POLICY',
+  'RULE',
+  'REQUIREMENT',
+  'BENEFIT',
+  'DATA',
+  'OTHER',
+] as const;
+
+export type GraphEntityCategory = (typeof graphEntityCategories)[number];
+
+export const graphRelationCategories = [
+  'OWNERSHIP',
+  'CONTAINS',
+  'APPROVAL',
+  'REFERENCE',
+  'REQUIREMENT',
+  'APPLIES_TO',
+  'PRECEDES',
+  'RELATED',
+] as const;
+
+export type GraphRelationCategory = (typeof graphRelationCategories)[number];
+
 export interface ExtractedEntity {
+  category?: GraphEntityCategory;
   name: string;
   type: string;
 }
 
 export interface ExtractedRelation {
+  evidence?: string;
   subject: string;
   predicate: string;
   object: string;
+  relationCategory?: GraphRelationCategory;
 }
 
 export interface GraphEntity extends ExtractedEntity {
+  category: GraphEntityCategory;
+  displayType: string;
   id: string;
   documentId: string;
   spaceId: string;
@@ -17,7 +50,11 @@ export interface GraphEntity extends ExtractedEntity {
 
 export interface GraphRelation {
   documentId: string;
+  displayLabel: string;
+  evidence?: string;
+  relationCategory: GraphRelationCategory;
   source: string;
+  sourceChunkId?: string;
   sourceId: string;
   target: string;
   targetId: string;
@@ -25,6 +62,8 @@ export interface GraphRelation {
 }
 
 export interface GraphNode {
+  category: GraphEntityCategory;
+  displayType: string;
   documentId: string;
   id: string;
   name: string;
@@ -33,8 +72,13 @@ export interface GraphNode {
 }
 
 export interface GraphEdge {
+  displayLabel: string;
+  documentTitle: string | null;
+  evidence: string | null;
   documentId: string;
   id: string;
+  relationCategory: GraphRelationCategory;
+  sourceChunkId: string | null;
   sourceId: string;
   targetId: string;
   type: string;

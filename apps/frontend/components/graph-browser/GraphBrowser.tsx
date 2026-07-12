@@ -1,6 +1,6 @@
 'use client';
 
-import { FormEvent, useEffect, useMemo } from 'react';
+import { FormEvent, useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import {
   ArrowRight,
@@ -11,12 +11,14 @@ import {
   FileText,
   GitBranch,
   Layers3,
+  ListTree,
   Loader2,
   Network,
   RefreshCw,
   ScrollText,
   Search,
   ShieldCheck,
+  Table2,
   Target,
   Users,
 } from 'lucide-react';
@@ -24,6 +26,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import {
   Select,
   SelectContent,
@@ -38,7 +41,14 @@ import {
 } from '@/store/graph-browser.store';
 import { useObservabilityStore } from '@/store/observability.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
-import type { GraphBrowserScope, GraphEdge, GraphHopDepth, GraphNode } from '@/types/graph';
+import type {
+  GraphBrowserScope,
+  GraphEdge,
+  GraphEntityCategory,
+  GraphHopDepth,
+  GraphNode,
+  GraphView,
+} from '@/types/graph';
 import type {
   IngestionOptions,
   IngestionStatus,
@@ -47,6 +57,8 @@ import type {
 } from '@/types/workbench';
 import { cn } from '@/lib/utils';
 import { buildConsoleHref } from '@/lib/console-routes';
+import { EnterpriseGraphCanvas } from './EnterpriseGraphCanvas';
+import { GraphBusinessView, GraphRelationTable, graphCategoryLabels } from './GraphBusinessViews';
 
 const scopeLabels: Record<GraphBrowserScope, string> = {
   document: '当前文档',
@@ -60,6 +72,7 @@ const graphStatusLabels = {
 } as const;
 
 type GraphExtractionState = 'failed' | 'not-run' | 'skipped' | 'success';
+type GraphViewMode = 'business' | 'network' | 'relations';
 type EntityVisualKind =
   | 'data'
   | 'department'
@@ -105,15 +118,6 @@ const graphExtractionLabels: Record<GraphExtractionState, string> = {
   'not-run': '尚未运行',
   skipped: '已跳过',
   success: '抽取成功',
-};
-
-const displayModeLabels: Record<GraphVisibleView['displayMode'], string> = {
-  document: '文档子图',
-  empty: '空视图',
-  filtered: '类型过滤',
-  focus: '焦点子图',
-  overview: 'Hub 概览',
-  query: '搜索子图',
 };
 
 const entityLegend: EntityVisual[] = [
@@ -218,6 +222,8 @@ export function GraphBrowser() {
   const {
     clearSelection,
     error,
+    expandFocus,
+    focusLimit,
     hopDepth,
     loadGraph,
     loading,
@@ -236,9 +242,11 @@ export function GraphBrowser() {
     typeFilter,
     view,
   } = useGraphBrowserStore();
+  const [viewMode, setViewMode] = useState<GraphViewMode>('business');
   const visibleView = useMemo(
     () =>
       createGraphVisibleView({
+        focusLimit,
         hopDepth,
         selectedEdgeId,
         selectedNodeId,
@@ -246,12 +254,16 @@ export function GraphBrowser() {
         typeFilter,
         view,
       }),
-    [hopDepth, selectedEdgeId, selectedNodeId, submittedQuery, typeFilter, view],
+    [focusLimit, hopDepth, selectedEdgeId, selectedNodeId, submittedQuery, typeFilter, view],
+  );
+  const businessView = useMemo(
+    () => createBusinessGraphView(view, typeFilter, submittedQuery),
+    [submittedQuery, typeFilter, view],
   );
   const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
   const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
-  const selectedEdge = visibleView?.selectedEdge ?? null;
-  const selectedNode = visibleView?.selectedNode ?? null;
+  const selectedEdge = view?.edges.find((edge) => edge.id === selectedEdgeId) ?? null;
+  const selectedNode = view?.nodes.find((node) => node.id === selectedNodeId) ?? null;
   const graphExplainability = useMemo(
     () =>
       createGraphExtractionExplainability({
@@ -262,9 +274,19 @@ export function GraphBrowser() {
         selectedDocumentId,
         selectedPipelineJobId,
       }),
-    [ingestionOptions, ingestionStatus, pipelineEvents, pipelineJobs, selectedDocumentId, selectedPipelineJobId],
+    [
+      ingestionOptions,
+      ingestionStatus,
+      pipelineEvents,
+      pipelineJobs,
+      selectedDocumentId,
+      selectedPipelineJobId,
+    ],
   );
   const canLoad = scope === 'space' ? Boolean(selectedSpaceId) : Boolean(selectedDocumentId);
+  const canExpandFocus = Boolean(
+    selectedNodeId && visibleView && visibleView.hiddenCounts.nodes > 0 && focusLimit < 49,
+  );
 
   useEffect(() => {
     void loadGraph();
@@ -277,6 +299,15 @@ export function GraphBrowser() {
 
   const handleScopeChange = (nextScope: GraphBrowserScope) => {
     setScope(nextScope);
+  };
+
+  const handleViewModeChange = (nextMode: string) => {
+    const normalizedMode = nextMode as GraphViewMode;
+    setViewMode(normalizedMode);
+
+    if (normalizedMode === 'network' && !selectedNodeId && businessView?.nodes.length) {
+      selectNode(findPrimaryNode(businessView).id);
+    }
   };
 
   const handleOpenDocument = (documentId: string | null | undefined) => {
@@ -292,8 +323,8 @@ export function GraphBrowser() {
     <div className="graph-browser">
       <div className="graph-browser__header">
         <div>
-          <h2>知识图谱浏览器</h2>
-          <span>默认展示关键子图；搜索或点击实体后再展开相关关系，避免一次性铺满全图。</span>
+          <h2>企业知识图谱</h2>
+          <span>从业务主题理解实体、规则与来源；需要时再进入局部关系图。</span>
         </div>
         <Badge variant={graphCheck?.status === 'ok' ? 'success' : 'warning'}>
           图谱服务 {graphCheck ? graphStatusLabels[graphCheck.status] : '待检查'}
@@ -305,8 +336,8 @@ export function GraphBrowser() {
       <div className="graph-browser__stats">
         <GraphStat icon={Database} label="当前空间" value={selectedSpace?.name ?? '未选择'} />
         <GraphStat icon={FileText} label="当前文档" value={selectedDocument?.title ?? '未选择'} />
-        <GraphStat icon={Network} label="当前实体" value={visibleView?.counts.nodes ?? 0} />
-        <GraphStat icon={GitBranch} label="当前关系" value={visibleView?.counts.edges ?? 0} />
+        <GraphStat icon={Network} label="实体总数" value={businessView?.counts.nodes ?? 0} />
+        <GraphStat icon={GitBranch} label="关系总数" value={businessView?.counts.edges ?? 0} />
       </div>
 
       <Card>
@@ -358,29 +389,31 @@ export function GraphBrowser() {
                   <SelectItem value="ALL">全部类型</SelectItem>
                   {(visibleView?.typeOptions ?? []).map((type) => (
                     <SelectItem key={type} value={type}>
-                      {type}
+                      {graphCategoryLabels[type as GraphEntityCategory] ?? type}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </label>
 
-            <label className="graph-browser__field">
-              <span>邻居深度</span>
-              <div className="graph-browser__segments">
-                {[1, 2].map((depth) => (
-                  <Button
-                    key={depth}
-                    onClick={() => setHopDepth(depth as GraphHopDepth)}
-                    size="sm"
-                    type="button"
-                    variant={hopDepth === depth ? 'default' : 'outline'}
-                  >
-                    {depth} 跳
-                  </Button>
-                ))}
-              </div>
-            </label>
+            {viewMode === 'network' ? (
+              <label className="graph-browser__field">
+                <span>邻居深度</span>
+                <div className="graph-browser__segments">
+                  {[1, 2].map((depth) => (
+                    <Button
+                      key={depth}
+                      onClick={() => setHopDepth(depth as GraphHopDepth)}
+                      size="sm"
+                      type="button"
+                      variant={hopDepth === depth ? 'default' : 'outline'}
+                    >
+                      {depth} 跳
+                    </Button>
+                  ))}
+                </div>
+              </label>
+            ) : null}
 
             <div className="graph-browser__query">
               <Search />
@@ -408,36 +441,68 @@ export function GraphBrowser() {
         </CardContent>
       </Card>
 
-      <GraphDisclosureGuide view={visibleView} />
-
-      <div className="graph-browser__grid">
-        <Card className="graph-browser__canvas-card">
-          <CardHeader className="graph-browser__section-header">
-            <div>
-              <CardTitle>图谱视图</CardTitle>
-              <CardDescription>
-                {visibleView
-                  ? `${displayModeLabels[visibleView.displayMode]}：显示 ${visibleView.counts.nodes}/${visibleView.totalCounts.nodes} 个实体，${visibleView.counts.edges}/${visibleView.totalCounts.edges} 条关系`
-                  : '等待加载图谱数据'}
-              </CardDescription>
-            </div>
-            {selectedNodeId || selectedEdgeId ? (
-              <Button onClick={clearSelection} size="sm" type="button" variant="outline">
-                清除选择
-              </Button>
-            ) : null}
-          </CardHeader>
-          <CardContent>
+      <Tabs onValueChange={handleViewModeChange} value={viewMode}>
+        <div className="graph-view-tabs">
+          <TabsList>
+            <TabsTrigger value="business">
+              <ListTree />
+              业务视图
+            </TabsTrigger>
+            <TabsTrigger value="network">
+              <Network />
+              关系图
+            </TabsTrigger>
+            <TabsTrigger value="relations">
+              <Table2 />
+              关系清单
+            </TabsTrigger>
+          </TabsList>
+          {selectedNodeId || selectedEdgeId ? (
+            <Button onClick={clearSelection} size="sm" type="button" variant="outline">
+              清除选择
+            </Button>
+          ) : null}
+        </div>
+        <div className="graph-browser__grid">
+          <div className="graph-browser__primary">
             {loading ? (
               <GraphLoading />
-            ) : visibleView && visibleView.nodes.length > 0 ? (
-              <GraphCanvas
-                onSelectEdge={selectEdge}
-                onSelectNode={selectNode}
-                selectedEdgeId={selectedEdgeId}
-                selectedNodeId={selectedNodeId}
-                view={visibleView}
-              />
+            ) : businessView && businessView.nodes.length > 0 ? (
+              <>
+                <TabsContent value="business">
+                  <GraphBusinessView
+                    onOpenDocument={handleOpenDocument}
+                    onSelectEdge={selectEdge}
+                    onSelectNode={selectNode}
+                    selectedEdgeId={selectedEdgeId}
+                    selectedNodeId={selectedNodeId}
+                    view={businessView}
+                  />
+                </TabsContent>
+                <TabsContent value="network">
+                  <GraphDisclosureGuide view={visibleView} />
+                  {visibleView && visibleView.nodes.length > 0 ? (
+                    <EnterpriseGraphCanvas
+                      canExpand={canExpandFocus}
+                      onExpand={expandFocus}
+                      onSelectEdge={selectEdge}
+                      onSelectNode={selectNode}
+                      selectedEdgeId={selectedEdgeId}
+                      selectedNodeId={selectedNodeId}
+                      view={visibleView}
+                    />
+                  ) : null}
+                  <GraphLegend />
+                </TabsContent>
+                <TabsContent value="relations">
+                  <GraphRelationTable
+                    onOpenDocument={handleOpenDocument}
+                    onSelectEdge={selectEdge}
+                    selectedEdgeId={selectedEdgeId}
+                    view={businessView}
+                  />
+                </TabsContent>
+              </>
             ) : (
               <GraphEmptyState
                 canLoad={canLoad}
@@ -448,30 +513,23 @@ export function GraphBrowser() {
                 selectedSpaceName={selectedSpace?.name ?? null}
               />
             )}
-          </CardContent>
-        </Card>
+          </div>
 
-        <div className="graph-browser__side">
-          <GraphLegend />
-          <GraphExtractionExplainabilityPanel
-            canRetry={Boolean(selectedDocumentId) && graphExplainability.status === 'failed'}
-            onRetry={() => void retrySelectedDocumentGraph()}
-            summary={graphExplainability}
-          />
-          <GraphSelectionPanel
-            edge={selectedEdge}
-            node={selectedNode}
-            onOpenDocument={handleOpenDocument}
-            view={visibleView}
-          />
-          <GraphRelationList
-            onOpenDocument={handleOpenDocument}
-            onSelectEdge={selectEdge}
-            selectedEdgeId={selectedEdgeId}
-            view={visibleView}
-          />
+          <div className="graph-browser__side">
+            <GraphExtractionExplainabilityPanel
+              canRetry={Boolean(selectedDocumentId) && graphExplainability.status === 'failed'}
+              onRetry={() => void retrySelectedDocumentGraph()}
+              summary={graphExplainability}
+            />
+            <GraphSelectionPanel
+              edge={selectedEdge}
+              node={selectedNode}
+              onOpenDocument={handleOpenDocument}
+              view={businessView}
+            />
+          </div>
         </div>
-      </div>
+      </Tabs>
     </div>
   );
 }
@@ -517,117 +575,6 @@ function GraphDisclosureGuide({ view }: { view: GraphVisibleView | null }) {
         ) : null}
       </CardContent>
     </Card>
-  );
-}
-
-function GraphCanvas({
-  onSelectEdge,
-  onSelectNode,
-  selectedEdgeId,
-  selectedNodeId,
-  view,
-}: {
-  onSelectEdge: (edgeId: string | null) => void;
-  onSelectNode: (nodeId: string | null) => void;
-  selectedEdgeId: string | null;
-  selectedNodeId: string | null;
-  view: GraphVisibleView;
-}) {
-  const nodePositions = useMemo(
-    () => buildNodePositions(view.nodes, selectedNodeId),
-    [selectedNodeId, view.nodes],
-  );
-
-  return (
-    <div className="graph-browser__canvas">
-      <div className="graph-browser__canvas-hint">
-        <Badge variant="secondary">{displayModeLabels[view.displayMode]}</Badge>
-        <span>
-          点击实体聚焦子图；点击关系查看来源文档。隐藏 {view.hiddenCounts.nodes} 个实体 /{' '}
-          {view.hiddenCounts.edges} 条关系。
-        </span>
-      </div>
-
-      <svg aria-hidden="true" className="graph-browser__edges" viewBox="0 0 100 100">
-        {view.edges.map((edge) => {
-          const source = nodePositions.get(edge.sourceId);
-          const target = nodePositions.get(edge.targetId);
-          const relationVisual = getRelationVisual(edge.type);
-
-          if (!source || !target) {
-            return null;
-          }
-
-          const middle = {
-            x: (source.x + target.x) / 2,
-            y: (source.y + target.y) / 2,
-          };
-
-          return (
-            <g key={edge.id}>
-              <line
-                className={cn(
-                  'graph-browser__edge-line',
-                  relationVisual.className,
-                  selectedEdgeId === edge.id && 'graph-browser__edge-line--selected',
-                )}
-                x1={source.x}
-                x2={target.x}
-                y1={source.y}
-                y2={target.y}
-              />
-              <text className="graph-browser__edge-label" x={middle.x} y={middle.y}>
-                {edge.type}
-              </text>
-              <line
-                className="graph-browser__edge-hit"
-                onClick={() => onSelectEdge(edge.id)}
-                x1={source.x}
-                x2={target.x}
-                y1={source.y}
-                y2={target.y}
-              />
-            </g>
-          );
-        })}
-      </svg>
-
-      {view.nodes.map((node) => {
-        const position = nodePositions.get(node.id);
-        const visual = getEntityVisual(node.type);
-        const Icon = visual.Icon;
-
-        if (!position) {
-          return null;
-        }
-
-        return (
-          <button
-            className={cn(
-              'graph-browser__node',
-              visual.className,
-              selectedNodeId === node.id && 'graph-browser__node--selected',
-            )}
-            key={node.id}
-            onClick={() => onSelectNode(node.id)}
-            style={{
-              left: `calc(${position.x}% - 62px)`,
-              top: `calc(${position.y}% - 34px)`,
-            }}
-            title={`${node.name} (${node.type})`}
-            type="button"
-          >
-            <span className="graph-browser__node-marker">
-              <Icon />
-            </span>
-            <span className="graph-browser__node-copy">
-              <strong>{node.name}</strong>
-              <em>{node.type}</em>
-            </span>
-          </button>
-        );
-      })}
-    </div>
   );
 }
 
@@ -719,7 +666,12 @@ function GraphExtractionExplainabilityPanel({
         {summary.errorMessage ? (
           <p className="graph-explainability__error">{summary.errorMessage}</p>
         ) : null}
-        {canRetry ? <Button onClick={onRetry} size="sm" variant="outline"><RefreshCw />仅重试图谱抽取</Button> : null}
+        {canRetry ? (
+          <Button onClick={onRetry} size="sm" variant="outline">
+            <RefreshCw />
+            仅重试图谱抽取
+          </Button>
+        ) : null}
 
         {typeEntries.length > 0 ? (
           <div className="graph-explainability__types">
@@ -751,7 +703,7 @@ function GraphSelectionPanel({
   edge: GraphEdge | null;
   node: GraphNode | null;
   onOpenDocument: (documentId: string | null | undefined) => void;
-  view: GraphVisibleView | null;
+  view: GraphView | null;
 }) {
   const source = edge ? view?.nodes.find((item) => item.id === edge.sourceId) : null;
   const target = edge ? view?.nodes.find((item) => item.id === edge.targetId) : null;
@@ -770,10 +722,10 @@ function GraphSelectionPanel({
           <div className="graph-detail-card">
             <div className="graph-detail-card__top">
               <Badge variant="info">实体</Badge>
-              <span>{node.type}</span>
+              <span>{node.displayType}</span>
             </div>
             <strong>{node.name}</strong>
-            <span>当前子图内关联关系 {nodeRelations.length} 条</span>
+            <span>关联关系 {nodeRelations.length} 条</span>
             <Button onClick={() => onOpenDocument(node.documentId)} size="sm" variant="outline">
               <FileText />
               打开来源文档
@@ -784,15 +736,22 @@ function GraphSelectionPanel({
         {edge ? (
           <div className="graph-detail-card">
             <div className="graph-detail-card__top">
-              <Badge variant="secondary">{getRelationVisual(edge.type).label}</Badge>
-              <span>{edge.type}</span>
+              <Badge variant="secondary">{edge.displayLabel}</Badge>
+              <span>{edge.type === edge.displayLabel ? '标准关系' : edge.type}</span>
             </div>
-            <strong>
+            <strong className="graph-detail-card__relation">
               {source?.name ?? edge.sourceId}
+              <ArrowRight />
+              <em>{edge.displayLabel}</em>
               <ArrowRight />
               {target?.name ?? edge.targetId}
             </strong>
-            <span>来源文档：{edge.documentId}</span>
+            <div className="graph-detail-card__evidence">
+              <span>证据片段</span>
+              <p>{edge.evidence ?? '历史抽取结果，暂无证据片段。'}</p>
+            </div>
+            <span>来源文档：{edge.documentTitle ?? edge.documentId}</span>
+            {!edge.sourceChunkId ? <Badge variant="outline">历史抽取结果</Badge> : null}
             <Button onClick={() => onOpenDocument(edge.documentId)} size="sm" variant="outline">
               <FileText />
               打开来源文档
@@ -806,79 +765,6 @@ function GraphSelectionPanel({
             <span>尚未选择实体或关系。</span>
           </div>
         ) : null}
-      </CardContent>
-    </Card>
-  );
-}
-
-function GraphRelationList({
-  onOpenDocument,
-  onSelectEdge,
-  selectedEdgeId,
-  view,
-}: {
-  onOpenDocument: (documentId: string | null | undefined) => void;
-  onSelectEdge: (edgeId: string | null) => void;
-  selectedEdgeId: string | null;
-  view: GraphVisibleView | null;
-}) {
-  const edges = view?.edges ?? [];
-
-  return (
-    <Card>
-      <CardHeader>
-        <CardTitle>当前子图关系</CardTitle>
-        <CardDescription>只列出当前可见子图内的前 30 条关系。</CardDescription>
-      </CardHeader>
-      <CardContent>
-        {edges.length === 0 ? (
-          <div className="graph-browser__empty-mini">
-            <GitBranch />
-            <span>当前子图暂无关系。</span>
-          </div>
-        ) : (
-          <div className="graph-browser__relations">
-            {edges.slice(0, 30).map((edge) => {
-              const source = view?.nodes.find((node) => node.id === edge.sourceId);
-              const target = view?.nodes.find((node) => node.id === edge.targetId);
-              const visual = getRelationVisual(edge.type);
-
-              return (
-                <div
-                  className={cn(
-                    'graph-relation-item',
-                    selectedEdgeId === edge.id && 'graph-relation-item--selected',
-                  )}
-                  key={edge.id}
-                >
-                  <button
-                    className="graph-relation-item__main"
-                    onClick={() => onSelectEdge(edge.id)}
-                    type="button"
-                  >
-                    <span>
-                      {source?.name ?? edge.sourceId}
-                      <ArrowRight />
-                      {target?.name ?? edge.targetId}
-                    </span>
-                    <strong>
-                      <i className={cn('graph-relation-item__line', visual.className)} />
-                      {edge.type}
-                    </strong>
-                  </button>
-                  <Button
-                    onClick={() => onOpenDocument(edge.documentId)}
-                    size="sm"
-                    type="button"
-                    variant="ghost"
-                  >
-                    来源
-                  </Button>
-                </div>
-              );
-            })}
-          </div>
-        )}
       </CardContent>
     </Card>
   );
@@ -927,9 +813,94 @@ function GraphEmptyState({
           ? (selectedSpaceName ?? '空间未选择')
           : (selectedDocumentTitle ?? '文档未选择')}
       </Badge>
-      {explanation.status === 'failed' && scope === 'document' ? <Button onClick={onRetry} size="sm" variant="outline"><RefreshCw />仅重试图谱抽取</Button> : null}
+      {explanation.status === 'failed' && scope === 'document' ? (
+        <Button onClick={onRetry} size="sm" variant="outline">
+          <RefreshCw />
+          仅重试图谱抽取
+        </Button>
+      ) : null}
     </div>
   );
+}
+
+function createBusinessGraphView(
+  view: GraphView | null,
+  typeFilter: string,
+  query: string,
+): GraphView | null {
+  if (!view) {
+    return null;
+  }
+
+  const normalizedQuery = query.trim().toLowerCase();
+  const typeMatchedNodeIds = new Set(
+    view.nodes
+      .filter((node) => typeFilter === 'ALL' || node.category === typeFilter)
+      .map((node) => node.id),
+  );
+  const anchorNodeIds = new Set<string>();
+
+  for (const node of view.nodes) {
+    if (!typeMatchedNodeIds.has(node.id)) {
+      continue;
+    }
+
+    const searchable =
+      `${node.name} ${node.type} ${node.displayType} ${node.category}`.toLowerCase();
+    if (!normalizedQuery || searchable.includes(normalizedQuery)) {
+      anchorNodeIds.add(node.id);
+    }
+  }
+
+  if (normalizedQuery) {
+    for (const edge of view.edges) {
+      const searchable =
+        `${edge.type} ${edge.displayLabel} ${edge.evidence ?? ''} ${edge.documentTitle ?? ''}`.toLowerCase();
+      if (searchable.includes(normalizedQuery)) {
+        if (typeMatchedNodeIds.has(edge.sourceId)) anchorNodeIds.add(edge.sourceId);
+        if (typeMatchedNodeIds.has(edge.targetId)) anchorNodeIds.add(edge.targetId);
+      }
+    }
+  }
+
+  const matchedNodeIds = new Set(anchorNodeIds);
+  for (const edge of view.edges) {
+    if (anchorNodeIds.has(edge.sourceId) || anchorNodeIds.has(edge.targetId)) {
+      matchedNodeIds.add(edge.sourceId);
+      matchedNodeIds.add(edge.targetId);
+    }
+  }
+
+  const edges = view.edges.filter(
+    (edge) => matchedNodeIds.has(edge.sourceId) && matchedNodeIds.has(edge.targetId),
+  );
+  const nodes = view.nodes.filter((node) => matchedNodeIds.has(node.id));
+
+  return {
+    ...view,
+    counts: { edges: edges.length, nodes: nodes.length },
+    edges,
+    nodes,
+  };
+}
+
+function findPrimaryNode(view: GraphView): GraphNode {
+  const degrees = new Map<string, number>();
+
+  for (const edge of view.edges) {
+    degrees.set(edge.sourceId, (degrees.get(edge.sourceId) ?? 0) + 1);
+    degrees.set(edge.targetId, (degrees.get(edge.targetId) ?? 0) + 1);
+  }
+
+  return [...view.nodes].sort((left, right) => {
+    const categoryPriority = Number(left.category !== 'OTHER') - Number(right.category !== 'OTHER');
+    if (categoryPriority !== 0) return -categoryPriority;
+
+    const degreeDelta = (degrees.get(right.id) ?? 0) - (degrees.get(left.id) ?? 0);
+    if (degreeDelta !== 0) return degreeDelta;
+
+    return left.name.localeCompare(right.name, 'zh-CN');
+  })[0];
 }
 
 function createGraphExtractionExplainability(input: {
@@ -1035,69 +1006,6 @@ function toGraphExtractionBadge(
   return 'secondary';
 }
 
-function getEntityVisual(type: string): EntityVisual {
-  const normalizedType = type.toUpperCase();
-
-  if (/(DEPARTMENT|ORG|ORGANIZATION|TEAM|部门|组织)/i.test(normalizedType)) {
-    return entityLegend[0];
-  }
-
-  if (/(ROLE|PERSON|USER|岗位|角色|人员)/i.test(normalizedType)) {
-    return entityLegend[1];
-  }
-
-  if (/(POLICY|制度|政策|DOCUMENT)/i.test(normalizedType)) {
-    return entityLegend[2];
-  }
-
-  if (/(RULE|TERM|CLAUSE|条款|规则)/i.test(normalizedType)) {
-    return entityLegend[3];
-  }
-
-  if (/(PROCESS|WORKFLOW|流程)/i.test(normalizedType)) {
-    return entityLegend[4];
-  }
-
-  if (/(REQUIREMENT|MATERIAL|EVIDENCE|要求|材料|凭证)/i.test(normalizedType)) {
-    return entityLegend[5];
-  }
-
-  if (/(DATA|CODE|AMOUNT|NUMBER|编码|数据|金额)/i.test(normalizedType)) {
-    return entityLegend[6];
-  }
-
-  return entityLegend[7];
-}
-
-function getRelationVisual(type: string): RelationVisual {
-  if (/(负责|归属|属于|OWNER|BELONG|MANAGE)/i.test(type)) {
-    return relationLegend[0];
-  }
-
-  if (/(包含|组成|包括|CONTAIN|INCLUDE|PART)/i.test(type)) {
-    return relationLegend[1];
-  }
-
-  if (/(审批|审核|批准|APPROV|REVIEW)/i.test(type)) {
-    return relationLegend[2];
-  }
-
-  if (/(引用|依据|参考|CITE|REFERENCE)/i.test(type)) {
-    return relationLegend[3];
-  }
-
-  if (/(要求|需要|必须|REQUIRE|NEED|MUST)/i.test(type)) {
-    return relationLegend[4];
-  }
-
-  return {
-    className: 'graph-edge-kind--default',
-    kind: 'default',
-    label: '其它关系',
-    lineLabel: '灰色实线',
-  };
-}
-
 function readBoolean(value: unknown): boolean | null {
   return typeof value === 'boolean' ? value : null;
 }
@@ -1122,52 +1030,4 @@ function readNumberRecord(value: unknown): Record<string, number> {
       .map(([key, item]) => [key, readNumber(item)] as const)
       .filter((entry): entry is readonly [string, number] => entry[1] !== null),
   );
-}
-
-function buildNodePositions(
-  nodes: GraphNode[],
-  selectedNodeId: string | null,
-): Map<string, { x: number; y: number }> {
-  const positions = new Map<string, { x: number; y: number }>();
-
-  if (nodes.length === 0) {
-    return positions;
-  }
-
-  if (selectedNodeId && nodes.some((node) => node.id === selectedNodeId)) {
-    positions.set(selectedNodeId, {
-      x: 50,
-      y: 50,
-    });
-    const neighbors = nodes.filter((node) => node.id !== selectedNodeId);
-
-    neighbors.forEach((node, index) => {
-      const angle = (index / Math.max(neighbors.length, 1)) * Math.PI * 2 - Math.PI / 2;
-      const radius = neighbors.length <= 8 ? 30 : 37;
-
-      positions.set(node.id, {
-        x: 50 + Math.cos(angle) * radius,
-        y: 50 + Math.sin(angle) * radius,
-      });
-    });
-
-    return positions;
-  }
-
-  const total = Math.max(nodes.length, 1);
-
-  nodes.forEach((node, index) => {
-    const ring = Math.floor(index / 18);
-    const ringIndex = index % 18;
-    const ringSize = Math.min(total - ring * 18, 18);
-    const angle = (ringIndex / Math.max(ringSize, 1)) * Math.PI * 2 - Math.PI / 2;
-    const radius = Math.max(18, 36 - ring * 10);
-
-    positions.set(node.id, {
-      x: 50 + Math.cos(angle) * radius,
-      y: 50 + Math.sin(angle) * radius,
-    });
-  });
-
-  return positions;
 }

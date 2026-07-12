@@ -1,4 +1,28 @@
+export type GraphEntityCategory =
+  | 'ORGANIZATION'
+  | 'ROLE'
+  | 'POSITION'
+  | 'PROCESS'
+  | 'POLICY'
+  | 'RULE'
+  | 'REQUIREMENT'
+  | 'BENEFIT'
+  | 'DATA'
+  | 'OTHER';
+
+export type GraphRelationCategory =
+  | 'OWNERSHIP'
+  | 'CONTAINS'
+  | 'APPROVAL'
+  | 'REFERENCE'
+  | 'REQUIREMENT'
+  | 'APPLIES_TO'
+  | 'PRECEDES'
+  | 'RELATED';
+
 export interface GraphNode {
+  category: GraphEntityCategory;
+  displayType: string;
   documentId: string;
   id: string;
   name: string;
@@ -7,8 +31,13 @@ export interface GraphNode {
 }
 
 export interface GraphEdge {
+  displayLabel: string;
+  documentTitle: string | null;
+  evidence: string | null;
   documentId: string;
   id: string;
+  relationCategory: GraphRelationCategory;
+  sourceChunkId: string | null;
   sourceId: string;
   targetId: string;
   type: string;

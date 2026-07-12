@@ -4149,6 +4149,445 @@ textarea:disabled {
   width: 18px;
 }
 
+.graph-browser__primary {
+  min-width: 0;
+}
+
+.graph-view-tabs {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+  min-width: 0;
+}
+
+.graph-view-tabs [role='tablist'] {
+  max-width: 100%;
+  overflow-x: auto;
+}
+
+.graph-view-tabs [role='tab'] {
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.graph-view-tabs [role='tab'] svg {
+  height: 15px;
+  width: 15px;
+}
+
+.graph-business-view {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  grid-template-columns: minmax(190px, 230px) minmax(0, 1fr);
+  min-height: 520px;
+  overflow: hidden;
+}
+
+.graph-business-view__navigator {
+  background: #f8fafc;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  padding: 14px 12px;
+}
+
+.graph-business-view__section-title,
+.graph-relation-table__toolbar {
+  align-items: center;
+  display: flex;
+  gap: 12px;
+  justify-content: space-between;
+}
+
+.graph-business-view__section-title strong {
+  font-size: 13px;
+}
+
+.graph-business-view__section-title span,
+.graph-relation-table__toolbar > span {
+  color: var(--muted-foreground);
+  font-size: 12px;
+}
+
+.graph-business-view__categories,
+.graph-business-view__entities {
+  display: grid;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.graph-business-view__entities {
+  border-top: 1px solid var(--border);
+  margin-top: 12px;
+  max-height: 330px;
+  overflow-y: auto;
+  padding-top: 10px;
+}
+
+.graph-topic-button,
+.graph-entity-button {
+  align-items: center;
+  background: transparent;
+  border: 1px solid transparent;
+  border-radius: 6px;
+  color: var(--text);
+  cursor: pointer;
+  display: grid;
+  gap: 8px;
+  min-width: 0;
+  padding: 8px 9px;
+  text-align: left;
+}
+
+.graph-topic-button {
+  grid-template-columns: minmax(0, 1fr) auto;
+}
+
+.graph-topic-button:hover,
+.graph-entity-button:hover {
+  background: #ffffff;
+  border-color: var(--border);
+}
+
+.graph-topic-button--active,
+.graph-entity-button--active {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8;
+}
+
+.graph-topic-button span,
+.graph-entity-button span {
+  font-size: 13px;
+  font-weight: 600;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.graph-topic-button em {
+  color: var(--muted-foreground);
+  font-size: 11px;
+  font-style: normal;
+}
+
+.graph-entity-button {
+  gap: 3px;
+}
+
+.graph-entity-button small {
+  color: var(--muted-foreground);
+  font-size: 11px;
+}
+
+.graph-business-view__content {
+  min-width: 0;
+  padding: 20px;
+}
+
+.graph-business-view__header {
+  align-items: flex-start;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 16px;
+  justify-content: space-between;
+  padding-bottom: 16px;
+}
+
+.graph-business-view__header > div {
+  min-width: 0;
+}
+
+.graph-business-view__header h3 {
+  font-size: 20px;
+  margin: 9px 0 4px;
+  overflow-wrap: anywhere;
+}
+
+.graph-business-view__header p {
+  color: var(--muted-foreground);
+  font-size: 13px;
+  margin: 0;
+}
+
+.graph-business-view__relations {
+  display: grid;
+  gap: 10px;
+  padding-top: 16px;
+}
+
+.graph-business-relation {
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: grid;
+  gap: 8px;
+  padding: 12px 14px;
+}
+
+.graph-business-relation:hover,
+.graph-business-relation--selected {
+  background: #f8fafc;
+  border-color: #93c5fd;
+}
+
+.graph-business-relation > button {
+  align-items: center;
+  background: transparent;
+  border: 0;
+  color: inherit;
+  cursor: pointer;
+  display: grid;
+  gap: 10px;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  min-width: 0;
+  padding: 0;
+  text-align: left;
+}
+
+.graph-business-relation > button > span {
+  font-size: 14px;
+  font-weight: 600;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.graph-business-relation > button > span:last-child {
+  text-align: right;
+}
+
+.graph-business-relation i {
+  align-items: center;
+  color: #2563eb;
+  display: inline-flex;
+  font-size: 12px;
+  font-style: normal;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.graph-business-relation i svg {
+  height: 13px;
+  width: 13px;
+}
+
+.graph-business-relation p {
+  color: var(--muted-foreground);
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.graph-business-relation > [data-slot='button'] {
+  justify-self: start;
+  max-width: 100%;
+}
+
+.graph-business-view__empty {
+  align-items: center;
+  color: var(--muted-foreground);
+  display: grid;
+  gap: 8px;
+  justify-items: center;
+  min-height: 360px;
+  text-align: center;
+}
+
+.graph-business-view__empty svg {
+  height: 20px;
+  width: 20px;
+}
+
+.graph-relation-table {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.graph-relation-table__toolbar {
+  border-bottom: 1px solid var(--border);
+  padding: 12px 14px;
+}
+
+.graph-relation-table__search {
+  max-width: 420px;
+  min-width: 220px;
+  position: relative;
+  width: 100%;
+}
+
+.graph-relation-table__search > svg {
+  color: var(--muted-foreground);
+  height: 15px;
+  left: 10px;
+  pointer-events: none;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  z-index: 1;
+}
+
+.graph-relation-table__search input {
+  padding-left: 32px;
+}
+
+.enterprise-graph {
+  background: #ffffff;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  min-width: 0;
+  overflow: hidden;
+  position: relative;
+}
+
+.enterprise-graph__toolbar {
+  align-items: center;
+  background: #ffffff;
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+  padding: 8px 10px;
+}
+
+.enterprise-graph__toolbar > :last-child {
+  margin-left: auto;
+}
+
+.enterprise-graph__canvas {
+  height: min(62vh, 620px);
+  min-height: 480px;
+  width: 100%;
+}
+
+.enterprise-graph--fullscreen {
+  border-radius: 0;
+  inset: 0;
+  position: fixed;
+  z-index: 80;
+}
+
+.enterprise-graph--fullscreen .enterprise-graph__canvas {
+  height: calc(100vh - 57px);
+  min-height: 0;
+}
+
+.graph-detail-card__relation {
+  flex-wrap: wrap;
+  overflow-wrap: anywhere;
+}
+
+.graph-detail-card__relation em {
+  color: #2563eb;
+  font-size: 12px;
+  font-style: normal;
+}
+
+.graph-detail-card__evidence {
+  background: #f8fafc;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  display: grid;
+  gap: 5px;
+  padding: 9px 10px;
+}
+
+.graph-detail-card__evidence p {
+  color: var(--text);
+  font-size: 12px;
+  line-height: 1.55;
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1440px) {
+  .graph-browser__toolbar {
+    grid-template-columns: repeat(4, minmax(120px, 1fr));
+  }
+
+  .graph-browser__query {
+    grid-column: span 2;
+  }
+}
+
+@media (max-width: 1023px) {
+  .graph-browser__grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .graph-browser__side {
+    grid-column: auto;
+  }
+
+  .graph-business-view {
+    grid-template-columns: minmax(170px, 210px) minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 767px) {
+  .graph-view-tabs {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .graph-view-tabs > button {
+    align-self: flex-start;
+  }
+
+  .graph-business-view {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .graph-business-view__navigator {
+    border-bottom: 1px solid var(--border);
+    border-right: 0;
+  }
+
+  .graph-business-view__categories {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .graph-business-view__entities {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    max-height: 190px;
+  }
+
+  .graph-business-view__content {
+    padding: 14px;
+  }
+
+  .graph-business-relation > button {
+    align-items: start;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .graph-business-relation > button > span:last-child {
+    text-align: left;
+  }
+
+  .graph-relation-table__toolbar {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .graph-relation-table__search {
+    min-width: 0;
+  }
+
+  .enterprise-graph__canvas {
+    height: 500px;
+    min-height: 420px;
+  }
+}
+
 @media (max-width: 1180px) {
   .workbench-shell {
     grid-template-columns: 1fr;

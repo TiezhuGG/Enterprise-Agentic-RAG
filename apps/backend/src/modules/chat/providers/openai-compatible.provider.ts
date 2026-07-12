@@ -6,7 +6,7 @@ import {
 } from '../../../common';
 import { ConfigService } from '../../../config';
 import type { ChatMessage } from '../chat.types';
-import type { LlmProvider } from './llm.provider';
+import type { LlmChatOptions, LlmProvider } from './llm.provider';
 
 interface OpenAiChatCompletionResponse {
   choices?: Array<{
@@ -42,12 +42,13 @@ export class OpenAiCompatibleLlmProvider implements LlmProvider {
     this.maxTokens = llmConfig.maxTokens;
   }
 
-  async chat(messages: ChatMessage[]): Promise<string> {
+  async chat(messages: ChatMessage[], options: LlmChatOptions = {}): Promise<string> {
     const payload = await postProviderJson<OpenAiChatCompletionResponse>({
       apiKey: this.apiKey,
       apiUrl: this.apiUrl,
-      body: this.createBody(messages, false),
+      body: this.createBody(messages, false, options.maxTokens),
       errorCode: 'LLM_UNAVAILABLE',
+      timeoutMs: options.timeoutMs,
     });
     const content = payload.choices?.[0]?.message?.content;
 
@@ -98,9 +99,13 @@ export class OpenAiCompatibleLlmProvider implements LlmProvider {
     }
   }
 
-  private createBody(messages: ChatMessage[], stream: boolean): Record<string, unknown> {
+  private createBody(
+    messages: ChatMessage[],
+    stream: boolean,
+    maxTokens = this.maxTokens,
+  ): Record<string, unknown> {
     return {
-      max_tokens: this.maxTokens,
+      max_tokens: maxTokens,
       messages,
       model: this.model,
       stream,
