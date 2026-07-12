@@ -17,15 +17,15 @@ import { useWorkbenchStore } from '@/store/workbench.store';
 import type { DocumentAccessScope, DocumentSecurityLevel } from '@/types/workbench';
 
 const securityLevelLabels: Record<DocumentSecurityLevel, string> = {
-  CONFIDENTIAL: '\u673a\u5bc6\u8d44\u6599',
-  INTERNAL: '\u5185\u90e8\u53ef\u89c1',
-  PUBLIC: '\u7a7a\u95f4\u5185\u516c\u5f00',
+  CONFIDENTIAL: '机密资料',
+  INTERNAL: '内部可见',
+  PUBLIC: '空间内公开',
 };
 
 const securityLevelDescriptions: Record<DocumentSecurityLevel, string> = {
-  CONFIDENTIAL: '\u4ec5\u7a7a\u95f4\u8d1f\u8d23\u4eba\u6216\u5177\u5907\u673a\u5bc6\u8d44\u6599\u6743\u9650\u7684\u6210\u5458\u53ef\u8bbf\u95ee\u3002',
-  INTERNAL: '\u7a7a\u95f4\u6210\u5458\u53ef\u8bbf\u95ee\uff0c\u53ef\u6309\u90e8\u95e8\u8fdb\u4e00\u6b65\u9650\u5236\u3002',
-  PUBLIC: '\u5f53\u524d\u7a7a\u95f4\u5185\u6210\u5458\u5747\u53ef\u8bbf\u95ee\uff0c\u4e0d\u9650\u5236\u90e8\u95e8\u3002',
+  CONFIDENTIAL: '仅空间负责人或具备机密资料权限的成员可访问。',
+  INTERNAL: '空间成员可访问，可按部门进一步限制。',
+  PUBLIC: '当前空间内成员均可访问，不限制部门。',
 };
 
 const defaultScope: DocumentAccessScope = {
@@ -93,18 +93,18 @@ export function DocumentAccessScopePanel() {
   };
 
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader className="document-access-scope__header">
         <div>
-          <CardTitle>{'\u8bbf\u95ee\u8303\u56f4'}</CardTitle>
+          <CardTitle>访问范围</CardTitle>
           <CardDescription>
             {selectedDocument
-              ? '\u63a7\u5236\u54ea\u4e9b\u6210\u5458\u53ef\u4ee5\u67e5\u770b\u3001\u68c0\u7d22\u3001\u9884\u89c8\u548c\u5f15\u7528\u6b64\u6587\u6863\u3002'
-              : '\u8bf7\u5148\u9009\u62e9\u4e00\u4efd\u6587\u6863\u3002'}
+              ? '控制哪些成员可以查看、检索、预览和引用此文档。'
+              : '请先选择一份文档。'}
           </CardDescription>
         </div>
         <Badge variant={canManage ? 'success' : 'secondary'}>
-          {canManage ? '\u53ef\u7f16\u8f91' : '\u53ea\u8bfb'}
+          {canManage ? '可编辑' : '只读'}
         </Badge>
       </CardHeader>
       <CardContent>
@@ -113,7 +113,7 @@ export function DocumentAccessScopePanel() {
         ) : null}
 
         {!selectedDocument ? (
-          <div className="document-access-scope__empty">{'\u5c1a\u672a\u9009\u62e9\u6587\u6863\u3002'}</div>
+          <div className="document-access-scope__empty">尚未选择文档。</div>
         ) : (
           <form className="document-access-scope" onSubmit={handleSubmit}>
             <div className="document-access-scope__summary">
@@ -125,14 +125,14 @@ export function DocumentAccessScopePanel() {
                 <LockKeyhole />
                 <span>
                   {effectiveScope.allowedDepartmentIds?.length
-                    ? `${effectiveScope.allowedDepartmentIds.length} \u4e2a\u5141\u8bb8\u90e8\u95e8`
-                    : '\u672a\u8bbe\u7f6e\u5141\u8bb8\u90e8\u95e8'}
+                    ? `${effectiveScope.allowedDepartmentIds.length} 个允许部门`
+                    : '未设置允许部门'}
                 </span>
               </div>
             </div>
 
             <label className="document-access-scope__field">
-              <span>{'\u5b89\u5168\u7ea7\u522b'}</span>
+              <span>安全级别</span>
               <Select
                 disabled={!canManage || loadingDocuments}
                 onValueChange={(value) => setSecurityLevel(value as DocumentSecurityLevel)}
@@ -155,7 +155,7 @@ export function DocumentAccessScopePanel() {
             </label>
 
             <label className="document-access-scope__field">
-              <span>{'\u6240\u5c5e\u90e8\u95e8\u6807\u8bc6'}</span>
+              <span>所属部门标识</span>
               <Input
                 disabled={!canManage || loadingDocuments}
                 onChange={(event) => setDepartmentId(event.target.value)}
@@ -165,23 +165,23 @@ export function DocumentAccessScopePanel() {
             </label>
 
             <label className="document-access-scope__field">
-              <span>{'\u5141\u8bb8\u8bbf\u95ee\u7684\u90e8\u95e8\u6807\u8bc6'}</span>
+              <span>允许访问的部门标识</span>
               <Input
                 disabled={!canManage || loadingDocuments}
                 onChange={(event) => setAllowedDepartmentIds(event.target.value)}
                 placeholder="dept-finance, dept-legal"
                 value={allowedDepartmentIds}
               />
-              <small>\u591a\u4e2a\u90e8\u95e8\u8bf7\u7528\u9017\u53f7\u5206\u9694\uff1b\u7559\u7a7a\u65f6\u4ec5\u4f7f\u7528\u6240\u5c5e\u90e8\u95e8\u3002</small>
+              <small>多个部门请用逗号分隔；留空时仅使用所属部门。</small>
             </label>
 
             <Button disabled={!canManage || !isDirty || loadingDocuments} type="submit">
               <Save />
-              {'\u4fdd\u5b58\u8bbf\u95ee\u8303\u56f4'}
+              保存访问范围
             </Button>
 
             <p className="document-access-scope__hint">
-              \u8c03\u6574\u8303\u56f4\u540e\u8bf7\u91cd\u65b0\u89e3\u6790\u6587\u6863\uff0c\u4ee5\u66f4\u65b0\u68c0\u7d22\u6743\u9650\u3002
+              调整范围后请重新解析文档，以更新检索权限。
             </p>
           </form>
         )}

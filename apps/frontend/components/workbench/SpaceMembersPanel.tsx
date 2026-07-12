@@ -17,15 +17,15 @@ import { useWorkbenchStore } from '@/store/workbench.store';
 import type { SpaceMemberDetail, SpaceMemberRole } from '@/types/workbench';
 
 const memberRoleLabels: Record<SpaceMemberRole, string> = {
-  EDITOR: '\u53ef\u7f16\u8f91\u6210\u5458',
-  OWNER: '\u7a7a\u95f4\u8d1f\u8d23\u4eba',
-  VIEWER: '\u53ea\u8bfb\u6210\u5458',
+  EDITOR: '可编辑成员',
+  OWNER: '空间负责人',
+  VIEWER: '只读成员',
 };
 
 const roleDescriptions: Record<SpaceMemberRole, string> = {
-  EDITOR: '\u53ef\u4e0a\u4f20\u3001\u89e3\u6790\u548c\u66f4\u65b0\u7a7a\u95f4\u5185\u7684\u77e5\u8bc6\u6587\u6863\u3002',
-  OWNER: '\u53ef\u7ba1\u7406\u6210\u5458\u3001\u6587\u6863\u548c\u77e5\u8bc6\u7a7a\u95f4\u8d44\u6599\u3002',
-  VIEWER: '\u53ef\u67e5\u770b\u548c\u68c0\u7d22\u7a7a\u95f4\u5185\u77e5\u8bc6\u3002',
+  EDITOR: '可上传、解析和更新空间内的知识文档。',
+  OWNER: '可管理成员、文档和知识空间资料。',
+  VIEWER: '可查看和检索空间内知识。',
 };
 
 export function SpaceMembersPanel() {
@@ -56,18 +56,18 @@ export function SpaceMembersPanel() {
   };
 
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader className="space-members-panel__header">
         <div>
-          <CardTitle>{'\u7a7a\u95f4\u6210\u5458'}</CardTitle>
+          <CardTitle>空间成员</CardTitle>
           <CardDescription>
             {selectedSpace
-              ? `Manage access for ${selectedSpace.name}.`
-              : '\u8bf7\u5148\u9009\u62e9\u4e00\u4e2a\u77e5\u8bc6\u7a7a\u95f4\u3002'}
+              ? `管理 ${selectedSpace.name} 的成员与角色。`
+              : '请先选择一个知识空间。'}
           </CardDescription>
         </div>
         <Badge variant={canManage ? 'success' : 'secondary'}>
-          {canManage ? '\u8d1f\u8d23\u4eba\u7ba1\u7406' : '\u53ea\u8bfb'}
+          {canManage ? '负责人管理' : '只读'}
         </Badge>
       </CardHeader>
       <CardContent className="space-members-panel">
@@ -76,11 +76,11 @@ export function SpaceMembersPanel() {
         <div className="space-members-panel__summary">
           <div>
             <Users />
-            <span>{spaceMembers.length}{' \u540d\u6210\u5458'}</span>
+            <span>{spaceMembers.length} 名成员</span>
           </div>
           <div>
             <ShieldCheck />
-            <span>{ownerCount}{' \u540d\u8d1f\u8d23\u4eba'}</span>
+            <span>{ownerCount} 名负责人</span>
           </div>
         </div>
 
@@ -109,18 +109,18 @@ export function SpaceMembersPanel() {
               type="submit"
             >
               <UserPlus />
-              Add
+              添加成员
             </Button>
           </form>
         ) : (
           <div className="space-members-panel__readonly">
-            \u4ec5\u7a7a\u95f4\u8d1f\u8d23\u4eba\u53ef\u4ee5\u6dfb\u52a0\u3001\u79fb\u9664\u6210\u5458\u6216\u8c03\u6574\u6210\u5458\u89d2\u8272\u3002
+            仅空间负责人可以添加、移除成员或调整成员角色。
           </div>
         )}
 
         <div className="space-members-panel__list">
           {spaceMembers.length === 0 ? (
-            <div className="space-members-panel__empty">\u6682\u65e0\u6210\u5458\u4fe1\u606f\u3002</div>
+            <div className="space-members-panel__empty">暂无成员信息。</div>
           ) : null}
           {spaceMembers.map((member) => (
             <SpaceMemberRow
@@ -168,11 +168,11 @@ function SpaceMemberRow({
         {toInitial(member.user.name ?? member.user.email)}
       </div>
       <div className="space-members-panel__identity">
-        <strong>
+        <strong title={member.user.name ?? member.user.email}>
           {member.user.name ?? member.user.email}
-          {isSelf ? <Badge variant="secondary">You</Badge> : null}
+          {isSelf ? <Badge variant="secondary">我</Badge> : null}
         </strong>
-        <span>{member.user.email}</span>
+        <span title={member.user.email}>{member.user.email}</span>
         <small>{roleDescriptions[member.role]}</small>
       </div>
       <Select
@@ -195,7 +195,7 @@ function SpaceMemberRow({
         disabled={disabled || !canRemove}
         onClick={() => void onRemove(member.userId)}
         size="icon"
-        title={isLastOwner ? '\u4e0d\u80fd\u79fb\u9664\u6700\u540e\u4e00\u4f4d\u7a7a\u95f4\u8d1f\u8d23\u4eba\u3002' : '\u79fb\u9664\u6210\u5458'}
+        title={isLastOwner ? '不能移除最后一位空间负责人。' : '移除成员'}
         type="button"
         variant="ghost"
       >

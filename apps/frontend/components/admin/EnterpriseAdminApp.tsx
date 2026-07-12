@@ -294,6 +294,27 @@ const formatSize = (size: number | null): string => {
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
 };
 
+const formatSpaceType = (type?: string | null): string => {
+  const labels: Record<string, string> = {
+    CUSTOMER: '客户空间',
+    DEPARTMENT: '部门空间',
+    GENERAL: '通用空间',
+    PROJECT: '项目空间',
+  };
+
+  return type ? labels[type] ?? type : '-';
+};
+
+const formatSpaceVisibility = (visibility?: string | null): string => {
+  const labels: Record<string, string> = {
+    INTERNAL: '内部可见',
+    PRIVATE: '私有',
+    PUBLIC: '空间内公开',
+  };
+
+  return visibility ? labels[visibility] ?? visibility : '-';
+};
+
 const getUserInitial = (email?: string | null): string => {
   if (!email) {
     return '管';
@@ -505,7 +526,7 @@ function DashboardPage() {
   const navigate = (key: ConsoleRouteKey) => router.push(buildConsoleHref(key, { space: selectedSpaceId }));
 
   return (
-    <div className="grid gap-4">
+    <div className="grid min-w-0 gap-4">
       <PageHeader
         actions={
           <div className="flex flex-wrap gap-2">
@@ -797,18 +818,27 @@ function DocumentSpacesPage() {
   const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
 
   return (
-    <div className="grid gap-5 xl:grid-cols-2">
-      <Card className="xl:col-span-2">
-        <CardHeader>
-          <CardTitle>{'\u77e5\u8bc6\u7a7a\u95f4'}</CardTitle>
-          <CardDescription>{'\u77e5\u8bc6\u7a7a\u95f4\u7528\u4e8e\u9694\u79bb\u90e8\u95e8\u3001\u9879\u76ee\u3001\u5ba2\u6237\u6216\u4e1a\u52a1\u7ebf\u7684\u6587\u6863\u3001\u6210\u5458\u6743\u9650\u548c\u68c0\u7d22\u8303\u56f4\u3002'}</CardDescription>
-        </CardHeader>
-        <CardContent className="text-sm text-muted-foreground">
-          {'\u5f53\u524d\u7a7a\u95f4\uff1a'}<span className="font-medium text-foreground">{selectedSpace?.name ?? '\u5c1a\u672a\u9009\u62e9\u77e5\u8bc6\u7a7a\u95f4'}</span>
-        </CardContent>
-      </Card>
-      <SpaceProfilePanel />
-      <SpaceMembersPanel />
+    <div className="grid min-w-0 gap-4">
+      <PageHeader
+        description="按部门、项目或客户隔离知识资产、成员和检索范围。"
+        title="知识空间"
+      />
+      <section className="grid min-w-0 gap-3 border border-border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">当前知识空间</p>
+          <p className="mt-1 truncate text-base font-semibold text-foreground" title={selectedSpace?.name}>
+            {selectedSpace?.name ?? '尚未选择知识空间'}
+          </p>
+        </div>
+        <div className="flex flex-wrap gap-x-5 gap-y-1 text-xs text-muted-foreground">
+          <span>可见性：{formatSpaceVisibility(selectedSpace?.visibility)}</span>
+          <span>空间类型：{formatSpaceType(selectedSpace?.type)}</span>
+        </div>
+      </section>
+      <div className="grid min-w-0 gap-4 xl:grid-cols-2">
+        <div className="min-w-0"><SpaceProfilePanel /></div>
+        <div className="min-w-0"><SpaceMembersPanel /></div>
+      </div>
     </div>
   );
 }
@@ -817,20 +847,48 @@ function DocumentAccessPage() {
   const documents = useWorkbenchStore((state) => state.documents);
   const selectedDocumentId = useWorkbenchStore((state) => state.selectedDocumentId);
   const selectDocument = useWorkbenchStore((state) => state.selectDocument);
+  const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[minmax(250px,0.7fr)_minmax(0,1.3fr)]">
-      <Card>
-        <CardHeader>
-          <CardTitle>{'\u9009\u62e9\u6587\u6863'}</CardTitle>
-          <CardDescription>{'\u9009\u62e9\u9700\u8981\u67e5\u770b\u6216\u8c03\u6574\u8bbf\u95ee\u8303\u56f4\u7684\u6587\u6863\u3002'}</CardDescription>
-        </CardHeader>
-        <CardContent className="grid gap-1">
-          {documents.length === 0 ? <p className="text-sm text-muted-foreground">{'\u5f53\u524d\u7a7a\u95f4\u8fd8\u6ca1\u6709\u6587\u6863\u3002'}</p> : null}
-          {documents.map((document) => <Button className="justify-start" key={document.id} onClick={() => void selectDocument(document.id)} variant={document.id === selectedDocumentId ? 'secondary' : 'ghost'}><FileText className="size-4" /><span className="truncate">{document.title}</span></Button>)}
-        </CardContent>
-      </Card>
-      <DocumentAccessScopePanel />
+    <div className="grid min-w-0 gap-4">
+      <PageHeader
+        description="为每份文档定义安全级别、所属部门和允许访问的部门范围。"
+        title="访问权限"
+      />
+      <section className="grid min-w-0 gap-3 border border-border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+        <div className="min-w-0">
+          <p className="text-xs font-medium text-muted-foreground">当前文档</p>
+          <p className="mt-1 truncate text-base font-semibold text-foreground" title={selectedDocument?.title}>
+            {selectedDocument?.title ?? '尚未选择文档'}
+          </p>
+        </div>
+        {selectedDocument ? (
+          <Badge variant={statusVariant[selectedDocument.status]}>{statusLabel[selectedDocument.status]}</Badge>
+        ) : null}
+      </section>
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(260px,0.7fr)_minmax(0,1.3fr)]">
+        <Card className="min-w-0">
+          <CardHeader>
+            <CardTitle>选择文档</CardTitle>
+            <CardDescription>从当前空间选择需要查看或调整访问范围的文档。</CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-1">
+            {documents.length === 0 ? <p className="text-sm text-muted-foreground">当前空间还没有文档。</p> : null}
+            {documents.map((document) => (
+              <Button
+                className="justify-start"
+                key={document.id}
+                onClick={() => void selectDocument(document.id)}
+                variant={document.id === selectedDocumentId ? 'secondary' : 'ghost'}
+              >
+                <FileText className="size-4" />
+                <span className="truncate" title={document.title}>{document.title}</span>
+              </Button>
+            ))}
+          </CardContent>
+        </Card>
+        <div className="min-w-0"><DocumentAccessScopePanel /></div>
+      </div>
     </div>
   );
 }
@@ -861,7 +919,7 @@ function DocumentTasksPage() {
           setJobs(result.items);
         }
       } catch (loadError) {
-        if (active) setError(loadError instanceof Error ? loadError.message : '\u52a0\u8f7d\u89e3\u6790\u4efb\u52a1\u5931\u8d25\u3002');
+        if (active) setError(loadError instanceof Error ? loadError.message : '加载解析任务失败。');
       } finally {
         if (active) setLoading(false);
       }
@@ -873,18 +931,43 @@ function DocumentTasksPage() {
   }, [selectedSpaceId, status]);
 
   return (
-    <div className="grid gap-5">
-      <Card>
-        <CardHeader className="flex-row items-center justify-between space-y-0">
-          <div><CardTitle>{'\u89e3\u6790\u4efb\u52a1'}</CardTitle><CardDescription>{'\u67e5\u770b\u5f53\u524d\u77e5\u8bc6\u7a7a\u95f4\u7684\u5f02\u6b65\u89e3\u6790\u4efb\u52a1\u548c\u6700\u8fd1\u9636\u6bb5\u3002'}</CardDescription></div>
-          <Select onValueChange={(value) => setStatus(value as PipelineJobStatus | 'ALL')} value={status}><SelectTrigger className="w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">{'\u5168\u90e8\u72b6\u6001'}</SelectItem><SelectItem value="QUEUED">{'\u6392\u961f\u4e2d'}</SelectItem><SelectItem value="RUNNING">{'\u89e3\u6790\u4e2d'}</SelectItem><SelectItem value="SUCCEEDED">{'\u6210\u529f'}</SelectItem><SelectItem value="FAILED">{'\u5931\u8d25'}</SelectItem><SelectItem value="CANCELED">{'\u5df2\u53d6\u6d88'}</SelectItem></SelectContent></Select>
-        </CardHeader>
-        <CardContent className="grid gap-3">
-          {!selectedSpaceId ? <p className="text-sm text-muted-foreground">{'\u8bf7\u5148\u5728\u9876\u90e8\u9009\u62e9\u77e5\u8bc6\u7a7a\u95f4\u3002'}</p> : null}
+    <div className="grid min-w-0 gap-4">
+      <PageHeader
+        actions={
+          <Select onValueChange={(value) => setStatus(value as PipelineJobStatus | 'ALL')} value={status}>
+            <SelectTrigger className="w-36"><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="ALL">全部状态</SelectItem>
+              <SelectItem value="QUEUED">排队中</SelectItem>
+              <SelectItem value="RUNNING">解析中</SelectItem>
+              <SelectItem value="SUCCEEDED">成功</SelectItem>
+              <SelectItem value="FAILED">失败</SelectItem>
+              <SelectItem value="CANCELED">已取消</SelectItem>
+            </SelectContent>
+          </Select>
+        }
+        description="查看当前知识空间的异步解析任务和最近处理阶段。"
+        title="入库任务"
+      />
+      <Card className="min-w-0">
+        <CardContent className="grid gap-3 p-4">
+          {!selectedSpaceId ? <p className="text-sm text-muted-foreground">请先在顶部选择知识空间。</p> : null}
           {error ? <div className="workbench-error">{error}</div> : null}
-          {loading && jobs.length === 0 ? <p className="text-sm text-muted-foreground">{'\u6b63\u5728\u52a0\u8f7d\u4efb\u52a1...'}</p> : null}
-          {!loading && selectedSpaceId && jobs.length === 0 ? <p className="text-sm text-muted-foreground">{'\u5f53\u524d\u7a7a\u95f4\u6682\u65e0\u89e3\u6790\u4efb\u52a1\u3002'}</p> : null}
-          {jobs.map((job) => <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 text-sm last:border-0" key={job.id}><div className="min-w-0"><p className="truncate font-medium">{job.document.title}</p><p className="text-muted-foreground">{job.latestEvent ? job.latestEvent.stage : '\u7b49\u5f85\u5904\u7406'} ? {formatDateTime(job.updatedAt)}</p></div><Badge variant={job.status === 'SUCCEEDED' ? 'success' : job.status === 'FAILED' ? 'destructive' : 'warning'}>{job.status === 'QUEUED' ? '\u6392\u961f\u4e2d' : job.status === 'RUNNING' ? '\u89e3\u6790\u4e2d' : job.status === 'SUCCEEDED' ? '\u6210\u529f' : job.status === 'FAILED' ? '\u5931\u8d25' : '\u5df2\u53d6\u6d88'}</Badge></div>)}
+          {loading && jobs.length === 0 ? <p className="text-sm text-muted-foreground">正在加载任务...</p> : null}
+          {!loading && selectedSpaceId && jobs.length === 0 ? <p className="text-sm text-muted-foreground">当前空间暂无解析任务。</p> : null}
+          {jobs.map((job) => (
+            <article className="grid min-w-0 gap-2 border-b border-border pb-3 text-sm last:border-0 last:pb-0 md:grid-cols-[minmax(0,1fr)_auto] md:items-center" key={job.id}>
+              <div className="min-w-0">
+                <p className="truncate font-medium" title={job.document.title}>{job.document.title}</p>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {job.latestEvent ? job.latestEvent.stage : '等待处理'} · {formatDateTime(job.updatedAt)}
+                </p>
+              </div>
+              <Badge className="w-fit" variant={job.status === 'SUCCEEDED' ? 'success' : job.status === 'FAILED' ? 'destructive' : 'warning'}>
+                {job.status === 'QUEUED' ? '排队中' : job.status === 'RUNNING' ? '解析中' : job.status === 'SUCCEEDED' ? '成功' : job.status === 'FAILED' ? '失败' : '已取消'}
+              </Badge>
+            </article>
+          ))}
         </CardContent>
       </Card>
     </div>
@@ -1023,7 +1106,7 @@ function DocumentsPage() {
   };
 
   return (
-    <div className="grid gap-4">
+    <div className="grid min-w-0 gap-4">
       <PageHeader
         actions={
           <form className="flex flex-wrap gap-2" onSubmit={handleCreateSpace}>
@@ -1044,9 +1127,9 @@ function DocumentsPage() {
       />
       {documentActionError ? <ErrorBanner message={documentActionError} /> : null}
 
-      <Card>
-        <CardContent className="grid gap-3 p-4 md:grid-cols-3">
-          <div className="rounded-md border border-border bg-slate-50 p-3">
+      <Card className="min-w-0">
+        <CardContent className="grid gap-3 p-4 lg:grid-cols-3">
+          <div className="min-w-0 rounded-md border border-border bg-slate-50 p-3">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-medium">1. 知识空间</span>
               <Badge variant={selectedSpace ? 'success' : 'secondary'}>
@@ -1057,7 +1140,7 @@ function DocumentsPage() {
               {selectedSpace?.name ?? '创建或选择一个空间'}
             </p>
           </div>
-          <div className="rounded-md border border-border bg-slate-50 p-3">
+          <div className="min-w-0 rounded-md border border-border bg-slate-50 p-3">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-medium">2. 文档上传</span>
               <Badge
@@ -1072,7 +1155,7 @@ function DocumentsPage() {
               {file?.name ?? uploadState.filename ?? `${documents.length} 份文档`}
             </p>
           </div>
-          <div className="rounded-md border border-border bg-slate-50 p-3">
+          <div className="min-w-0 rounded-md border border-border bg-slate-50 p-3">
             <div className="flex items-center justify-between gap-2">
               <span className="text-sm font-medium">3. 解析入库</span>
               <Badge
@@ -1100,11 +1183,11 @@ function DocumentsPage() {
         </CardContent>
       </Card>
 
-      <div className="grid gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
-        <Card>
+      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
+        <Card className="min-w-0">
           <CardHeader className="gap-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-              <div>
+              <div className="min-w-0">
                 <CardTitle>我的文档</CardTitle>
                 <CardDescription>
                   共 {documents.length} 份文档，当前显示 {filteredDocuments.length} 份
@@ -1140,7 +1223,7 @@ function DocumentsPage() {
                 </Button>
               </form>
             </div>
-            <div className="grid gap-2 md:grid-cols-[240px_1fr_180px]">
+            <div className="grid min-w-0 gap-2 xl:grid-cols-[240px_minmax(0,1fr)_180px]">
               <Select
                 disabled={loading || spaces.length === 0}
                 onValueChange={(value) => void handleSpaceChange(value)}
@@ -1197,7 +1280,7 @@ function DocumentsPage() {
             ) : filteredDocuments.length === 0 ? (
               <EmptyState description="当前筛选条件下没有文档。" icon={FileText} title="暂无文档" />
             ) : (
-              <Table>
+              <Table className="min-w-[760px]">
                 <TableHeader>
                   <TableRow>
                     <TableHead>文档名称</TableHead>

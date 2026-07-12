@@ -17,17 +17,17 @@ import { useWorkbenchStore } from '@/store/workbench.store';
 import type { KnowledgeSpaceMetadata, KnowledgeSpaceType } from '@/types/workbench';
 
 const spaceTypeLabels: Record<KnowledgeSpaceType, string> = {
-  CUSTOMER: '\u5ba2\u6237\u7a7a\u95f4',
-  DEPARTMENT: '\u90e8\u95e8\u7a7a\u95f4',
-  GENERAL: '\u901a\u7528\u7a7a\u95f4',
-  PROJECT: '\u9879\u76ee\u7a7a\u95f4',
+  CUSTOMER: '客户空间',
+  DEPARTMENT: '部门空间',
+  GENERAL: '通用空间',
+  PROJECT: '项目空间',
 };
 
 const spaceTypeDescriptions: Record<KnowledgeSpaceType, string> = {
-  CUSTOMER: '\u7ba1\u7406\u9762\u5411\u5ba2\u6237\u7684\u4e13\u5c5e\u77e5\u8bc6\u3002',
-  DEPARTMENT: '\u7ba1\u7406\u90e8\u95e8\u5185\u90e8\u7684\u4e1a\u52a1\u77e5\u8bc6\u3002',
-  GENERAL: '\u7ba1\u7406\u4f01\u4e1a\u5171\u4eab\u77e5\u8bc6\u3002',
-  PROJECT: '\u7ba1\u7406\u7279\u5b9a\u9879\u76ee\u7684\u77e5\u8bc6\u8d44\u4ea7\u3002',
+  CUSTOMER: '管理面向客户的专属知识。',
+  DEPARTMENT: '管理部门内部的业务知识。',
+  GENERAL: '管理企业共享知识。',
+  PROJECT: '管理特定项目的知识资产。',
 };
 
 export function SpaceProfilePanel() {
@@ -85,23 +85,23 @@ export function SpaceProfilePanel() {
   };
 
   return (
-    <Card>
+    <Card className="min-w-0">
       <CardHeader className="space-profile-panel__header">
         <div>
-          <CardTitle>{'\u77e5\u8bc6\u7a7a\u95f4\u8d44\u6599'}</CardTitle>
+          <CardTitle>知识空间资料</CardTitle>
           <CardDescription>
             {selectedSpace
-              ? '\u63cf\u8ff0\u5f53\u524d\u77e5\u8bc6\u7a7a\u95f4\u670d\u52a1\u7684\u4e1a\u52a1\u8303\u56f4\u3002'
-              : '\u8bf7\u5148\u9009\u62e9\u4e00\u4e2a\u77e5\u8bc6\u7a7a\u95f4\u3002'}
+              ? '描述当前知识空间服务的业务范围。'
+              : '请先选择一个知识空间。'}
           </CardDescription>
         </div>
         <Badge variant={canManage ? 'success' : 'secondary'}>
-          {canManage ? '\u53ef\u7f16\u8f91' : '\u53ea\u8bfb'}
+          {canManage ? '可编辑' : '只读'}
         </Badge>
       </CardHeader>
       <CardContent>
         {!selectedSpace ? (
-          <div className="space-profile-panel__empty">{'\u5c1a\u672a\u9009\u62e9\u77e5\u8bc6\u7a7a\u95f4\u3002'}</div>
+          <div className="space-profile-panel__empty">尚未选择知识空间。</div>
         ) : (
           <form className="space-profile-panel" onSubmit={handleSubmit}>
             <div className="space-profile-panel__summary">
@@ -111,12 +111,12 @@ export function SpaceProfilePanel() {
               </div>
               <div>
                 <Users />
-                <span>{spaceMembers.length}{' \u540d\u6210\u5458'}</span>
+                <span>{spaceMembers.length} 名成员</span>
               </div>
             </div>
 
             <label className="space-profile-panel__field">
-              <span>{'\u7a7a\u95f4\u7c7b\u578b'}</span>
+              <span>空间类型</span>
               <Select
                 disabled={!canManage || loading}
                 onValueChange={(value) => setSpaceType(value as KnowledgeSpaceType)}
@@ -139,7 +139,7 @@ export function SpaceProfilePanel() {
             </label>
 
             <label className="space-profile-panel__field">
-              <span>{'\u90e8\u95e8\u6807\u8bc6'}</span>
+              <span>部门标识</span>
               <Input
                 disabled={!canManage || loading}
                 onChange={(event) => setDepartmentId(event.target.value)}
@@ -150,7 +150,7 @@ export function SpaceProfilePanel() {
 
             <div className="space-profile-panel__split">
               <label className="space-profile-panel__field">
-                <span>{'\u9879\u76ee\u7f16\u7801'}</span>
+                <span>项目编码</span>
                 <Input
                   disabled={!canManage || loading}
                   onChange={(event) => setProjectCode(event.target.value)}
@@ -159,7 +159,7 @@ export function SpaceProfilePanel() {
                 />
               </label>
               <label className="space-profile-panel__field">
-                <span>{'\u9879\u76ee\u540d\u79f0'}</span>
+                <span>项目名称</span>
                 <Input
                   disabled={!canManage || loading}
                   onChange={(event) => setProjectName(event.target.value)}
@@ -171,7 +171,7 @@ export function SpaceProfilePanel() {
 
             <div className="space-profile-panel__split">
               <label className="space-profile-panel__field">
-                <span>{'\u5ba2\u6237\u7f16\u7801'}</span>
+                <span>客户编码</span>
                 <Input
                   disabled={!canManage || loading}
                   onChange={(event) => setCustomerCode(event.target.value)}
@@ -180,7 +180,7 @@ export function SpaceProfilePanel() {
                 />
               </label>
               <label className="space-profile-panel__field">
-                <span>{'\u5ba2\u6237\u540d\u79f0'}</span>
+                <span>客户名称</span>
                 <Input
                   disabled={!canManage || loading}
                   onChange={(event) => setCustomerName(event.target.value)}
@@ -192,12 +192,11 @@ export function SpaceProfilePanel() {
 
             <Button disabled={!canManage || !isDirty || loading} type="submit">
               <Save />
-              {'\u4fdd\u5b58\u8d44\u6599'}
+              保存资料
             </Button>
 
             <p className="space-profile-panel__hint">
-              Space type helps users understand the business scope. Access is still controlled by
-              tenant, member role, and document access scope.
+              空间类型用于说明业务范围；实际访问仍由租户、成员角色和文档访问范围共同控制。
             </p>
           </form>
         )}

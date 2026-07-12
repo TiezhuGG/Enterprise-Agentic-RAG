@@ -1110,6 +1110,7 @@ textarea:disabled {
 .space-members-panel {
   display: grid;
   gap: 14px;
+  min-width: 0;
 }
 
 .space-members-panel__header {
@@ -1117,6 +1118,14 @@ textarea:disabled {
   display: flex;
   gap: 12px;
   justify-content: space-between;
+}
+
+.space-members-panel__header > div {
+  min-width: 0;
+}
+
+.space-members-panel__header p {
+  overflow-wrap: anywhere;
 }
 
 .space-members-panel__summary,
@@ -1162,6 +1171,7 @@ textarea:disabled {
   color: var(--muted-foreground);
   font-size: 13px;
   padding: 12px;
+  overflow-wrap: anywhere;
 }
 
 .space-members-panel__list {
@@ -1211,6 +1221,13 @@ textarea:disabled {
   white-space: nowrap;
 }
 
+.space-members-panel__identity small {
+  overflow: visible;
+  overflow-wrap: anywhere;
+  text-overflow: clip;
+  white-space: normal;
+}
+
 .space-members-panel__identity span,
 .space-members-panel__identity small {
   color: var(--muted-foreground);
@@ -1224,6 +1241,7 @@ textarea:disabled {
 .document-access-scope {
   display: grid;
   gap: 14px;
+  min-width: 0;
 }
 
 .document-access-scope__header {
@@ -1231,6 +1249,17 @@ textarea:disabled {
   display: flex;
   gap: 12px;
   justify-content: space-between;
+}
+
+.document-access-scope__header > div {
+  min-width: 0;
+}
+
+.document-access-scope__header p,
+.document-access-scope__field small,
+.document-access-scope__hint,
+.document-access-scope__empty {
+  overflow-wrap: anywhere;
 }
 
 .document-access-scope__summary {
@@ -1293,6 +1322,7 @@ textarea:disabled {
 .space-profile-panel {
   display: grid;
   gap: 12px;
+  min-width: 0;
 }
 
 .space-profile-panel__header {
@@ -1300,6 +1330,17 @@ textarea:disabled {
   display: flex;
   gap: 12px;
   justify-content: space-between;
+}
+
+.space-profile-panel__header > div {
+  min-width: 0;
+}
+
+.space-profile-panel__header p,
+.space-profile-panel__field small,
+.space-profile-panel__hint,
+.space-profile-panel__empty {
+  overflow-wrap: anywhere;
 }
 
 .space-profile-panel__summary,
@@ -4200,5 +4241,44 @@ textarea:disabled {
 
   .observability-toolbar {
     display: flex;
+  }
+}
+
+@media (max-width: 1023px) {
+  .space-profile-panel__split,
+  .document-access-scope__summary,
+  .space-profile-panel__summary {
+    grid-template-columns: 1fr;
+  }
+
+  .space-members-panel__form {
+    grid-template-columns: minmax(0, 1fr) minmax(132px, 160px);
+  }
+
+  .space-members-panel__form > button {
+    grid-column: 1 / -1;
+    justify-self: start;
+  }
+
+  .space-members-panel__member {
+    grid-template-columns: 36px minmax(0, 1fr) 36px;
+  }
+
+  .space-members-panel__role {
+    grid-column: 2 / -1;
+    grid-row: 2;
+    width: 100%;
+  }
+}
+
+@media (max-width: 640px) {
+  .space-members-panel__summary,
+  .space-members-panel__form {
+    grid-template-columns: 1fr;
+  }
+
+  .space-members-panel__form > button {
+    justify-self: stretch;
+    width: 100%;
   }
 }
