@@ -72,8 +72,9 @@ export function SpaceProfilePanel() {
         customerName,
         projectCode,
         projectName,
+        type: spaceType,
       }),
-    [customerCode, customerName, projectCode, projectName, selectedSpace?.metadata],
+    [customerCode, customerName, projectCode, projectName, selectedSpace?.metadata, spaceType],
   );
   const isDirty =
     Boolean(selectedSpace) &&
@@ -81,10 +82,8 @@ export function SpaceProfilePanel() {
       description.trim() !== (selectedSpace.description ?? '') ||
       (canManageDepartment && spaceType !== selectedSpace.type) ||
       (canManageDepartment && departmentId !== (selectedSpace.departmentId ?? '')) ||
-      projectCode.trim() !== (selectedSpace.metadata.projectCode ?? '') ||
-      projectName.trim() !== (selectedSpace.metadata.projectName ?? '') ||
-      customerCode.trim() !== (selectedSpace.metadata.customerCode ?? '') ||
-      customerName.trim() !== (selectedSpace.metadata.customerName ?? ''));
+      (spaceType === 'PROJECT' && (projectCode.trim() !== (selectedSpace.metadata.projectCode ?? '') || projectName.trim() !== (selectedSpace.metadata.projectName ?? ''))) ||
+      (spaceType === 'CUSTOMER' && (customerCode.trim() !== (selectedSpace.metadata.customerCode ?? '') || customerName.trim() !== (selectedSpace.metadata.customerName ?? ''))));
 
   useEffect(() => {
     setName(selectedSpace?.name ?? '');
@@ -117,7 +116,7 @@ export function SpaceProfilePanel() {
     <Card className="min-w-0">
       <CardHeader className="space-profile-panel__header">
         <div className="min-w-0">
-          <CardTitle>空间资料</CardTitle>
+          <CardTitle>知识库资料</CardTitle>
           <CardDescription>
             {selectedSpace ? '定义空间的业务语境；成员和检索资料以此空间为边界。' : '请先选择一个知识空间。'}
           </CardDescription>
@@ -164,14 +163,15 @@ export function SpaceProfilePanel() {
               </Select>
               <small>{canManageDepartment ? '负责人可调整业务归属；成员权限不会因此自动变化。' : '仅知识库负责人可调整业务归属。'}</small>
             </label>
-            <div className="space-profile-panel__split">
+            {spaceType === 'PROJECT' ? <div className="space-profile-panel__split">
               <label className="space-profile-panel__field"><span>项目编码</span><Input onChange={(event) => setProjectCode(event.target.value)} placeholder="proj-erp-2026" value={projectCode} /></label>
               <label className="space-profile-panel__field"><span>项目名称</span><Input onChange={(event) => setProjectName(event.target.value)} placeholder="ERP rollout" value={projectName} /></label>
-            </div>
-            <div className="space-profile-panel__split">
+            </div> : null}
+            {spaceType === 'CUSTOMER' ? <div className="space-profile-panel__split">
               <label className="space-profile-panel__field"><span>客户编码</span><Input onChange={(event) => setCustomerCode(event.target.value)} placeholder="cust-acme" value={customerCode} /></label>
               <label className="space-profile-panel__field"><span>客户名称</span><Input onChange={(event) => setCustomerName(event.target.value)} placeholder="ACME Corp" value={customerName} /></label>
-            </div>
+            </div> : null}
+            {(spaceType === 'PROJECT' || spaceType === 'CUSTOMER') ? <p className="text-xs leading-5 text-muted-foreground">项目和客户资料仅用于标识、筛选和后续外部系统映射，不改变知识库成员或文档访问权限。</p> : null}
             <Button disabled={!isDirty || loading || !name.trim() || (spaceType === 'DEPARTMENT' && !departmentId)} type="submit"><Save />保存资料</Button>
           </form>
         ) : (
@@ -184,7 +184,10 @@ export function SpaceProfilePanel() {
               <div><dt>空间名称</dt><dd>{selectedSpace.name}</dd></div>
               <div><dt>空间说明</dt><dd>{selectedSpace.description || '未填写'}</dd></div>
               <div><dt>归属部门</dt><dd>{selectedSpace.department?.name || '未设置'}</dd></div>
-              <div><dt>项目编码</dt><dd>{selectedSpace.metadata.projectCode || '未设置'}</dd></div>
+              {selectedSpace.type === 'PROJECT' ? <div><dt>项目编码</dt><dd>{selectedSpace.metadata.projectCode || '未设置'}</dd></div> : null}
+              {selectedSpace.type === 'PROJECT' ? <div><dt>项目名称</dt><dd>{selectedSpace.metadata.projectName || '未设置'}</dd></div> : null}
+              {selectedSpace.type === 'CUSTOMER' ? <div><dt>客户编码</dt><dd>{selectedSpace.metadata.customerCode || '未设置'}</dd></div> : null}
+              {selectedSpace.type === 'CUSTOMER' ? <div><dt>客户名称</dt><dd>{selectedSpace.metadata.customerName || '未设置'}</dd></div> : null}
             </dl>
             <p>当前为空间查看者。系统管理员身份不替代空间成员权限；请联系空间负责人 {owner?.user.email ?? '申请编辑权限'} 修改空间资料。</p>
           </div>
@@ -199,10 +202,10 @@ const createMetadata = (input: KnowledgeSpaceMetadata & {
   customerName: string;
   projectCode: string;
   projectName: string;
+  type: KnowledgeSpaceType;
 }): KnowledgeSpaceMetadata => ({
-  ...input,
-  ...(input.customerCode.trim() ? { customerCode: input.customerCode.trim() } : { customerCode: undefined }),
-  ...(input.customerName.trim() ? { customerName: input.customerName.trim() } : { customerName: undefined }),
-  ...(input.projectCode.trim() ? { projectCode: input.projectCode.trim() } : { projectCode: undefined }),
-  ...(input.projectName.trim() ? { projectName: input.projectName.trim() } : { projectName: undefined }),
+  ...(input.type === 'CUSTOMER' && input.customerCode.trim() ? { customerCode: input.customerCode.trim() } : {}),
+  ...(input.type === 'CUSTOMER' && input.customerName.trim() ? { customerName: input.customerName.trim() } : {}),
+  ...(input.type === 'PROJECT' && input.projectCode.trim() ? { projectCode: input.projectCode.trim() } : {}),
+  ...(input.type === 'PROJECT' && input.projectName.trim() ? { projectName: input.projectName.trim() } : {}),
 });

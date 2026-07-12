@@ -272,6 +272,23 @@ export class EnterpriseRepository {
     return this.prisma.department.count({ where: { parentId: departmentId, status: 'ACTIVE' } });
   }
 
+  async getDepartmentDisableDependencies(departmentId: string): Promise<{
+    activeChildDepartmentCount: number;
+    knowledgeBaseCount: number;
+    userCount: number;
+  }> {
+    const [dependencies, activeChildDepartmentCount] = await Promise.all([
+      this.countDepartmentDependencies(departmentId),
+      this.countActiveChildDepartments(departmentId),
+    ]);
+
+    return {
+      activeChildDepartmentCount,
+      knowledgeBaseCount: dependencies.knowledgeBases,
+      userCount: dependencies.users,
+    };
+  }
+
   private generateCode(prefix: 'dept' | 'org'): string {
     return `${prefix}-${randomUUID().replaceAll('-', '').slice(0, 12)}`;
   }

@@ -1,6 +1,7 @@
 'use client';
 
 import { FormEvent, type ReactNode, useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { Building2, ChevronRight, FolderTree, Pencil, Plus, Power, UsersRound } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -21,12 +22,19 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { ConsoleEmptyState, ConsoleErrorBanner, ConsolePageHeader, ConsoleStatusBadge } from '@/components/admin/ConsolePagePrimitives';
+import { enterpriseService } from '@/services/enterprise.service';
 import { useEnterpriseStore } from '@/store/enterprise.store';
-import type { EnterpriseDepartment, EnterpriseOrganization } from '@/types/enterprise';
+import { buildConsoleHref } from '@/lib/console-routes';
+import type { EnterpriseDepartment, EnterpriseDisableCheck, EnterpriseOrganization } from '@/types/enterprise';
 
 type DepartmentDialogState = { department?: EnterpriseDepartment; organization: EnterpriseOrganization } | null;
+type DisableTarget =
+  | { item: EnterpriseDepartment; kind: 'department' }
+  | { item: EnterpriseOrganization; kind: 'organization' }
+  | null;
 
 export function OrganizationDepartmentsPage() {
+  const router = useRouter();
   const createDepartment = useEnterpriseStore((state) => state.createDepartment);
   const createOrganization = useEnterpriseStore((state) => state.createOrganization);
   const error = useEnterpriseStore((state) => state.error);
@@ -39,11 +47,37 @@ export function OrganizationDepartmentsPage() {
   const [organizationDialogOpen, setOrganizationDialogOpen] = useState(false);
   const [organizationEdit, setOrganizationEdit] = useState<EnterpriseOrganization | null>(null);
   const [departmentDialog, setDepartmentDialog] = useState<DepartmentDialogState>(null);
+  const [disableCheck, setDisableCheck] = useState<EnterpriseDisableCheck | null>(null);
+  const [disableError, setDisableError] = useState<string | null>(null);
+  const [disableLoading, setDisableLoading] = useState(false);
+  const [disableTarget, setDisableTarget] = useState<DisableTarget>(null);
 
   useEffect(() => { void loadStructure(); }, [loadStructure]);
   useEffect(() => {
     if (!selectedOrganizationId && structure?.organizations[0]) setSelectedOrganizationId(structure.organizations[0].id);
   }, [selectedOrganizationId, structure]);
+  useEffect(() => {
+    if (!disableTarget) {
+      setDisableCheck(null);
+      setDisableError(null);
+      return;
+    }
+
+    let active = true;
+    setDisableLoading(true);
+    setDisableError(null);
+    const request = disableTarget.kind === 'department'
+      ? enterpriseService.getDepartmentDisableCheck(disableTarget.item.id)
+      : enterpriseService.getOrganizationDisableCheck(disableTarget.item.id);
+    void request.then((result) => {
+      if (active) setDisableCheck(result);
+    }).catch((requestError) => {
+      if (active) setDisableError(requestError instanceof Error ? requestError.message : '无法检查停用依赖。');
+    }).finally(() => {
+      if (active) setDisableLoading(false);
+    });
+    return () => { active = false; };
+  }, [disableTarget]);
 
   const organization = structure?.organizations.find((item) => item.id === selectedOrganizationId) ?? null;
   const activeDepartments = organization?.departments.filter((item) => item.status === 'ACTIVE').length ?? 0;
@@ -68,9 +102,9 @@ export function OrganizationDepartmentsPage() {
       <Card className="min-w-0">
         {!organization ? <CardContent className="py-16"><ConsoleEmptyState description="选择或创建一个组织以管理其部门层级。" icon={FolderTree} title="尚未选择组织" /></CardContent> : <>
           <CardHeader className="gap-3 border-b">
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><CardTitle className="truncate">{organization.name}</CardTitle><CardDescription>共 {organization.departments.length} 个部门，其中 {activeDepartments} 个启用。部门最多四层，停用前需先重新分配关联用户与知识库。</CardDescription></div><div className="flex shrink-0 gap-2"><Button onClick={() => setOrganizationEdit(organization)} size="icon" title="编辑组织" variant="outline"><Pencil /></Button><Button disabled={organization.status === 'DISABLED'} onClick={() => void updateOrganization(organization.id, { status: 'DISABLED' })} size="icon" title="停用组织" variant="outline"><Power /></Button><Button disabled={organization.status === 'DISABLED'} onClick={() => setDepartmentDialog({ organization })}><Plus />创建部门</Button></div></div>
+            <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><CardTitle className="truncate">{organization.name}</CardTitle><CardDescription>共 {organization.departments.length} 个部门，其中 {activeDepartments} 个启用。部门最多四层，停用前需先重新分配关联用户与知识库。</CardDescription></div><div className="flex shrink-0 gap-2"><Button onClick={() => setOrganizationEdit(organization)} size="icon" title="编辑组织" variant="outline"><Pencil /></Button><Button disabled={organization.status === 'DISABLED'} onClick={() => setDisableTarget({ item: organization, kind: 'organization' })} size="icon" title="停用组织" variant="outline"><Power /></Button><Button disabled={organization.status === 'DISABLED'} onClick={() => setDepartmentDialog({ organization })}><Plus />创建部门</Button></div></div>
           </CardHeader>
-          <CardContent className="p-0"><DepartmentTree departments={organization.departments} onEdit={(department) => setDepartmentDialog({ department, organization })} onDisable={(department) => void updateDepartment(department.id, { status: 'DISABLED' })} /></CardContent>
+          <CardContent className="p-0"><DepartmentTree departments={organization.departments} onEdit={(department) => setDepartmentDialog({ department, organization })} onDisable={(department) => setDisableTarget({ item: department, kind: 'department' })} /></CardContent>
         </>}
       </Card>
     </section>
@@ -85,6 +119,16 @@ export function OrganizationDepartmentsPage() {
         ...(input.parentId ? { parentId: input.parentId } : {}),
       });
     }} open={Boolean(departmentDialog)} organization={departmentDialog?.organization ?? null} editing={departmentDialog?.department} />
+    <Dialog onOpenChange={(open) => { if (!open) setDisableTarget(null); }} open={Boolean(disableTarget)}>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>停用{disableTarget?.kind === 'department' ? '部门' : '组织'}</DialogTitle>
+          <DialogDescription>“{disableTarget?.item.name}”停用后不能再分配新用户或知识库。</DialogDescription>
+        </DialogHeader>
+        {disableLoading ? <p className="text-sm text-muted-foreground">正在检查关联数据...</p> : disableError ? <ConsoleErrorBanner message={disableError} /> : disableCheck ? <div className="grid gap-3 text-sm"><p className={disableCheck.canDisable ? 'text-muted-foreground' : 'font-medium text-destructive'}>{disableCheck.canDisable ? '未发现阻塞依赖，可以停用。' : '请先处理以下依赖后再停用。'}</p>{disableCheck.activeDepartmentCount > 0 ? <p>{disableCheck.activeDepartmentCount} 个启用部门仍归属此组织。</p> : null}{disableCheck.activeChildDepartmentCount > 0 ? <p>{disableCheck.activeChildDepartmentCount} 个启用下级部门仍归属此部门。</p> : null}{disableCheck.userCount > 0 ? <p>{disableCheck.userCount} 名用户仍归属此部门。</p> : null}{disableCheck.knowledgeBaseCount > 0 ? <p>{disableCheck.knowledgeBaseCount} 个知识库仍绑定此部门。</p> : null}</div> : null}
+        <DialogFooter className="flex-wrap"><Button onClick={() => setDisableTarget(null)} variant="outline">取消</Button>{disableCheck?.userCount ? <Button onClick={() => router.push(buildConsoleHref('user-roles'))} variant="outline">查看关联用户</Button> : null}{(disableCheck?.knowledgeBaseCount || disableCheck?.activeDepartmentCount) ? <Button onClick={() => router.push(buildConsoleHref('document-spaces'))} variant="outline">查看关联知识库</Button> : null}<Button disabled={disableLoading || !disableCheck?.canDisable || !disableTarget} onClick={() => { if (!disableTarget) return; const update = disableTarget.kind === 'department' ? updateDepartment(disableTarget.item.id, { status: 'DISABLED' }) : updateOrganization(disableTarget.item.id, { status: 'DISABLED' }); void update.then((success) => { if (success) setDisableTarget(null); }); }} variant="destructive"><Power />确认停用</Button></DialogFooter>
+      </DialogContent>
+    </Dialog>
   </div>;
 }
 

@@ -33,3 +33,11 @@ export interface EnterpriseStructure {
   organizations: EnterpriseOrganization[];
   tenant: EnterpriseTenant | null;
 }
+
+export interface EnterpriseDisableCheck {
+  activeChildDepartmentCount: number;
+  activeDepartmentCount: number;
+  canDisable: boolean;
+  knowledgeBaseCount: number;
+  userCount: number;
+}

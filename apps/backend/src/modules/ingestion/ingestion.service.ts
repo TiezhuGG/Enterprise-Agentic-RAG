@@ -5,8 +5,14 @@ import {
   NotFoundException,
 } from '@nestjs/common';
 import type { ExecutionContext } from '../../common';
-import { createAppBadRequestException, toAppErrorMessage } from '../../common';
+import {
+  createAppBadRequestException,
+  createAppServiceUnavailableException,
+  toAppErrorMessage,
+} from '../../common';
+import { GraphService } from '../../infrastructure/graph';
 import { ObservabilityService } from '../../infrastructure/observability';
+import { ProviderDiagnosticsService } from '../../infrastructure/observability/provider-diagnostics.service';
 import { ChunkService } from '../chunk';
 import { DocumentProcessingService } from '../document-processing';
 import { DocumentRepository, type DocumentEntity, type DocumentType } from '../document';
@@ -53,10 +59,12 @@ export class IngestionService {
     private readonly documentProcessingService: DocumentProcessingService,
     private readonly documentRepository: DocumentRepository,
     private readonly embeddingService: EmbeddingService,
+    private readonly graphService: GraphService,
     private readonly ingestionRepository: IngestionRepository,
     private readonly knowledgeGraphService: KnowledgeGraphService,
     private readonly observabilityService: ObservabilityService,
     private readonly pipelineService: PipelineService,
+    private readonly providerDiagnosticsService: ProviderDiagnosticsService,
   ) {}
 
   async ingestDocument(
@@ -119,13 +127,64 @@ export class IngestionService {
 
   async runQueuedDocumentIngestion(pipelineJob: PipelineJobEntity): Promise<void> {
     const context = this.restoreExecutionContext(pipelineJob);
-    const options = this.readQueuedOptions(pipelineJob.metadata);
     const activeDocument = await this.findWritableDocument(context, pipelineJob.documentId);
 
     this.observabilityService.ensureRequestId(context);
     this.observabilityService.ensureExecutionId(context);
 
-    await this.executeDocumentIngestion(context, activeDocument, options, pipelineJob);
+    if (pipelineJob.metadata.graphOnly === true) {
+      await this.executeGraphRetry(context, activeDocument, pipelineJob);
+      return;
+    }
+
+    await this.executeDocumentIngestion(
+      context,
+      activeDocument,
+      this.readQueuedOptions(pipelineJob.metadata),
+      pipelineJob,
+    );
+  }
+
+  async enqueueGraphRetry(
+    context: ExecutionContext,
+    documentId: string,
+  ): Promise<IngestionJobResponse> {
+    this.observabilityService.ensureRequestId(context);
+    this.observabilityService.ensureExecutionId(context);
+
+    const document = await this.findWritableDocument(context, documentId);
+    const status = await this.getStatusRecord(document.id);
+
+    if (!status.hasContent || status.chunkCount === 0) {
+      throw createAppBadRequestException(
+        'INGESTION_FAILED',
+        '文档尚未完成解析和切片，暂不能重试图谱抽取',
+      );
+    }
+
+    await this.ensureGraphRetryReady();
+
+    const pipelineJob = await this.pipelineService.startQueuedDocumentJob(context, document, {
+      graphOnly: true,
+      includeGraph: true,
+      ingestionAsync: true,
+      ingestionOptions: { force: false, includeEmbedding: false, includeGraph: true },
+      executionContext: this.createExecutionContextSnapshot(context),
+    });
+
+    await this.pipelineService.recordStageEvent(pipelineJob, {
+      durationMs: 0,
+      metadata: { message: '已加入图谱抽取队列' },
+      stage: 'queue',
+      status: 'success',
+    });
+
+    return {
+      documentId: document.id,
+      pipelineJobId: pipelineJob.id,
+      spaceId: document.spaceId,
+      status: 'QUEUED',
+    };
   }
 
   private async executeDocumentIngestion(
@@ -261,6 +320,66 @@ export class IngestionService {
 
       this.recordIngestion(context, document, stages, startedAt, 'failed', error);
       throw error;
+    }
+  }
+
+  private async executeGraphRetry(
+    context: ExecutionContext,
+    document: DocumentEntity,
+    pipelineJob: PipelineJobEntity,
+  ): Promise<void> {
+    const stages: IngestionStageResult[] = [];
+    const startedAt = Date.now();
+
+    try {
+      await this.runStage(context, document, stages, pipelineJob, 'validate', async () => {
+        const status = await this.getStatusRecord(document.id);
+        if (!status.hasContent || status.chunkCount === 0) {
+          throw createAppBadRequestException(
+            'INGESTION_FAILED',
+            '文档尚未完成解析和切片，暂不能重试图谱抽取',
+          );
+        }
+        await this.ensureGraphRetryReady();
+        return { chunkCount: status.chunkCount, graphOnly: true };
+      });
+
+      await this.runGraphExtractionStage(context, document, stages, pipelineJob);
+      await this.runStage(context, document, stages, pipelineJob, 'done', async () => {
+        const graphCounts = await this.getGraphCounts(document.id);
+        return {
+          graphEntities: graphCounts?.graphEntities ?? 0,
+          graphOnly: true,
+          graphRelations: graphCounts?.graphRelations ?? 0,
+        };
+      });
+
+      await this.pipelineService.finishJob(pipelineJob.id, 'SUCCEEDED');
+      this.recordIngestion(context, document, stages, startedAt, 'success');
+    } catch (error) {
+      await this.finishPipelineJobSafely(pipelineJob, 'FAILED');
+      this.recordIngestion(context, document, stages, startedAt, 'failed', error);
+      throw error;
+    }
+  }
+
+  private async ensureGraphRetryReady(): Promise<void> {
+    const llm = await this.providerDiagnosticsService.checkLlm();
+
+    if (llm.status !== 'ok') {
+      throw createAppServiceUnavailableException(
+        'LLM_UNAVAILABLE',
+        llm.message || '大模型服务不可用，暂不能执行图谱抽取',
+      );
+    }
+
+    try {
+      await this.graphService.healthCheck();
+    } catch {
+      throw createAppServiceUnavailableException(
+        'GRAPH_UNAVAILABLE',
+        '图谱服务未连接，暂不能执行图谱抽取',
+      );
     }
   }
 

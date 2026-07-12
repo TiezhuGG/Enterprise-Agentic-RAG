@@ -70,6 +70,14 @@ export class EnterpriseController {
     return this.enterpriseService.createOrganization(this.createExecutionContext(user), input);
   }
 
+  @Get('organizations/:id/disable-check')
+  @Roles('admin')
+  @Permissions('enterprise.manage')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  getOrganizationDisableCheck(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.enterpriseService.getOrganizationDisableCheck(this.createExecutionContext(user), id);
+  }
+
   @Patch('organizations/:id')
   @Roles('admin')
   @Permissions('enterprise.manage')
@@ -95,6 +103,14 @@ export class EnterpriseController {
     @Body() input: CreateDepartmentDto,
   ): Promise<DepartmentEntity> {
     return this.enterpriseService.createDepartment(this.createExecutionContext(user), input);
+  }
+
+  @Get('departments/:id/disable-check')
+  @Roles('admin')
+  @Permissions('enterprise.manage')
+  @UseGuards(RolesGuard, PermissionsGuard)
+  getDepartmentDisableCheck(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
+    return this.enterpriseService.getDepartmentDisableCheck(this.createExecutionContext(user), id);
   }
 
   @Patch('departments/:id')

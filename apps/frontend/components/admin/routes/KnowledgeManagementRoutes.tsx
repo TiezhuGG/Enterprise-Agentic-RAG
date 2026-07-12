@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Database, FileArchive, FileText, Plus, ShieldCheck, Trash2 } from 'lucide-react';
+import { Database, FileArchive, FileText, Plus, RefreshCw, ShieldCheck, Trash2 } from 'lucide-react';
 import { ConsoleEmptyState, ConsoleErrorBanner, ConsolePageHeader, ConsoleStatusBadge } from '@/components/admin/ConsolePagePrimitives';
 import { SpaceCreationDialog } from '@/components/workbench/SpaceCreationDialog';
 import { SpaceMembersPanel } from '@/components/workbench/SpaceMembersPanel';
@@ -147,6 +147,7 @@ function KnowledgeBaseDetailPage({ spaceId }: { spaceId?: string }) {
 }
 
 function DocumentTasksPage() {
+  const router = useRouter();
   const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const [error, setError] = useState<string | null>(null);
   const [jobs, setJobs] = useState<SpacePipelineJob[]>([]);
@@ -197,7 +198,10 @@ function DocumentTasksPage() {
         {error ? <ConsoleErrorBanner message={error} /> : null}
         {loading && jobs.length === 0 ? <p className="text-sm text-muted-foreground">正在加载任务...</p> : null}
         {!loading && selectedSpaceId && jobs.length === 0 ? <ConsoleEmptyState description="上传文档后会自动创建入库任务。" icon={FileArchive} title="当前知识库暂无入库任务" /> : null}
-        {jobs.map((job) => <article className="grid min-w-0 gap-2 border-b border-border pb-3 text-sm last:border-0 last:pb-0 md:grid-cols-[minmax(0,1fr)_auto] md:items-center" key={job.id}><div className="min-w-0"><p className="truncate font-medium">{job.document.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{job.latestEvent?.stage ?? '等待处理'} · {formatDateTime(job.updatedAt)}</p></div><ConsoleStatusBadge tone={job.status === 'SUCCEEDED' ? 'success' : job.status === 'FAILED' ? 'danger' : 'warning'}>{pipelineStatusLabels[job.status]}</ConsoleStatusBadge></article>)}
+        {jobs.map((job) => {
+          const graphFailed = job.graphEvent?.status === 'FAILED';
+          return <article className="grid min-w-0 gap-2 border-b border-border pb-3 text-sm last:border-0 last:pb-0 md:grid-cols-[minmax(0,1fr)_auto] md:items-center" key={job.id}><div className="min-w-0"><p className="truncate font-medium">{job.document.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{job.latestEvent?.stage ?? '等待处理'} · {formatDateTime(job.updatedAt)}</p>{graphFailed ? <p className="mt-1 text-xs text-destructive">图谱抽取失败：{job.graphEvent?.errorMessage ?? '大模型或图谱服务不可用'}</p> : job.graphEvent?.status === 'SUCCEEDED' ? <p className="mt-1 text-xs text-emerald-700">图谱抽取成功</p> : null}</div><div className="flex items-center gap-2"><ConsoleStatusBadge tone={job.status === 'SUCCEEDED' ? 'success' : job.status === 'FAILED' ? 'danger' : 'warning'}>{pipelineStatusLabels[job.status]}</ConsoleStatusBadge>{graphFailed ? <Button onClick={() => router.push(buildConsoleHref('documents', { document: job.documentId, space: selectedSpaceId }))} size="sm" variant="outline"><RefreshCw />查看并重试</Button> : null}</div></article>;
+        })}
       </CardContent></Card>
     </div>
   );

@@ -46,6 +46,14 @@ export interface EnterpriseStructureEntity {
   tenant: TenantEntity | null;
 }
 
+export interface EnterpriseDisableCheck {
+  activeChildDepartmentCount: number;
+  activeDepartmentCount: number;
+  canDisable: boolean;
+  knowledgeBaseCount: number;
+  userCount: number;
+}
+
 export interface EnterpriseContextEntity {
   department: DepartmentEntity | null;
   organization: OrganizationEntity | null;

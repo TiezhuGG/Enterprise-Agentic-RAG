@@ -117,6 +117,7 @@ interface WorkbenchStore {
   selectPipelineJob: (jobId: string) => Promise<void>;
   selectSpace: (spaceId: string) => Promise<void>;
   removeSpaceMember: (userId: string) => Promise<void>;
+  retrySelectedDocumentGraph: () => Promise<void>;
   setActiveSection: (section: AppSection) => void;
   setAuthToken: (token: string) => Promise<void>;
   setIngestionOptions: (options: Partial<IngestionOptions>) => void;
@@ -701,6 +702,32 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
         error: errorMessage,
         ingestionState: { errorMessage, status: 'error' },
         ingestionStatus,
+      });
+    }
+  },
+
+  async retrySelectedDocumentGraph() {
+    const documentId = get().selectedDocumentId;
+
+    if (!documentId) {
+      return;
+    }
+
+    set({ error: null, ingestionState: { status: 'queued' } });
+
+    try {
+      const job = await ingestionService.retryDocumentGraph(documentId);
+      set({
+        ingestionState: { pipelineJobId: job.pipelineJobId, status: 'queued' },
+        selectedPipelineJobId: job.pipelineJobId,
+      });
+      await get().loadPipeline(documentId, job.pipelineJobId);
+      get().pollIngestionJob(documentId, job.pipelineJobId);
+    } catch (error) {
+      const errorMessage = toErrorMessage(error);
+      set({
+        error: errorMessage,
+        ingestionState: { errorMessage, status: 'error' },
       });
     }
   },

@@ -211,6 +211,7 @@ export function GraphBrowser() {
   const selectedPipelineJobId = useWorkbenchStore((state) => state.selectedPipelineJobId);
   const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const selectDocument = useWorkbenchStore((state) => state.selectDocument);
+  const retrySelectedDocumentGraph = useWorkbenchStore((state) => state.retrySelectedDocumentGraph);
   const spaces = useWorkbenchStore((state) => state.spaces);
   const readiness = useObservabilityStore((state) => state.readiness);
   const graphCheck = readiness?.checks.find((check) => check.name === 'graph') ?? null;
@@ -258,9 +259,10 @@ export function GraphBrowser() {
         ingestionStatus,
         pipelineEvents,
         pipelineJobs,
+        selectedDocumentId,
         selectedPipelineJobId,
       }),
-    [ingestionOptions, ingestionStatus, pipelineEvents, pipelineJobs, selectedPipelineJobId],
+    [ingestionOptions, ingestionStatus, pipelineEvents, pipelineJobs, selectedDocumentId, selectedPipelineJobId],
   );
   const canLoad = scope === 'space' ? Boolean(selectedSpaceId) : Boolean(selectedDocumentId);
 
@@ -439,6 +441,8 @@ export function GraphBrowser() {
             ) : (
               <GraphEmptyState
                 canLoad={canLoad}
+                explanation={graphExplainability}
+                onRetry={() => void retrySelectedDocumentGraph()}
                 scope={scope}
                 selectedDocumentTitle={selectedDocument?.title ?? null}
                 selectedSpaceName={selectedSpace?.name ?? null}
@@ -449,7 +453,11 @@ export function GraphBrowser() {
 
         <div className="graph-browser__side">
           <GraphLegend />
-          <GraphExtractionExplainabilityPanel summary={graphExplainability} />
+          <GraphExtractionExplainabilityPanel
+            canRetry={Boolean(selectedDocumentId) && graphExplainability.status === 'failed'}
+            onRetry={() => void retrySelectedDocumentGraph()}
+            summary={graphExplainability}
+          />
           <GraphSelectionPanel
             edge={selectedEdge}
             node={selectedNode}
@@ -666,8 +674,12 @@ function GraphLegend() {
 }
 
 function GraphExtractionExplainabilityPanel({
+  canRetry,
+  onRetry,
   summary,
 }: {
+  canRetry: boolean;
+  onRetry: () => void;
   summary: GraphExtractionExplainability;
 }) {
   const typeEntries = Object.entries(summary.typeDistribution).sort(
@@ -678,7 +690,7 @@ function GraphExtractionExplainabilityPanel({
     <Card>
       <CardHeader>
         <CardTitle>抽取解释</CardTitle>
-        <CardDescription>展示最近一次入库中的图谱抽取结果。</CardDescription>
+        <CardDescription>展示当前所选文档最近一次任务的图谱抽取结果。</CardDescription>
       </CardHeader>
       <CardContent className="graph-explainability">
         <div className="graph-explainability__top">
@@ -707,6 +719,7 @@ function GraphExtractionExplainabilityPanel({
         {summary.errorMessage ? (
           <p className="graph-explainability__error">{summary.errorMessage}</p>
         ) : null}
+        {canRetry ? <Button onClick={onRetry} size="sm" variant="outline"><RefreshCw />仅重试图谱抽取</Button> : null}
 
         {typeEntries.length > 0 ? (
           <div className="graph-explainability__types">
@@ -882,18 +895,24 @@ function GraphLoading() {
 
 function GraphEmptyState({
   canLoad,
+  explanation,
+  onRetry,
   scope,
   selectedDocumentTitle,
   selectedSpaceName,
 }: {
   canLoad: boolean;
+  explanation: GraphExtractionExplainability;
+  onRetry: () => void;
   scope: GraphBrowserScope;
   selectedDocumentTitle: string | null;
   selectedSpaceName: string | null;
 }) {
   const title = canLoad ? '暂无图谱数据' : scope === 'space' ? '请选择知识空间' : '请选择文档';
   const description = canLoad
-    ? '请确认已在入库时启用图谱抽取，或使用搜索条件缩小范围。'
+    ? explanation.status === 'failed'
+      ? `最近一次图谱抽取失败：${explanation.errorMessage ?? explanation.reason ?? '大模型或图谱服务不可用。文档基础检索仍可使用。'}`
+      : '请确认已在入库时启用图谱抽取，或使用搜索条件缩小范围。'
     : scope === 'space'
       ? '选择空间后可以浏览该空间下的实体关系。'
       : '选择文档后可以查看该文档抽取出的实体关系。';
@@ -908,6 +927,7 @@ function GraphEmptyState({
           ? (selectedSpaceName ?? '空间未选择')
           : (selectedDocumentTitle ?? '文档未选择')}
       </Badge>
+      {explanation.status === 'failed' && scope === 'document' ? <Button onClick={onRetry} size="sm" variant="outline"><RefreshCw />仅重试图谱抽取</Button> : null}
     </div>
   );
 }
@@ -917,15 +937,17 @@ function createGraphExtractionExplainability(input: {
   ingestionStatus: IngestionStatus | null;
   pipelineEvents: PipelineEvent[];
   pipelineJobs: PipelineJob[];
+  selectedDocumentId: string | null;
   selectedPipelineJobId: string | null;
 }): GraphExtractionExplainability {
   const selectedJob =
     input.pipelineJobs.find((job) => job.id === input.selectedPipelineJobId) ??
+    input.pipelineJobs.find((job) => job.documentId === input.selectedDocumentId) ??
     input.pipelineJobs[0] ??
     null;
   const event =
     input.pipelineEvents
-      .filter((item) => item.stage === 'graph-extraction')
+      .filter((item) => item.stage === 'graph-extraction' && item.jobId === selectedJob?.id)
       .sort(
         (left, right) => new Date(right.createdAt).getTime() - new Date(left.createdAt).getTime(),
       )[0] ?? null;

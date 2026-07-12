@@ -36,6 +36,19 @@ export const ingestionService = {
     return (await response.json()) as IngestionJobResponse;
   },
 
+  async retryDocumentGraph(documentId: string): Promise<IngestionJobResponse> {
+    const response = await fetch(createApiUrl(`/documents/${documentId}/graph/retry`), {
+      headers: createJsonHeaders(),
+      method: 'POST',
+    });
+
+    if (!response.ok) {
+      throw await readApiError(response);
+    }
+
+    return (await response.json()) as IngestionJobResponse;
+  },
+
   async getStatus(documentId: string): Promise<IngestionStatus> {
     const response = await fetch(createApiUrl(`/documents/${documentId}/ingest/status`), {
       headers: createJsonHeaders(),

@@ -1,5 +1,5 @@
 import { createApiUrl, createJsonHeaders, readApiError } from './api-client';
-import type { EnterpriseDepartment, EnterpriseDepartmentOption, EnterpriseOrganization, EnterpriseStructure } from '@/types/enterprise';
+import type { EnterpriseDepartment, EnterpriseDepartmentOption, EnterpriseDisableCheck, EnterpriseOrganization, EnterpriseStructure } from '@/types/enterprise';
 
 const request = async <T>(path: string, method: 'GET' | 'PATCH' | 'POST', body?: unknown): Promise<T> => {
   const response = await fetch(createApiUrl(path), {
@@ -17,6 +17,12 @@ export const enterpriseService = {
   },
   createOrganization(input: { name: string }): Promise<EnterpriseOrganization> {
     return request('/enterprise/organizations', 'POST', input);
+  },
+  getDepartmentDisableCheck(id: string): Promise<EnterpriseDisableCheck> {
+    return request(`/enterprise/departments/${id}/disable-check`, 'GET');
+  },
+  getOrganizationDisableCheck(id: string): Promise<EnterpriseDisableCheck> {
+    return request(`/enterprise/organizations/${id}/disable-check`, 'GET');
   },
   getStructure(): Promise<EnterpriseStructure> {
     return request('/enterprise/structure', 'GET');

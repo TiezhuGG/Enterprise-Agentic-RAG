@@ -47,6 +47,7 @@ export interface PipelineJobDocumentSummary {
 
 export interface SpacePipelineJobEntity extends PipelineJobEntity {
   document: PipelineJobDocumentSummary;
+  graphEvent: PipelineEventEntity | null;
   latestEvent: PipelineEventEntity | null;
 }
 

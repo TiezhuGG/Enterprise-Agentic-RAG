@@ -77,6 +77,7 @@ const toSpacePipelineJobEntity = (
 ): SpacePipelineJobEntity => ({
   ...toPipelineJobEntity(job),
   document: job.document,
+  graphEvent: null,
   latestEvent: job.events?.[0] ? toPipelineEventEntity(job.events[0]) : null,
 });
 
@@ -220,9 +221,28 @@ export class PipelineRepository {
     const items = (hasNextPage ? jobs.slice(0, options.limit) : jobs).map(
       toSpacePipelineJobEntity,
     );
+    const graphEvents = items.length
+      ? await this.prisma.pipelineEvent.findMany({
+          orderBy: { createdAt: 'desc' },
+          where: {
+            jobId: { in: items.map((item) => item.id) },
+            stage: 'graph-extraction',
+          },
+        })
+      : [];
+    const graphEventsByJobId = new Map<string, PipelineEventEntity>();
+
+    for (const event of graphEvents) {
+      if (!graphEventsByJobId.has(event.jobId)) {
+        graphEventsByJobId.set(event.jobId, toPipelineEventEntity(event));
+      }
+    }
 
     return {
-      items,
+      items: items.map((item) => ({
+        ...item,
+        graphEvent: graphEventsByJobId.get(item.id) ?? null,
+      })),
       nextCursor: hasNextPage ? items.at(-1)?.id ?? null : null,
     };
   }

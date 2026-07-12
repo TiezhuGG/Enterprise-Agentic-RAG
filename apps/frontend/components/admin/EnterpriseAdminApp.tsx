@@ -86,6 +86,7 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { documentService, type DocumentFileBlob } from '@/services/document.service';
+import { pipelineService } from '@/services/pipeline.service';
 import { useChatStore, type AgentTraceItem, type ChatMessage } from '@/store/chat.store';
 import { useObservabilityStore } from '@/store/observability.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
@@ -320,16 +321,19 @@ function DocumentsPage() {
   const ingestionOptions = useWorkbenchStore((state) => state.ingestionOptions);
   const ingestionState = useWorkbenchStore((state) => state.ingestionState);
   const ingestionStatus = useWorkbenchStore((state) => state.ingestionStatus);
+  const pipelineEvents = useWorkbenchStore((state) => state.pipelineEvents);
   const loadingDocuments = useWorkbenchStore((state) => state.loadingDocuments);
   const selectedDocumentId = useWorkbenchStore((state) => state.selectedDocumentId);
   const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const selectDocument = useWorkbenchStore((state) => state.selectDocument);
+  const retrySelectedDocumentGraph = useWorkbenchStore((state) => state.retrySelectedDocumentGraph);
   const setIngestionOptions = useWorkbenchStore((state) => state.setIngestionOptions);
   const uploadDocument = useWorkbenchStore((state) => state.uploadDocument);
   const uploadState = useWorkbenchStore((state) => state.uploadState);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [fileActionError, setFileActionError] = useState<string | null>(null);
+  const [graphTaskStates, setGraphTaskStates] = useState<Record<string, 'FAILED' | 'SUCCEEDED'>>({});
   const [keyword, setKeyword] = useState('');
   const [rawPreviewDocument, setRawPreviewDocument] = useState<KnowledgeDocument | null>(null);
   const [rawPreviewFile, setRawPreviewFile] = useState<DocumentFileBlob | null>(null);
@@ -338,7 +342,43 @@ function DocumentsPage() {
   const [rawPreviewText, setRawPreviewText] = useState<string | null>(null);
   const [statusFilter, setStatusFilter] = useState<DocumentStatus | 'ALL'>('ALL');
   const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
+  const graphExtractionEvent = [...pipelineEvents].filter((event) => event.stage === 'graph-extraction').at(-1) ?? null;
+  const graphExtractionState = graphExtractionEvent?.status === 'FAILED'
+    ? '抽取失败'
+    : graphExtractionEvent?.status === 'SUCCEEDED'
+      ? '抽取成功'
+      : graphExtractionEvent?.status === 'SKIPPED'
+        ? '已跳过'
+        : selectedDocument?.status === 'READY'
+          ? '尚未抽取'
+          : '待处理';
   const filteredDocuments = useMemo(() => documents.filter((document) => document.title.toLowerCase().includes(keyword.trim().toLowerCase()) && (statusFilter === 'ALL' || document.status === statusFilter)), [documents, keyword, statusFilter]);
+
+  useEffect(() => {
+    if (!selectedSpaceId) {
+      setGraphTaskStates({});
+      return;
+    }
+
+    let active = true;
+    void pipelineService.listSpaceJobs(selectedSpaceId, { limit: 100 }).then((result) => {
+      if (!active) return;
+      const states: Record<string, 'FAILED' | 'SUCCEEDED'> = {};
+      const seenDocumentIds = new Set<string>();
+      for (const job of result.items) {
+        if (seenDocumentIds.has(job.documentId)) continue;
+        seenDocumentIds.add(job.documentId);
+        if (!job.graphEvent) continue;
+        if (job.graphEvent.status === 'FAILED' || job.graphEvent.status === 'SUCCEEDED') {
+          states[job.documentId] = job.graphEvent.status;
+        }
+      }
+      setGraphTaskStates(states);
+    }).catch(() => {
+      if (active) setGraphTaskStates({});
+    });
+    return () => { active = false; };
+  }, [ingestionState.status, selectedSpaceId]);
 
   const handleUpload = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
@@ -399,10 +439,11 @@ function DocumentsPage() {
         description="在当前知识空间上传资料。系统会自动将文件排队、解析、分块、向量化并建立检索索引。"
         title="文档中心"
       />
-      <section className="grid min-w-0 gap-3 border border-border bg-card p-4 md:grid-cols-3">
+      <section className="grid min-w-0 gap-3 border border-border bg-card p-4 md:grid-cols-4">
         <StatusStep label="知识空间" value={selectedSpaceId ? '已选择' : '待选择'} tone={selectedSpaceId ? 'success' : 'default'} />
         <StatusStep label="文档上传" value={uploadState.status === 'uploading' ? '上传中' : file ? '待上传' : '就绪'} tone={uploadState.status === 'uploading' ? 'warning' : 'default'} />
         <StatusStep label="自动入库" value={ingestionState.status === 'queued' ? '排队中' : ingestionState.status === 'running' ? '处理中' : selectedDocument ? workspaceStatusLabels[selectedDocument.status] : '待选择'} tone={selectedDocument?.status === 'READY' ? 'success' : ingestionState.status === 'queued' || ingestionState.status === 'running' ? 'warning' : 'default'} />
+        <StatusStep label="图谱增强" value={graphExtractionState} tone={graphExtractionEvent?.status === 'FAILED' ? 'danger' : graphExtractionEvent?.status === 'SUCCEEDED' ? 'success' : 'default'} />
       </section>
       {fileActionError ? <ErrorBanner message={fileActionError} /> : null}
       <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(0,1fr)_340px]">
@@ -413,12 +454,12 @@ function DocumentsPage() {
             {file ? <p className="text-xs text-muted-foreground">已选择：{file.name}</p> : null}
           </CardHeader>
           <CardContent>
-            {!selectedSpaceId ? <EmptyState action={<Button onClick={() => router.push(buildConsoleHref('document-spaces'))} variant="outline">前往知识空间</Button>} description="先创建或选择知识空间，再上传文档。" icon={Database} title="请选择知识空间" /> : loadingDocuments ? <div className="grid gap-3"><Skeleton className="h-12" /><Skeleton className="h-12" /><Skeleton className="h-12" /></div> : filteredDocuments.length === 0 ? <EmptyState description="当前筛选条件下没有文档。" icon={FileText} title="暂无文档" /> : <div className="overflow-x-auto"><Table className="min-w-[720px]"><TableHeader><TableRow><TableHead>文档名称</TableHead><TableHead>类型</TableHead><TableHead>大小</TableHead><TableHead>处理状态</TableHead><TableHead>更新时间</TableHead><TableHead className="text-right">操作</TableHead></TableRow></TableHeader><TableBody>{filteredDocuments.map((document) => <TableRow className={cn(document.id === selectedDocumentId && 'bg-muted/60')} key={document.id} onClick={() => void selectDocument(document.id)}><TableCell><div className="flex min-w-0 items-center gap-2"><DocumentTypeIcon type={document.type} /><span className="max-w-64 truncate font-medium" title={document.title}>{document.title}</span></div></TableCell><TableCell>{typeLabel[document.type]}</TableCell><TableCell>{formatSize(document.size)}</TableCell><TableCell><div className="grid min-w-32 gap-1"><Badge className="w-fit" variant={statusVariant[document.status]}>{workspaceStatusLabels[document.status]}</Badge><Progress className="h-1.5" value={statusProgress[document.status]} /></div></TableCell><TableCell>{formatDateTime(document.updatedAt)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost"><MoreHorizontal /><span className="sr-only">打开操作</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleRawPreview(document); }}><Eye className="size-4" />预览原文件</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleDownload(document); }}><Download className="size-4" />下载原文件</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void selectDocument(document.id); }}><FileText className="size-4" />查看处理详情</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); router.push(buildConsoleHref('document-access', { document: document.id, space: selectedSpaceId })); }}><ShieldCheck className="size-4" />管理访问范围</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleReprocess(document.id); }}><RefreshCw className="size-4" />{document.status === 'FAILED' ? '重试入库' : '重新处理'}</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={(event) => { event.stopPropagation(); void selectDocument(document.id).then(() => deleteSelectedDocument()); }}><Trash2 className="size-4" />删除文档</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)}</TableBody></Table></div>}
+            {!selectedSpaceId ? <EmptyState action={<Button onClick={() => router.push(buildConsoleHref('document-spaces'))} variant="outline">前往知识空间</Button>} description="先创建或选择知识空间，再上传文档。" icon={Database} title="请选择知识空间" /> : loadingDocuments ? <div className="grid gap-3"><Skeleton className="h-12" /><Skeleton className="h-12" /><Skeleton className="h-12" /></div> : filteredDocuments.length === 0 ? <EmptyState description="当前筛选条件下没有文档。" icon={FileText} title="暂无文档" /> : <div className="overflow-x-auto"><Table className="min-w-[720px]"><TableHeader><TableRow><TableHead>文档名称</TableHead><TableHead>类型</TableHead><TableHead>大小</TableHead><TableHead>处理状态</TableHead><TableHead>更新时间</TableHead><TableHead className="text-right">操作</TableHead></TableRow></TableHeader><TableBody>{filteredDocuments.map((document) => <TableRow className={cn(document.id === selectedDocumentId && 'bg-muted/60')} key={document.id} onClick={() => void selectDocument(document.id)}><TableCell><div className="flex min-w-0 items-center gap-2"><DocumentTypeIcon type={document.type} /><span className="max-w-64 truncate font-medium" title={document.title}>{document.title}</span></div></TableCell><TableCell>{typeLabel[document.type]}</TableCell><TableCell>{formatSize(document.size)}</TableCell><TableCell><div className="grid min-w-32 gap-1"><Badge className="w-fit" variant={statusVariant[document.status]}>{workspaceStatusLabels[document.status]}</Badge>{graphTaskStates[document.id] === 'FAILED' ? <Badge className="w-fit" variant="destructive">图谱抽取失败</Badge> : graphTaskStates[document.id] === 'SUCCEEDED' ? <span className="text-xs text-emerald-700">图谱抽取成功</span> : null}<Progress className="h-1.5" value={statusProgress[document.status]} /></div></TableCell><TableCell>{formatDateTime(document.updatedAt)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost"><MoreHorizontal /><span className="sr-only">打开操作</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleRawPreview(document); }}><Eye className="size-4" />预览原文件</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleDownload(document); }}><Download className="size-4" />下载原文件</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void selectDocument(document.id); }}><FileText className="size-4" />查看处理详情</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); router.push(buildConsoleHref('document-access', { document: document.id, space: selectedSpaceId })); }}><ShieldCheck className="size-4" />管理访问范围</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleReprocess(document.id); }}><RefreshCw className="size-4" />{document.status === 'FAILED' ? '重试入库' : '重新处理'}</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={(event) => { event.stopPropagation(); void selectDocument(document.id).then(() => deleteSelectedDocument()); }}><Trash2 className="size-4" />删除文档</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)}</TableBody></Table></div>}
           </CardContent>
         </Card>
         <div className="grid min-w-0 gap-4">
           <DocumentPreviewPanel />
-          <Card className="min-w-0"><CardHeader><CardTitle>文档处理</CardTitle><CardDescription>{selectedDocument?.title ?? '选择一份文档后查看处理状态。'}</CardDescription></CardHeader><CardContent className="grid gap-4">{selectedDocument ? <><div className="grid gap-3 rounded-md border bg-muted/35 p-3 text-sm"><MetricLine label="文档状态" value={workspaceStatusLabels[selectedDocument.status]} /><MetricLine label="分块数量" value={ingestionStatus?.chunkCount ?? '-'} /><MetricLine label="向量数量" value={ingestionStatus?.embeddingCount ?? '-'} /><MetricLine label="图谱实体" value={ingestionStatus?.graphEntityCount ?? '-'} /></div><label className="flex items-center gap-2 rounded-md border p-3 text-sm"><input checked={ingestionOptions.includeGraph} onChange={(event) => setIngestionOptions({ includeGraph: event.target.checked })} type="checkbox" /><span>重新处理时抽取知识图谱</span></label><Button disabled={ingestionState.status === 'queued' || ingestionState.status === 'running'} onClick={() => void ingestSelectedDocument()}>{ingestionState.status === 'queued' || ingestionState.status === 'running' ? <Loader2 className="animate-spin" /> : <RefreshCw />}{ingestionState.status === 'queued' ? '排队中' : ingestionState.status === 'running' ? '处理中' : selectedDocument.status === 'FAILED' ? '重试入库' : '重新处理'}</Button><p className="text-xs leading-6 text-muted-foreground">上传后默认执行解析、分块、向量化和索引。图谱抽取只在重新处理时按当前选项执行。</p></> : <EmptyState description="从文档列表选择一份文档。" icon={FileText} title="未选择文档" />}</CardContent></Card>
+          <Card className="min-w-0"><CardHeader><CardTitle>文档处理</CardTitle><CardDescription>{selectedDocument?.title ?? '选择一份文档后查看处理状态。'}</CardDescription></CardHeader><CardContent className="grid gap-4">{selectedDocument ? <><div className="grid gap-3 rounded-md border bg-muted/35 p-3 text-sm"><MetricLine label="文档状态" value={workspaceStatusLabels[selectedDocument.status]} /><MetricLine label="分块数量" value={ingestionStatus?.chunkCount ?? '-'} /><MetricLine label="向量数量" value={ingestionStatus?.embeddingCount ?? '-'} /><MetricLine label="图谱实体" value={ingestionStatus?.graphEntityCount ?? '-'} /><MetricLine label="图谱增强" value={graphExtractionState} /></div>{graphExtractionEvent?.status === 'FAILED' ? <ErrorBanner message={`图谱抽取失败：${graphExtractionEvent.errorMessage ?? '大模型或图谱服务不可用。文档仍可用于搜索和问答。'}`} /> : null}<label className="flex items-center gap-2 rounded-md border p-3 text-sm"><input checked={ingestionOptions.includeGraph} onChange={(event) => setIngestionOptions({ includeGraph: event.target.checked })} type="checkbox" /><span>重新处理时抽取知识图谱</span></label><Button disabled={ingestionState.status === 'queued' || ingestionState.status === 'running'} onClick={() => void ingestSelectedDocument()}>{ingestionState.status === 'queued' || ingestionState.status === 'running' ? <Loader2 className="animate-spin" /> : <RefreshCw />}{ingestionState.status === 'queued' ? '排队中' : ingestionState.status === 'running' ? '处理中' : selectedDocument.status === 'FAILED' ? '重试入库' : '重新处理'}</Button>{graphExtractionEvent?.status === 'FAILED' ? <Button disabled={ingestionState.status === 'queued' || ingestionState.status === 'running'} onClick={() => void retrySelectedDocumentGraph()} variant="outline"><RefreshCw />仅重试图谱抽取</Button> : null}<p className="text-xs leading-6 text-muted-foreground">上传后默认执行解析、分块、向量化和索引。图谱失败不会影响基础检索，可单独重试图谱抽取。</p></> : <EmptyState description="从文档列表选择一份文档。" icon={FileText} title="未选择文档" />}</CardContent></Card>
         </div>
       </div>
       <Dialog onOpenChange={(open) => { setRawPreviewOpen(open); if (!open) closeRawPreview(); }} open={rawPreviewOpen}>
@@ -433,8 +474,8 @@ function DocumentsPage() {
   );
 }
 
-function StatusStep({ label, tone, value }: { label: string; tone: 'default' | 'success' | 'warning'; value: string }) {
-  return <div className="min-w-0 border border-border bg-slate-50 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{label}</span><Badge variant={tone === 'success' ? 'success' : tone === 'warning' ? 'warning' : 'secondary'}>{value}</Badge></div></div>;
+function StatusStep({ label, tone, value }: { label: string; tone: 'danger' | 'default' | 'success' | 'warning'; value: string }) {
+  return <div className="min-w-0 border border-border bg-slate-50 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{label}</span><Badge variant={tone === 'danger' ? 'destructive' : tone === 'success' ? 'success' : tone === 'warning' ? 'warning' : 'secondary'}>{value}</Badge></div></div>;
 }
 
 export function LoginPage() {

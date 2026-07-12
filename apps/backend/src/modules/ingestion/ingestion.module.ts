@@ -1,5 +1,7 @@
 import { Module } from '@nestjs/common';
 import { RequestContextModule } from '../../common';
+import { GraphModule } from '../../infrastructure/graph';
+import { ReadinessModule } from '../../infrastructure/observability/readiness.module';
 import { PrismaModule } from '../../infrastructure/prisma';
 import { AuthModule } from '../auth';
 import { ChunkModule } from '../chunk';
@@ -20,10 +22,12 @@ import { IngestionService } from './ingestion.service';
     DocumentModule,
     DocumentProcessingModule,
     EmbeddingModule,
+    GraphModule,
     KnowledgeGraphModule,
     PipelineModule,
     PrismaModule,
     RequestContextModule,
+    ReadinessModule,
   ],
   controllers: [IngestionController],
   providers: [IngestionQueueService, IngestionRepository, IngestionService],

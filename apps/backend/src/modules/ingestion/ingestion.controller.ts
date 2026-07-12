@@ -42,6 +42,15 @@ export class IngestionController {
     );
   }
 
+  @Post('documents/:id/graph/retry')
+  @HttpCode(202)
+  retryDocumentGraph(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('id') id: string,
+  ): Promise<IngestionJobResponse> {
+    return this.ingestionService.enqueueGraphRetry(this.createExecutionContext(user), id);
+  }
+
   @Get('documents/:id/ingest/status')
   getDocumentStatus(
     @CurrentUser() user: AuthenticatedUser,

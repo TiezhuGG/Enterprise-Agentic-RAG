@@ -1,11 +1,12 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
-import type { ExecutionContext } from '../../common';
+import { createAppConflictException, type ExecutionContext } from '../../common';
 import { AuthRepository } from '../auth';
 import { EnterpriseRepository } from './enterprise.repository';
 import type {
   CreateDepartmentInput,
   CreateOrganizationInput,
   DepartmentEntity,
+  EnterpriseDisableCheck,
   EnterpriseStructureEntity,
   EnterpriseContextEntity,
   OrganizationEntity,
@@ -68,9 +69,9 @@ export class EnterpriseService {
     this.assertOrganizationTenant(existing, tenantId);
 
     if (input.status === 'DISABLED') {
-      const activeDepartments = await this.enterpriseRepository.countActiveOrganizationDepartments(organizationId);
-      if (activeDepartments > 0) {
-        throw new BadRequestException('Disable or reassign active departments before disabling an organization');
+      const check = await this.getOrganizationDisableCheck(context, organizationId);
+      if (!check.canDisable) {
+        throw createAppConflictException('CONFLICT', '请先停用或迁移该组织下的启用部门');
       }
     }
 
@@ -117,12 +118,9 @@ export class EnterpriseService {
     }
 
     if (input.status === 'DISABLED') {
-      const [dependencies, activeChildren] = await Promise.all([
-        this.enterpriseRepository.countDepartmentDependencies(departmentId),
-        this.enterpriseRepository.countActiveChildDepartments(departmentId),
-      ]);
-      if (dependencies.users > 0 || dependencies.knowledgeBases > 0 || activeChildren > 0) {
-        throw new BadRequestException('Reassign users, knowledge bases, and active child departments before disabling a department');
+      const check = await this.getDepartmentDisableCheck(context, departmentId);
+      if (!check.canDisable) {
+        throw createAppConflictException('CONFLICT', '请先迁移关联用户、知识库并停用下级部门');
       }
     }
 
@@ -132,6 +130,45 @@ export class EnterpriseService {
     });
     await this.audit(context, 'department.updated', 'department', department.id, existing, department);
     return department;
+  }
+
+  async getOrganizationDisableCheck(
+    context: ExecutionContext,
+    organizationId: string,
+  ): Promise<EnterpriseDisableCheck> {
+    const organization = await this.enterpriseRepository.findOrganizationById(organizationId);
+    this.assertOrganizationTenant(organization, this.requireTenantId(context));
+    const activeDepartmentCount = await this.enterpriseRepository.countActiveOrganizationDepartments(
+      organizationId,
+    );
+
+    return {
+      activeChildDepartmentCount: 0,
+      activeDepartmentCount,
+      canDisable: activeDepartmentCount === 0,
+      knowledgeBaseCount: 0,
+      userCount: 0,
+    };
+  }
+
+  async getDepartmentDisableCheck(
+    context: ExecutionContext,
+    departmentId: string,
+  ): Promise<EnterpriseDisableCheck> {
+    const department = await this.enterpriseRepository.findDepartmentById(departmentId);
+    this.assertDepartmentTenant(department, this.requireTenantId(context));
+    const dependencies = await this.enterpriseRepository.getDepartmentDisableDependencies(departmentId);
+
+    return {
+      activeChildDepartmentCount: dependencies.activeChildDepartmentCount,
+      activeDepartmentCount: 0,
+      canDisable:
+        dependencies.userCount === 0 &&
+        dependencies.knowledgeBaseCount === 0 &&
+        dependencies.activeChildDepartmentCount === 0,
+      knowledgeBaseCount: dependencies.knowledgeBaseCount,
+      userCount: dependencies.userCount,
+    };
   }
 
   async getActiveDepartment(

@@ -344,6 +344,7 @@ export interface PipelineJobDocumentSummary {
 
 export interface SpacePipelineJob extends PipelineJob {
   document: PipelineJobDocumentSummary;
+  graphEvent: PipelineEvent | null;
   latestEvent: PipelineEvent | null;
 }
 
