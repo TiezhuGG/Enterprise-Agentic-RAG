@@ -2,7 +2,12 @@ import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
 import { RequestContextService, type ExecutionContext } from '../../common';
 import { CurrentUser, JwtAuthGuard, type AuthenticatedUser } from '../auth';
 import { PipelineService } from './pipeline.service';
-import type { PipelineEventEntity, PipelineJobDetail, PipelineJobEntity } from './pipeline.types';
+import type {
+  PipelineEventEntity,
+  PipelineJobDetail,
+  PipelineJobEntity,
+  SpacePipelineJobList,
+} from './pipeline.types';
 
 @Controller()
 @UseGuards(JwtAuthGuard)
@@ -25,6 +30,20 @@ export class PipelineController {
     );
   }
 
+  @Get('spaces/:spaceId/pipeline/jobs')
+  listSpaceJobs(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('spaceId') spaceId: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string,
+    @Query('status') status?: string,
+  ): Promise<SpacePipelineJobList> {
+    return this.pipelineService.listSpaceJobs(this.createExecutionContext(user), spaceId, {
+      cursor,
+      limit,
+      status,
+    });
+  }
   @Get('pipeline/jobs/:jobId')
   getJob(
     @CurrentUser() user: AuthenticatedUser,

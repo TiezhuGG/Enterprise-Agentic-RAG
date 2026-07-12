@@ -38,6 +38,23 @@ export interface PipelineJobDetail extends PipelineJobEntity {
   events: PipelineEventEntity[];
 }
 
+export interface PipelineJobDocumentSummary {
+  id: string;
+  status: string;
+  title: string;
+  type: string;
+}
+
+export interface SpacePipelineJobEntity extends PipelineJobEntity {
+  document: PipelineJobDocumentSummary;
+  latestEvent: PipelineEventEntity | null;
+}
+
+export interface SpacePipelineJobList {
+  items: SpacePipelineJobEntity[];
+  nextCursor: string | null;
+}
+
 export interface CreatePipelineJobInput {
   documentId: string;
   spaceId: string;

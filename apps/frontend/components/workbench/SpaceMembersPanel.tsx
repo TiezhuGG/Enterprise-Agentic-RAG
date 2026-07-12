@@ -17,15 +17,15 @@ import { useWorkbenchStore } from '@/store/workbench.store';
 import type { SpaceMemberDetail, SpaceMemberRole } from '@/types/workbench';
 
 const memberRoleLabels: Record<SpaceMemberRole, string> = {
-  EDITOR: 'Editor',
-  OWNER: 'Owner',
-  VIEWER: 'Viewer',
+  EDITOR: '\u53ef\u7f16\u8f91\u6210\u5458',
+  OWNER: '\u7a7a\u95f4\u8d1f\u8d23\u4eba',
+  VIEWER: '\u53ea\u8bfb\u6210\u5458',
 };
 
 const roleDescriptions: Record<SpaceMemberRole, string> = {
-  EDITOR: 'Can upload, ingest, and update knowledge documents.',
-  OWNER: 'Can manage members, documents, and space settings.',
-  VIEWER: 'Can read and retrieve knowledge.',
+  EDITOR: '\u53ef\u4e0a\u4f20\u3001\u89e3\u6790\u548c\u66f4\u65b0\u7a7a\u95f4\u5185\u7684\u77e5\u8bc6\u6587\u6863\u3002',
+  OWNER: '\u53ef\u7ba1\u7406\u6210\u5458\u3001\u6587\u6863\u548c\u77e5\u8bc6\u7a7a\u95f4\u8d44\u6599\u3002',
+  VIEWER: '\u53ef\u67e5\u770b\u548c\u68c0\u7d22\u7a7a\u95f4\u5185\u77e5\u8bc6\u3002',
 };
 
 export function SpaceMembersPanel() {
@@ -59,15 +59,15 @@ export function SpaceMembersPanel() {
     <Card>
       <CardHeader className="space-members-panel__header">
         <div>
-          <CardTitle>Space Members</CardTitle>
+          <CardTitle>{'\u7a7a\u95f4\u6210\u5458'}</CardTitle>
           <CardDescription>
             {selectedSpace
               ? `Manage access for ${selectedSpace.name}.`
-              : 'Select a knowledge space first.'}
+              : '\u8bf7\u5148\u9009\u62e9\u4e00\u4e2a\u77e5\u8bc6\u7a7a\u95f4\u3002'}
           </CardDescription>
         </div>
         <Badge variant={canManage ? 'success' : 'secondary'}>
-          {canManage ? 'Owner controls' : 'Read only'}
+          {canManage ? '\u8d1f\u8d23\u4eba\u7ba1\u7406' : '\u53ea\u8bfb'}
         </Badge>
       </CardHeader>
       <CardContent className="space-members-panel">
@@ -76,11 +76,11 @@ export function SpaceMembersPanel() {
         <div className="space-members-panel__summary">
           <div>
             <Users />
-            <span>{spaceMembers.length} members</span>
+            <span>{spaceMembers.length}{' \u540d\u6210\u5458'}</span>
           </div>
           <div>
             <ShieldCheck />
-            <span>{ownerCount} owners</span>
+            <span>{ownerCount}{' \u540d\u8d1f\u8d23\u4eba'}</span>
           </div>
         </div>
 
@@ -114,13 +114,13 @@ export function SpaceMembersPanel() {
           </form>
         ) : (
           <div className="space-members-panel__readonly">
-            Only space owners can add, remove, or change member roles.
+            \u4ec5\u7a7a\u95f4\u8d1f\u8d23\u4eba\u53ef\u4ee5\u6dfb\u52a0\u3001\u79fb\u9664\u6210\u5458\u6216\u8c03\u6574\u6210\u5458\u89d2\u8272\u3002
           </div>
         )}
 
         <div className="space-members-panel__list">
           {spaceMembers.length === 0 ? (
-            <div className="space-members-panel__empty">No members loaded.</div>
+            <div className="space-members-panel__empty">\u6682\u65e0\u6210\u5458\u4fe1\u606f\u3002</div>
           ) : null}
           {spaceMembers.map((member) => (
             <SpaceMemberRow
@@ -195,7 +195,7 @@ function SpaceMemberRow({
         disabled={disabled || !canRemove}
         onClick={() => void onRemove(member.userId)}
         size="icon"
-        title={isLastOwner ? 'The last owner cannot be removed.' : 'Remove member'}
+        title={isLastOwner ? '\u4e0d\u80fd\u79fb\u9664\u6700\u540e\u4e00\u4f4d\u7a7a\u95f4\u8d1f\u8d23\u4eba\u3002' : '\u79fb\u9664\u6210\u5458'}
         type="button"
         variant="ghost"
       >

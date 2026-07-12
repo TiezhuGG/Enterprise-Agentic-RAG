@@ -8,11 +8,22 @@ import type {
   PipelineJobDetail,
   PipelineJobEntity,
   PipelineJobStatus,
+  SpacePipelineJobEntity,
+  SpacePipelineJobList,
 } from './pipeline.types';
 
 type PipelineJobModel = Omit<PipelineJobEntity, 'metadata'> & {
   metadata: unknown;
   events?: PipelineEventModel[];
+};
+
+type PipelineJobWithDocumentModel = PipelineJobModel & {
+  document: {
+    id: string;
+    status: string;
+    title: string;
+    type: string;
+  };
 };
 
 type PipelineEventModel = Omit<PipelineEventEntity, 'metadata'> & {
@@ -59,6 +70,14 @@ const toPipelineEventEntity = (event: PipelineEventModel): PipelineEventEntity =
 const toPipelineJobDetail = (job: PipelineJobModel): PipelineJobDetail => ({
   ...toPipelineJobEntity(job),
   events: job.events?.map(toPipelineEventEntity) ?? [],
+});
+
+const toSpacePipelineJobEntity = (
+  job: PipelineJobWithDocumentModel,
+): SpacePipelineJobEntity => ({
+  ...toPipelineJobEntity(job),
+  document: job.document,
+  latestEvent: job.events?.[0] ? toPipelineEventEntity(job.events[0]) : null,
 });
 
 @Injectable()
@@ -165,6 +184,48 @@ export class PipelineRepository {
     return jobs.map(toPipelineJobEntity);
   }
 
+  async listJobsBySpaceId(
+    spaceId: string,
+    options: { cursor?: string; limit: number; status?: PipelineJobStatus },
+  ): Promise<SpacePipelineJobList> {
+    const jobs = await this.prisma.pipelineJob.findMany({
+      cursor: options.cursor ? { id: options.cursor } : undefined,
+      include: {
+        document: {
+          select: {
+            id: true,
+            status: true,
+            title: true,
+            type: true,
+          },
+        },
+        events: {
+          orderBy: {
+            createdAt: 'desc',
+          },
+          take: 1,
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+      skip: options.cursor ? 1 : undefined,
+      take: options.limit + 1,
+      where: {
+        spaceId,
+        status: options.status,
+      },
+    });
+    const hasNextPage = jobs.length > options.limit;
+    const items = (hasNextPage ? jobs.slice(0, options.limit) : jobs).map(
+      toSpacePipelineJobEntity,
+    );
+
+    return {
+      items,
+      nextCursor: hasNextPage ? items.at(-1)?.id ?? null : null,
+    };
+  }
   async findJobById(jobId: string): Promise<PipelineJobEntity | null> {
     const job = await this.prisma.pipelineJob.findUnique({
       where: {

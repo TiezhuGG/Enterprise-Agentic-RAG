@@ -308,6 +308,22 @@ export interface PipelineJobDetail extends PipelineJob {
   events: PipelineEvent[];
 }
 
+export interface PipelineJobDocumentSummary {
+  id: string;
+  status: DocumentStatus;
+  title: string;
+  type: DocumentType;
+}
+
+export interface SpacePipelineJob extends PipelineJob {
+  document: PipelineJobDocumentSummary;
+  latestEvent: PipelineEvent | null;
+}
+
+export interface SpacePipelineJobList {
+  items: SpacePipelineJob[];
+  nextCursor: string | null;
+}
 export interface UploadState {
   status: 'idle' | 'uploading' | 'success' | 'error';
   filename?: string;

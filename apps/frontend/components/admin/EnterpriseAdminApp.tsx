@@ -100,6 +100,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@/components/ui/tooltip';
 import { documentService, type DocumentFileBlob } from '@/services/document.service';
+import { pipelineService } from '@/services/pipeline.service';
 import { useChatStore, type AgentTraceItem, type ChatMessage } from '@/store/chat.store';
 import { useObservabilityStore } from '@/store/observability.store';
 import { useSearchStore } from '@/store/search.store';
@@ -110,7 +111,10 @@ import type {
   DocumentStatus,
   DocumentType,
   KnowledgeDocument,
+  PipelineJobStatus,
+  SpacePipelineJob,
 } from '@/types/workbench';
+import { buildConsoleHref, consoleRoutes, getConsoleRouteForSection, type ConsoleRouteKey } from '@/lib/console-routes';
 import { cn } from '@/lib/utils';
 
 const acceptedDocumentTypes = [
@@ -407,13 +411,16 @@ const getUserInitial = (email?: string | null): string => {
   return email.slice(0, 1).toUpperCase();
 };
 
-export function EnterpriseAdminApp() {
-  const activeSection = useWorkbenchStore((state) => state.activeSection);
+export function EnterpriseAdminApp({ routeKey }: { routeKey: ConsoleRouteKey }) {
+  const router = useRouter();
+  const route = consoleRoutes[routeKey];
+  const activeSection = route.section;
   const authToken = useWorkbenchStore((state) => state.authToken);
   const authUser = useWorkbenchStore((state) => state.authUser);
   const clearAuth = useWorkbenchStore((state) => state.clearAuth);
   const error = useWorkbenchStore((state) => state.error);
   const loading = useWorkbenchStore((state) => state.loading);
+  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const setActiveSection = useWorkbenchStore((state) => state.setActiveSection);
   const initializeObservability = useObservabilityStore((state) => state.initialize);
   const refreshObservability = useObservabilityStore((state) => state.refresh);
@@ -424,12 +431,30 @@ export function EnterpriseAdminApp() {
     }
   }, [authToken, initializeObservability]);
 
+  useEffect(() => {
+    setActiveSection(route.section);
+  }, [route.section, setActiveSection]);
+
+  const navigate = (section: AppSection) => {
+    const destination = getConsoleRouteForSection(section);
+    router.push(buildConsoleHref(destination.key, { space: selectedSpaceId }));
+  };
+
+  const navigateRoute = (key: ConsoleRouteKey) => {
+    router.push(buildConsoleHref(key, { space: selectedSpaceId }));
+  };
+
   return (
     <TooltipProvider>
       <main className="min-h-screen bg-background text-foreground">
         <div className="grid min-h-screen grid-cols-1 lg:grid-cols-[240px_minmax(0,1fr)]">
           <aside className="hidden border-r border-border bg-card lg:block">
-            <PageSideNav activeSection={activeSection} onNavigate={setActiveSection} />
+            <PageSideNav
+              activeSection={activeSection}
+              onNavigate={navigate}
+              onNavigateRoute={navigateRoute}
+              routeKey={routeKey}
+            />
           </aside>
 
           <div className="min-w-0">
@@ -437,13 +462,13 @@ export function EnterpriseAdminApp() {
               activeSection={activeSection}
               authUserEmail={authUser?.email ?? null}
               clearAuth={clearAuth}
-              onNavigate={setActiveSection}
+              onNavigate={navigate}
               onRefresh={() => void refreshObservability()}
             />
 
             <section className="mx-auto w-full max-w-[1440px] min-w-0 p-4 sm:p-5 lg:p-6">
               {error ? <ErrorBanner message={error} /> : null}
-              {loading ? <WorkspaceSkeleton /> : <SectionContent activeSection={activeSection} />}
+              {loading ? <WorkspaceSkeleton /> : <SectionContent activeSection={activeSection} routeKey={routeKey} />}
             </section>
           </div>
         </div>
@@ -672,11 +697,29 @@ function TopBar({
 function PageSideNav({
   activeSection,
   onNavigate,
+  onNavigateRoute,
+  routeKey,
 }: {
   activeSection: AppSection;
   onNavigate: (section: AppSection) => void;
+  onNavigateRoute?: (key: ConsoleRouteKey) => void;
+  routeKey?: ConsoleRouteKey;
 }) {
-  const items = sectionSubNav[activeSection];
+  const items =
+    activeSection === 'documents'
+      ? [
+          { icon: FileText, key: 'documents' as const, label: '\u6587\u6863\u5217\u8868' },
+          { icon: Database, key: 'document-spaces' as const, label: '\u77e5\u8bc6\u7a7a\u95f4' },
+          { icon: FileArchive, key: 'document-tasks' as const, label: '\u89e3\u6790\u4efb\u52a1' },
+          { icon: ShieldCheck, key: 'document-access' as const, label: '\u6743\u9650\u8303\u56f4' },
+        ]
+      : activeSection === 'system'
+        ? [
+            { icon: Gauge, key: 'system-status' as const, label: '\u7cfb\u7edf\u72b6\u6001' },
+            { icon: Activity, key: 'system-executions' as const, label: '\u6267\u884c\u8bb0\u5f55' },
+            { icon: BrainCircuit, key: 'system-debug' as const, label: '\u9ad8\u7ea7\u8c03\u8bd5' },
+          ]
+        : [];
   const documents = useWorkbenchStore((state) => state.documents);
   const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const spaces = useWorkbenchStore((state) => state.spaces);
@@ -731,20 +774,22 @@ function PageSideNav({
           {sectionMeta[activeSection].title}
         </p>
         <div className="grid gap-1">
-          {items.map((item, index) => {
+          {items.map((item) => {
             const Icon = item.icon;
 
             return (
-              <div
+              <button
                 className={cn(
-                  'flex items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm text-muted-foreground',
-                  index === 0 && 'bg-accent text-primary',
+                  'flex items-center gap-3 rounded-md px-2.5 py-2 text-left text-sm text-muted-foreground transition hover:bg-muted hover:text-foreground',
+                  routeKey === item.key && 'bg-accent text-primary',
                 )}
-                key={item.label}
+                key={item.key}
+                onClick={() => onNavigateRoute?.(item.key)}
+                type="button"
               >
                 <Icon className="size-4 shrink-0" />
                 <span className="truncate">{item.label}</span>
-              </div>
+              </button>
             );
           })}
         </div>
@@ -775,11 +820,26 @@ function PageSideNav({
   );
 }
 
-function SectionContent({ activeSection }: { activeSection: AppSection }) {
+function SectionContent({
+  activeSection,
+  routeKey,
+}: {
+  activeSection: AppSection;
+  routeKey: ConsoleRouteKey;
+}) {
   switch (activeSection) {
     case 'assistant':
       return <AssistantPage />;
     case 'documents':
+      if (routeKey === 'document-spaces') {
+        return <DocumentSpacesPage />;
+      }
+      if (routeKey === 'document-tasks') {
+        return <DocumentTasksPage />;
+      }
+      if (routeKey === 'document-access') {
+        return <DocumentAccessPage />;
+      }
       return <DocumentsPage />;
     case 'graph':
       return <GraphPage />;
@@ -788,7 +848,7 @@ function SectionContent({ activeSection }: { activeSection: AppSection }) {
     case 'search':
       return <SearchPage />;
     case 'system':
-      return <SystemPage />;
+      return <SystemPage activeTab={routeKey === 'system-executions' ? 'executions' : routeKey === 'system-debug' ? 'debug' : 'status'} />;
     case 'dashboard':
     default:
       return <DashboardPage />;
@@ -1206,6 +1266,106 @@ function DashboardPage() {
           </CardContent>
         </Card>
       </div>
+    </div>
+  );
+}
+
+function DocumentSpacesPage() {
+  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
+  const spaces = useWorkbenchStore((state) => state.spaces);
+  const selectedSpace = spaces.find((space) => space.id === selectedSpaceId) ?? null;
+
+  return (
+    <div className="grid gap-5 xl:grid-cols-2">
+      <Card className="xl:col-span-2">
+        <CardHeader>
+          <CardTitle>{'\u77e5\u8bc6\u7a7a\u95f4'}</CardTitle>
+          <CardDescription>{'\u77e5\u8bc6\u7a7a\u95f4\u7528\u4e8e\u9694\u79bb\u90e8\u95e8\u3001\u9879\u76ee\u3001\u5ba2\u6237\u6216\u4e1a\u52a1\u7ebf\u7684\u6587\u6863\u3001\u6210\u5458\u6743\u9650\u548c\u68c0\u7d22\u8303\u56f4\u3002'}</CardDescription>
+        </CardHeader>
+        <CardContent className="text-sm text-muted-foreground">
+          {'\u5f53\u524d\u7a7a\u95f4\uff1a'}<span className="font-medium text-foreground">{selectedSpace?.name ?? '\u5c1a\u672a\u9009\u62e9\u77e5\u8bc6\u7a7a\u95f4'}</span>
+        </CardContent>
+      </Card>
+      <SpaceProfilePanel />
+      <SpaceMembersPanel />
+    </div>
+  );
+}
+
+function DocumentAccessPage() {
+  const documents = useWorkbenchStore((state) => state.documents);
+  const selectedDocumentId = useWorkbenchStore((state) => state.selectedDocumentId);
+  const selectDocument = useWorkbenchStore((state) => state.selectDocument);
+
+  return (
+    <div className="grid gap-5 xl:grid-cols-[minmax(250px,0.7fr)_minmax(0,1.3fr)]">
+      <Card>
+        <CardHeader>
+          <CardTitle>{'\u9009\u62e9\u6587\u6863'}</CardTitle>
+          <CardDescription>{'\u9009\u62e9\u9700\u8981\u67e5\u770b\u6216\u8c03\u6574\u8bbf\u95ee\u8303\u56f4\u7684\u6587\u6863\u3002'}</CardDescription>
+        </CardHeader>
+        <CardContent className="grid gap-1">
+          {documents.length === 0 ? <p className="text-sm text-muted-foreground">{'\u5f53\u524d\u7a7a\u95f4\u8fd8\u6ca1\u6709\u6587\u6863\u3002'}</p> : null}
+          {documents.map((document) => <Button className="justify-start" key={document.id} onClick={() => void selectDocument(document.id)} variant={document.id === selectedDocumentId ? 'secondary' : 'ghost'}><FileText className="size-4" /><span className="truncate">{document.title}</span></Button>)}
+        </CardContent>
+      </Card>
+      <DocumentAccessScopePanel />
+    </div>
+  );
+}
+
+function DocumentTasksPage() {
+  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
+  const [error, setError] = useState<string | null>(null);
+  const [jobs, setJobs] = useState<SpacePipelineJob[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [status, setStatus] = useState<PipelineJobStatus | 'ALL'>('ALL');
+
+  useEffect(() => {
+    if (!selectedSpaceId) {
+      setJobs([]);
+      return;
+    }
+
+    let active = true;
+    const load = async () => {
+      try {
+        setLoading(true);
+        const result = await pipelineService.listSpaceJobs(selectedSpaceId, {
+          limit: 50,
+          status: status === 'ALL' ? undefined : status,
+        });
+        if (active) {
+          setError(null);
+          setJobs(result.items);
+        }
+      } catch (loadError) {
+        if (active) setError(loadError instanceof Error ? loadError.message : '\u52a0\u8f7d\u89e3\u6790\u4efb\u52a1\u5931\u8d25\u3002');
+      } finally {
+        if (active) setLoading(false);
+      }
+    };
+
+    void load();
+    const timer = window.setInterval(load, 2000);
+    return () => { active = false; window.clearInterval(timer); };
+  }, [selectedSpaceId, status]);
+
+  return (
+    <div className="grid gap-5">
+      <Card>
+        <CardHeader className="flex-row items-center justify-between space-y-0">
+          <div><CardTitle>{'\u89e3\u6790\u4efb\u52a1'}</CardTitle><CardDescription>{'\u67e5\u770b\u5f53\u524d\u77e5\u8bc6\u7a7a\u95f4\u7684\u5f02\u6b65\u89e3\u6790\u4efb\u52a1\u548c\u6700\u8fd1\u9636\u6bb5\u3002'}</CardDescription></div>
+          <Select onValueChange={(value) => setStatus(value as PipelineJobStatus | 'ALL')} value={status}><SelectTrigger className="w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">{'\u5168\u90e8\u72b6\u6001'}</SelectItem><SelectItem value="QUEUED">{'\u6392\u961f\u4e2d'}</SelectItem><SelectItem value="RUNNING">{'\u89e3\u6790\u4e2d'}</SelectItem><SelectItem value="SUCCEEDED">{'\u6210\u529f'}</SelectItem><SelectItem value="FAILED">{'\u5931\u8d25'}</SelectItem><SelectItem value="CANCELED">{'\u5df2\u53d6\u6d88'}</SelectItem></SelectContent></Select>
+        </CardHeader>
+        <CardContent className="grid gap-3">
+          {!selectedSpaceId ? <p className="text-sm text-muted-foreground">{'\u8bf7\u5148\u5728\u9876\u90e8\u9009\u62e9\u77e5\u8bc6\u7a7a\u95f4\u3002'}</p> : null}
+          {error ? <div className="workbench-error">{error}</div> : null}
+          {loading && jobs.length === 0 ? <p className="text-sm text-muted-foreground">{'\u6b63\u5728\u52a0\u8f7d\u4efb\u52a1...'}</p> : null}
+          {!loading && selectedSpaceId && jobs.length === 0 ? <p className="text-sm text-muted-foreground">{'\u5f53\u524d\u7a7a\u95f4\u6682\u65e0\u89e3\u6790\u4efb\u52a1\u3002'}</p> : null}
+          {jobs.map((job) => <div className="flex flex-wrap items-center justify-between gap-3 border-b pb-3 text-sm last:border-0" key={job.id}><div className="min-w-0"><p className="truncate font-medium">{job.document.title}</p><p className="text-muted-foreground">{job.latestEvent ? job.latestEvent.stage : '\u7b49\u5f85\u5904\u7406'} ? {formatDateTime(job.updatedAt)}</p></div><Badge variant={job.status === 'SUCCEEDED' ? 'success' : job.status === 'FAILED' ? 'destructive' : 'warning'}>{job.status === 'QUEUED' ? '\u6392\u961f\u4e2d' : job.status === 'RUNNING' ? '\u89e3\u6790\u4e2d' : job.status === 'SUCCEEDED' ? '\u6210\u529f' : job.status === 'FAILED' ? '\u5931\u8d25' : '\u5df2\u53d6\u6d88'}</Badge></div>)}
+        </CardContent>
+      </Card>
     </div>
   );
 }
@@ -2126,7 +2286,7 @@ function ProfilePage() {
   );
 }
 
-function SystemPage() {
+function SystemPage({ activeTab }: { activeTab: 'status' | 'executions' | 'debug' }) {
   const authToken = useWorkbenchStore((state) => state.authToken);
   const clearAuth = useWorkbenchStore((state) => state.clearAuth);
   const setAuthToken = useWorkbenchStore((state) => state.setAuthToken);

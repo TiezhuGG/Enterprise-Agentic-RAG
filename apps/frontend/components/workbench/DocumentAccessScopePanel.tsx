@@ -17,15 +17,15 @@ import { useWorkbenchStore } from '@/store/workbench.store';
 import type { DocumentAccessScope, DocumentSecurityLevel } from '@/types/workbench';
 
 const securityLevelLabels: Record<DocumentSecurityLevel, string> = {
-  CONFIDENTIAL: 'Confidential',
-  INTERNAL: 'Internal',
-  PUBLIC: 'Public',
+  CONFIDENTIAL: '\u673a\u5bc6\u8d44\u6599',
+  INTERNAL: '\u5185\u90e8\u53ef\u89c1',
+  PUBLIC: '\u7a7a\u95f4\u5185\u516c\u5f00',
 };
 
 const securityLevelDescriptions: Record<DocumentSecurityLevel, string> = {
-  CONFIDENTIAL: 'Only owners or confidential-read users can read.',
-  INTERNAL: 'Space members can read, with optional department restriction.',
-  PUBLIC: 'Space members can read without department restriction.',
+  CONFIDENTIAL: '\u4ec5\u7a7a\u95f4\u8d1f\u8d23\u4eba\u6216\u5177\u5907\u673a\u5bc6\u8d44\u6599\u6743\u9650\u7684\u6210\u5458\u53ef\u8bbf\u95ee\u3002',
+  INTERNAL: '\u7a7a\u95f4\u6210\u5458\u53ef\u8bbf\u95ee\uff0c\u53ef\u6309\u90e8\u95e8\u8fdb\u4e00\u6b65\u9650\u5236\u3002',
+  PUBLIC: '\u5f53\u524d\u7a7a\u95f4\u5185\u6210\u5458\u5747\u53ef\u8bbf\u95ee\uff0c\u4e0d\u9650\u5236\u90e8\u95e8\u3002',
 };
 
 const defaultScope: DocumentAccessScope = {
@@ -96,15 +96,15 @@ export function DocumentAccessScopePanel() {
     <Card>
       <CardHeader className="document-access-scope__header">
         <div>
-          <CardTitle>Document Access</CardTitle>
+          <CardTitle>{'\u8bbf\u95ee\u8303\u56f4'}</CardTitle>
           <CardDescription>
             {selectedDocument
-              ? 'Control who can read, retrieve, preview, and cite this document.'
-              : 'Select a document first.'}
+              ? '\u63a7\u5236\u54ea\u4e9b\u6210\u5458\u53ef\u4ee5\u67e5\u770b\u3001\u68c0\u7d22\u3001\u9884\u89c8\u548c\u5f15\u7528\u6b64\u6587\u6863\u3002'
+              : '\u8bf7\u5148\u9009\u62e9\u4e00\u4efd\u6587\u6863\u3002'}
           </CardDescription>
         </div>
         <Badge variant={canManage ? 'success' : 'secondary'}>
-          {canManage ? 'Editable' : 'Read only'}
+          {canManage ? '\u53ef\u7f16\u8f91' : '\u53ea\u8bfb'}
         </Badge>
       </CardHeader>
       <CardContent>
@@ -113,7 +113,7 @@ export function DocumentAccessScopePanel() {
         ) : null}
 
         {!selectedDocument ? (
-          <div className="document-access-scope__empty">No document selected.</div>
+          <div className="document-access-scope__empty">{'\u5c1a\u672a\u9009\u62e9\u6587\u6863\u3002'}</div>
         ) : (
           <form className="document-access-scope" onSubmit={handleSubmit}>
             <div className="document-access-scope__summary">
@@ -125,14 +125,14 @@ export function DocumentAccessScopePanel() {
                 <LockKeyhole />
                 <span>
                   {effectiveScope.allowedDepartmentIds?.length
-                    ? `${effectiveScope.allowedDepartmentIds.length} departments`
-                    : 'No department list'}
+                    ? `${effectiveScope.allowedDepartmentIds.length} \u4e2a\u5141\u8bb8\u90e8\u95e8`
+                    : '\u672a\u8bbe\u7f6e\u5141\u8bb8\u90e8\u95e8'}
                 </span>
               </div>
             </div>
 
             <label className="document-access-scope__field">
-              <span>Security level</span>
+              <span>{'\u5b89\u5168\u7ea7\u522b'}</span>
               <Select
                 disabled={!canManage || loadingDocuments}
                 onValueChange={(value) => setSecurityLevel(value as DocumentSecurityLevel)}
@@ -155,7 +155,7 @@ export function DocumentAccessScopePanel() {
             </label>
 
             <label className="document-access-scope__field">
-              <span>Primary department ID</span>
+              <span>{'\u6240\u5c5e\u90e8\u95e8\u6807\u8bc6'}</span>
               <Input
                 disabled={!canManage || loadingDocuments}
                 onChange={(event) => setDepartmentId(event.target.value)}
@@ -165,23 +165,23 @@ export function DocumentAccessScopePanel() {
             </label>
 
             <label className="document-access-scope__field">
-              <span>Allowed department IDs</span>
+              <span>{'\u5141\u8bb8\u8bbf\u95ee\u7684\u90e8\u95e8\u6807\u8bc6'}</span>
               <Input
                 disabled={!canManage || loadingDocuments}
                 onChange={(event) => setAllowedDepartmentIds(event.target.value)}
                 placeholder="dept-finance, dept-legal"
                 value={allowedDepartmentIds}
               />
-              <small>Comma-separated. Leave empty to use primary department only.</small>
+              <small>\u591a\u4e2a\u90e8\u95e8\u8bf7\u7528\u9017\u53f7\u5206\u9694\uff1b\u7559\u7a7a\u65f6\u4ec5\u4f7f\u7528\u6240\u5c5e\u90e8\u95e8\u3002</small>
             </label>
 
             <Button disabled={!canManage || !isDirty || loadingDocuments} type="submit">
               <Save />
-              Save access scope
+              {'\u4fdd\u5b58\u8bbf\u95ee\u8303\u56f4'}
             </Button>
 
             <p className="document-access-scope__hint">
-              Re-run ingestion after changing scope to refresh chunk metadata and search index.
+              \u8c03\u6574\u8303\u56f4\u540e\u8bf7\u91cd\u65b0\u89e3\u6790\u6587\u6863\uff0c\u4ee5\u66f4\u65b0\u68c0\u7d22\u6743\u9650\u3002
             </p>
           </form>
         )}

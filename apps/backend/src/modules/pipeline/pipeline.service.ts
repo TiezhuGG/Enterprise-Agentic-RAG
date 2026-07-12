@@ -1,14 +1,16 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
 import type { ExecutionContext } from '../../common';
 import { DocumentRepository, type DocumentEntity } from '../document';
 import { KnowledgeSpaceRepository, type SpaceMemberRole } from '../knowledge-space';
 import { PipelineRepository } from './pipeline.repository';
+import { pipelineJobStatuses } from './pipeline.types';
 import type {
   PipelineEventEntity,
   PipelineEventStatus,
   PipelineJobDetail,
   PipelineJobEntity,
   PipelineJobStatus,
+  SpacePipelineJobList,
   RecordPipelineStageInput,
 } from './pipeline.types';
 
@@ -129,6 +131,19 @@ export class PipelineService {
     return this.pipelineRepository.listJobsByDocumentId(document.id, this.normalizeLimit(limit));
   }
 
+  async listSpaceJobs(
+    context: ExecutionContext,
+    spaceId: string,
+    options: { cursor?: string; limit?: string; status?: string },
+  ): Promise<SpacePipelineJobList> {
+    await this.ensureReadableSpace(context, spaceId);
+
+    return this.pipelineRepository.listJobsBySpaceId(spaceId, {
+      cursor: options.cursor,
+      limit: this.normalizeLimit(options.limit),
+      status: this.normalizeJobStatus(options.status),
+    });
+  }
   async getJob(context: ExecutionContext, jobId: string): Promise<PipelineJobDetail> {
     const job = await this.pipelineRepository.findJobDetailById(jobId);
 
@@ -196,6 +211,17 @@ export class PipelineService {
     return Math.min(parsedLimit, maxJobListLimit);
   }
 
+  private normalizeJobStatus(status: string | undefined): PipelineJobStatus | undefined {
+    if (!status) {
+      return undefined;
+    }
+
+    if (!pipelineJobStatuses.includes(status as PipelineJobStatus)) {
+      throw new BadRequestException('Invalid pipeline job status');
+    }
+
+    return status as PipelineJobStatus;
+  }
   private sanitizeMetadata(metadata: Record<string, unknown>): Record<string, unknown> {
     return this.sanitizeRecord(metadata, 0);
   }
