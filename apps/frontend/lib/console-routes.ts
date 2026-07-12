@@ -7,6 +7,7 @@ export type ConsoleRouteKey =
   | 'knowledge-base-detail'
   | 'document-tasks'
   | 'document-access'
+  | 'user-roles'
   | 'search'
   | 'assistant'
   | 'graph'
@@ -41,7 +42,8 @@ export const consoleRoutes: Record<ConsoleRouteKey, ConsoleRouteDefinition> = {
   'document-spaces': { key: 'document-spaces', path: '/console/knowledge-bases', section: 'documents', title: '知识库管理' },
   'knowledge-base-detail': { key: 'knowledge-base-detail', path: '/console/knowledge-bases/[spaceId]', section: 'documents', title: '知识库详情' },
   'document-tasks': { key: 'document-tasks', path: '/console/documents/tasks', section: 'documents', title: '入库任务' },
-  'document-access': { key: 'document-access', path: '/console/documents/access', section: 'documents', title: '访问权限' },
+  'document-access': { key: 'document-access', path: '/console/documents/access', section: 'governance', title: '访问权限' },
+  'user-roles': { key: 'user-roles', path: '/console/governance/users', section: 'governance', title: '用户与角色' },
   search: { key: 'search', path: '/console/search', section: 'search', title: '智能搜索' },
   assistant: { key: 'assistant', path: '/console/assistant', section: 'assistant', title: 'AI 智能问答' },
   graph: { key: 'graph', path: '/console/graph', section: 'graph', title: '知识图谱' },
@@ -63,11 +65,11 @@ export const consoleNavigationItems: ConsoleNavigationItem[] = [
   { group: 'overview', key: 'dashboard', label: '工作概览' },
   { group: 'knowledge', key: 'document-spaces', label: '知识库' },
   { group: 'knowledge', key: 'documents', label: '文档' },
-  { group: 'knowledge', key: 'document-tasks', label: '入库任务' },
   { group: 'applications', key: 'search', label: '智能搜索' },
   { group: 'applications', key: 'assistant', label: 'AI 问答' },
   { group: 'applications', key: 'graph', label: '知识图谱' },
   { group: 'governance', key: 'document-access', label: '访问权限' },
+  { group: 'governance', key: 'user-roles', label: '用户与角色' },
   { group: 'operations', key: 'system-status', label: '系统健康' },
   { group: 'operations', key: 'system-executions', label: '执行记录' },
   { group: 'operations', key: 'system-debug', label: '高级调试' },
@@ -99,6 +101,7 @@ export const getConsoleRouteForSection = (section: AppSection): ConsoleRouteDefi
     assistant: 'assistant',
     dashboard: 'dashboard',
     documents: 'documents',
+    governance: 'user-roles',
     graph: 'graph',
     profile: 'profile',
     search: 'search',

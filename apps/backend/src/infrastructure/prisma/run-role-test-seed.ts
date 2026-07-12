@@ -9,9 +9,9 @@ const testPassword = 'RoleTest123!';
 const testSpaceName = '权限角色测试空间';
 
 const testUsers = [
-  { email: 'space-owner@example.com', name: 'Space Owner', role: 'OWNER' as const },
-  { email: 'space-editor@example.com', name: 'Space Editor', role: 'EDITOR' as const },
-  { email: 'space-viewer@example.com', name: 'Space Viewer', role: 'VIEWER' as const },
+  { email: 'space-owner@example.com', name: '知识库负责人', role: 'OWNER' as const },
+  { email: 'space-editor@example.com', name: '知识库编辑者', role: 'EDITOR' as const },
+  { email: 'space-viewer@example.com', name: '知识库查看者', role: 'VIEWER' as const },
 ];
 
 async function seedRoleTestAccounts() {

@@ -23,6 +23,7 @@ import {
   Search,
   ShieldCheck,
   UserRound,
+  UsersRound,
   type LucideIcon,
 } from 'lucide-react';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
@@ -65,6 +66,7 @@ const navigationIcons: Record<ConsoleRouteKey, LucideIcon> = {
   'system-debug': BrainCircuit,
   'system-executions': Activity,
   'system-status': Gauge,
+  'user-roles': UsersRound,
 };
 
 interface ConsoleShellProps {

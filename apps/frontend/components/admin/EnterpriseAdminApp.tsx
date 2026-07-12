@@ -3,7 +3,7 @@
 import { FormEvent, ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 import dynamic from 'next/dynamic';
 import Image from 'next/image';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 import {
   Activity,
   BookOpen,
@@ -29,14 +29,17 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 import { Area, AreaChart, CartesianGrid, Cell, Pie, PieChart, XAxis, YAxis } from 'recharts';
-import { AgentDebugWorkbench } from '@/components/agent-debug';
+import {
+  ConsoleEmptyState as EmptyState,
+  ConsoleErrorBanner as ErrorBanner,
+  ConsolePageHeader as PageHeader,
+} from '@/components/admin/ConsolePagePrimitives';
+import { GovernanceRoutes } from '@/components/admin/routes/GovernanceRoutes';
+import { KnowledgeManagementRoutes } from '@/components/admin/routes/KnowledgeManagementRoutes';
+import { OperationsRoutes } from '@/components/admin/routes/OperationsRoutes';
 import { ConsoleShell } from '@/components/admin/ConsoleShell';
-import { SpaceCreationDialog } from '@/components/workbench/SpaceCreationDialog';
 import { SearchCenter } from '@/components/search';
-import { DocumentAccessScopePanel } from '@/components/workbench/DocumentAccessScopePanel';
 import { DocumentPreviewPanel } from '@/components/workbench/DocumentPreviewPanel';
-import { SpaceProfilePanel } from '@/components/workbench/SpaceProfilePanel';
-import { SpaceMembersPanel } from '@/components/workbench/SpaceMembersPanel';
 import { Avatar, AvatarFallback } from '@/components/ui/avatar';
 import { Badge, type BadgeProps } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -51,7 +54,6 @@ import {
   Dialog,
   DialogContent,
   DialogDescription,
-  DialogFooter,
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
@@ -84,7 +86,6 @@ import {
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Textarea } from '@/components/ui/textarea';
 import { documentService, type DocumentFileBlob } from '@/services/document.service';
-import { pipelineService } from '@/services/pipeline.service';
 import { useChatStore, type AgentTraceItem, type ChatMessage } from '@/store/chat.store';
 import { useObservabilityStore } from '@/store/observability.store';
 import { useWorkbenchStore } from '@/store/workbench.store';
@@ -94,10 +95,9 @@ import type {
   DocumentStatus,
   DocumentType,
   KnowledgeDocument,
-  PipelineJobStatus,
-  SpacePipelineJob,
 } from '@/types/workbench';
-import { buildConsoleHref, buildKnowledgeBaseHref, consoleRoutes, type ConsoleRouteKey } from '@/lib/console-routes';
+import { buildConsoleHref, consoleRoutes, type ConsoleRouteKey } from '@/lib/console-routes';
+import { getDisplayPermission, getDisplaySystemRole } from '@/lib/identity-copy';
 import { cn } from '@/lib/utils';
 
 const acceptedDocumentTypes = [
@@ -198,41 +198,6 @@ const statusColor: Record<DocumentStatus, string> = {
   READY: '#22c55e',
 };
 
-const executionSourceLabels: Record<string, string> = {
-  agent: 'AI 问答',
-  assistant: 'AI 问答',
-  chat: 'AI 问答',
-  ingestion: '文档入库',
-  retrieval: '智能搜索',
-  search: '智能搜索',
-};
-
-const executionStageLabels: Record<string, string> = {
-  'agent-plan': '问题理解',
-  'answer-generation': '生成回答',
-  chat: 'AI 问答',
-  chunking: '文档分块',
-  done: '完成',
-  embedding: '向量生成',
-  'graph-extraction': '图谱抽取',
-  graph: '图谱召回',
-  ingestion: '文档入库',
-  'permission-filter': '权限过滤',
-  reranker: '重排序',
-  retrieval: '知识检索',
-  search: '智能搜索',
-  vector: '向量召回',
-};
-
-const executionEventTypeLabels: Record<string, string> = {
-  error: '异常',
-  event: '事件',
-  finish: '完成',
-  node: '节点',
-  start: '开始',
-  stage: '阶段',
-};
-
 const formatDateTime = (value?: string | null): string => {
   if (!value) {
     return '-';
@@ -246,18 +211,6 @@ const formatDateTime = (value?: string | null): string => {
     year: 'numeric',
   }).format(new Date(value));
 };
-
-const getExecutionSourceLabel = (source: string): string => {
-  const normalized = source.toLowerCase();
-
-  return executionSourceLabels[normalized] ?? source;
-};
-
-const getExecutionStageLabel = (stage: string): string =>
-  executionStageLabels[stage] ?? stage;
-
-const getExecutionEventTypeLabel = (type: string): string =>
-  executionEventTypeLabels[type] ?? type;
 
 const formatDate = (value?: string | null): string => {
   if (!value) {
@@ -280,16 +233,6 @@ const formatSize = (size: number | null): string => {
   }
 
   return `${(size / 1024 / 1024).toFixed(1)} MB`;
-};
-
-const formatSpaceVisibility = (visibility?: string | null): string => {
-  const labels: Record<string, string> = {
-    INTERNAL: '内部可见',
-    PRIVATE: '私有',
-    PUBLIC: '空间内公开',
-  };
-
-  return visibility ? labels[visibility] ?? visibility : '-';
 };
 
 const getUserInitial = (email?: string | null): string => {
@@ -341,19 +284,12 @@ function SectionContent({
     case 'assistant':
       return <AssistantPage />;
     case 'documents':
-      if (routeKey === 'knowledge-base-detail') {
-        return <KnowledgeBaseDetailPage spaceId={spaceId} />;
-      }
-      if (routeKey === 'document-spaces') {
-        return <DocumentSpacesPage />;
-      }
-      if (routeKey === 'document-tasks') {
-        return <DocumentTasksPage />;
-      }
-      if (routeKey === 'document-access') {
-        return <DocumentAccessPage />;
+      if (routeKey === 'knowledge-base-detail' || routeKey === 'document-spaces' || routeKey === 'document-tasks') {
+        return <KnowledgeManagementRoutes routeKey={routeKey} spaceId={spaceId} />;
       }
       return <DocumentsPage />;
+    case 'governance':
+      return <GovernanceRoutes routeKey={routeKey} />;
     case 'graph':
       return <GraphPage />;
     case 'profile':
@@ -361,7 +297,7 @@ function SectionContent({
     case 'search':
       return <SearchPage />;
     case 'system':
-      return <SystemPage activeTab={routeKey === 'system-executions' ? 'executions' : routeKey === 'system-debug' ? 'debug' : 'status'} />;
+      return <OperationsRoutes routeKey={routeKey} />;
     case 'dashboard':
     default:
       return <DashboardPage />;
@@ -375,279 +311,6 @@ const workspaceStatusLabels: Record<DocumentStatus, string> = {
   PROCESSING: '处理中',
   READY: '可检索',
 };
-
-const pipelineStatusLabels: Record<PipelineJobStatus, string> = {
-  CANCELED: '已取消',
-  FAILED: '失败',
-  QUEUED: '排队中',
-  RUNNING: '处理中',
-  SUCCEEDED: '成功',
-};
-
-const workspaceSpaceTypeLabels = {
-  CUSTOMER: '客户知识库',
-  DEPARTMENT: '部门知识库',
-  GENERAL: '通用知识库',
-  PROJECT: '项目知识库',
-} as const;
-
-function DocumentSpacesPage() {
-  const router = useRouter();
-  const authUser = useWorkbenchStore((state) => state.authUser);
-  const spaces = useWorkbenchStore((state) => state.spaces);
-  const [creationOpen, setCreationOpen] = useState(false);
-  const [keyword, setKeyword] = useState('');
-  const [status, setStatus] = useState<'ACTIVE' | 'ARCHIVED' | 'ALL'>('ALL');
-  const [type, setType] = useState<'ALL' | keyof typeof workspaceSpaceTypeLabels>('ALL');
-  const filteredSpaces = useMemo(
-    () =>
-      spaces.filter((space) =>
-        (type === 'ALL' || space.type === type) &&
-        (status === 'ALL' || space.status === status) &&
-        `${space.name} ${space.description ?? ''}`.toLowerCase().includes(keyword.trim().toLowerCase()),
-      ),
-    [keyword, spaces, status, type],
-  );
-
-  return (
-    <div className="grid min-w-0 gap-4">
-      <PageHeader
-        actions={<Button onClick={() => setCreationOpen(true)}><Plus />创建知识库</Button>}
-        description="知识库是成员、资料和 AI 检索范围的隔离单元。按部门、项目或客户建立独立的知识边界。"
-        title="知识库管理"
-      />
-      <div className="grid min-w-0 gap-2 border border-border bg-card p-4 md:grid-cols-[minmax(0,1fr)_180px_180px]">
-        <Input onChange={(event) => setKeyword(event.target.value)} placeholder="搜索知识库名称或说明" value={keyword} />
-        <Select onValueChange={(value) => setType(value as typeof type)} value={type}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="ALL">全部类型</SelectItem>{Object.entries(workspaceSpaceTypeLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent>
-        </Select>
-        <Select onValueChange={(value) => setStatus(value as typeof status)} value={status}>
-          <SelectTrigger><SelectValue /></SelectTrigger>
-          <SelectContent><SelectItem value="ALL">全部状态</SelectItem><SelectItem value="ACTIVE">使用中</SelectItem><SelectItem value="ARCHIVED">已归档</SelectItem></SelectContent>
-        </Select>
-      </div>
-      {filteredSpaces.length === 0 ? <EmptyState action={<Button onClick={() => setCreationOpen(true)}><Plus />创建知识库</Button>} description="创建后即可配置成员、上传资料，并将检索和问答限定在该知识范围内。" icon={Database} title="暂无知识库" /> : <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-3">{filteredSpaces.map((space) => {
-        const role = space.members.find((member) => member.userId === authUser?.id)?.role ?? 'VIEWER';
-        return <button className="grid min-h-48 min-w-0 content-between border bg-card p-4 text-left transition-colors hover:bg-muted" key={space.id} onClick={() => router.push(buildKnowledgeBaseHref(space.id))} type="button"><div className="min-w-0"><div className="flex items-start justify-between gap-3"><Database className="mt-0.5 size-4 shrink-0 text-primary" /><Badge variant="secondary">{workspaceSpaceTypeLabels[space.type]}</Badge></div><h2 className="mt-4 truncate text-base font-semibold" title={space.name}>{space.name}</h2><p className="mt-1 line-clamp-3 min-h-15 text-sm leading-6 text-muted-foreground">{space.description || '未填写知识库说明。'}</p></div><div className="grid grid-cols-2 gap-2 border-t pt-3 text-xs text-muted-foreground"><span>{space.documentCount} 份文档</span><span>{space.memberCount} 名成员</span><span className="truncate">{formatSpaceVisibility(space.visibility)}</span><span>你的角色：{role === 'OWNER' ? '负责人' : role === 'EDITOR' ? '编辑者' : '查看者'}</span><span className="col-span-2">更新于 {formatDateTime(space.updatedAt)}</span></div></button>;
-      })}</div>}
-      <SpaceCreationDialog onOpenChange={setCreationOpen} open={creationOpen} />
-    </div>
-  );
-}
-
-function KnowledgeBaseDetailPage({ spaceId }: { spaceId?: string }) {
-  const router = useRouter();
-  const authUser = useWorkbenchStore((state) => state.authUser);
-  const deleteSelectedSpace = useWorkbenchStore((state) => state.deleteSelectedSpace);
-  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
-  const spaceMembers = useWorkbenchStore((state) => state.spaceMembers);
-  const spaces = useWorkbenchStore((state) => state.spaces);
-  const selectedSpace = spaceId ? spaces.find((space) => space.id === spaceId) ?? null : null;
-  const selectSpace = useWorkbenchStore((state) => state.selectSpace);
-  const isSelectedSpaceSynchronized = selectedSpaceId === spaceId;
-  const currentMember =
-    selectedSpace?.members.find((member) => member.userId === authUser?.id) ??
-    (isSelectedSpaceSynchronized ? spaceMembers.find((member) => member.userId === authUser?.id) : null) ??
-    null;
-  const canDelete = currentMember?.role === 'OWNER';
-  const [creationOpen, setCreationOpen] = useState(false);
-  const [deleteOpen, setDeleteOpen] = useState(false);
-  const [deleteConfirmation, setDeleteConfirmation] = useState('');
-
-  useEffect(() => {
-    if (spaceId && spaceId !== selectedSpaceId && spaces.some((space) => space.id === spaceId)) {
-      void selectSpace(spaceId);
-    }
-  }, [selectedSpaceId, selectSpace, spaceId, spaces]);
-
-  const handleDelete = async () => {
-    if (!selectedSpace || deleteConfirmation.trim() !== selectedSpace.name) {
-      return;
-    }
-
-    await deleteSelectedSpace();
-    setDeleteOpen(false);
-    setDeleteConfirmation('');
-    router.replace(buildConsoleHref('document-spaces'));
-  };
-
-  return (
-    <div className="grid min-w-0 gap-4">
-      <PageHeader
-        actions={selectedSpace && isSelectedSpaceSynchronized ? <><Button onClick={() => router.push(buildConsoleHref('documents', { space: selectedSpace.id }))} variant="outline"><FileText />管理文档</Button><Button onClick={() => router.push(buildConsoleHref('document-access', { space: selectedSpace.id }))} variant="outline"><ShieldCheck />访问权限</Button></> : undefined}
-        description={selectedSpace ? `知识库管理 / ${selectedSpace.name}` : '知识库详情'}
-        title="知识库详情"
-      />
-      {!selectedSpace ? (
-        <EmptyState
-          action={<Button onClick={() => setCreationOpen(true)}><Plus />创建第一个知识库</Button>}
-          description="创建后即可邀请成员、上传资料，并将检索与问答限定在这个知识范围内。"
-          icon={Database}
-          title="知识库不存在或无访问权限"
-        />
-      ) : !isSelectedSpaceSynchronized ? (
-        <section className="grid min-w-0 gap-3 border border-border bg-card p-4">
-          <Skeleton className="h-5 w-48" />
-          <Skeleton className="h-4 w-full max-w-2xl" />
-          <Skeleton className="h-36 w-full" />
-        </section>
-      ) : (
-        <>
-          <section className="grid min-w-0 gap-4 border border-border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-            <div className="min-w-0">
-              <div className="flex min-w-0 items-center gap-2">
-                <h2 className="truncate text-base font-semibold" title={selectedSpace.name}>{selectedSpace.name}</h2>
-                <Badge variant="secondary">{workspaceSpaceTypeLabels[selectedSpace.type]}</Badge>
-              </div>
-              <p className="mt-1 max-w-3xl break-words text-sm text-muted-foreground">{selectedSpace.description || '未填写空间说明。'}</p>
-            </div>
-            <div className="flex flex-wrap gap-3 text-xs text-muted-foreground">
-              <span>可见范围：{formatSpaceVisibility(selectedSpace.visibility)}</span>
-              <span>{spaceMembers.length} 名成员</span>
-            </div>
-          </section>
-          <div className="grid min-w-0 gap-4 xl:grid-cols-2">
-            <div className="min-w-0"><SpaceProfilePanel /></div>
-            <div className="min-w-0"><SpaceMembersPanel /></div>
-          </div>
-          <Card className="min-w-0 border-destructive/30">
-            <CardHeader>
-              <CardTitle className="text-base">空间生命周期</CardTitle>
-              <CardDescription>删除空间会将其从常规工作区中移除，后端继续保留软删除审计记录。</CardDescription>
-            </CardHeader>
-            <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <p className="text-sm text-muted-foreground">
-                {canDelete
-                  ? '你是空间负责人，可以删除该空间。系统管理员身份不会替代空间角色。'
-                  : '仅空间负责人可以删除空间；系统管理员身份不会自动获得此权限。'}
-              </p>
-              {canDelete ? <Button onClick={() => setDeleteOpen(true)} variant="destructive"><Trash2 />删除空间</Button> : null}
-            </CardContent>
-          </Card>
-        </>
-      )}
-      <SpaceCreationDialog onOpenChange={setCreationOpen} open={creationOpen} />
-      <Dialog onOpenChange={setDeleteOpen} open={deleteOpen}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>删除知识空间</DialogTitle>
-            <DialogDescription>
-              此操作会停止该空间的日常访问。请输入空间名称“{selectedSpace?.name}”确认。
-            </DialogDescription>
-          </DialogHeader>
-          <Input onChange={(event) => setDeleteConfirmation(event.target.value)} placeholder={selectedSpace?.name} value={deleteConfirmation} />
-          <DialogFooter>
-            <Button onClick={() => setDeleteOpen(false)} variant="outline">取消</Button>
-            <Button disabled={!selectedSpace || deleteConfirmation.trim() !== selectedSpace.name} onClick={() => void handleDelete()} variant="destructive"><Trash2 />确认删除</Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </div>
-  );
-}
-
-function DocumentAccessPage() {
-  const searchParams = useSearchParams();
-  const documents = useWorkbenchStore((state) => state.documents);
-  const selectedDocumentId = useWorkbenchStore((state) => state.selectedDocumentId);
-  const selectDocument = useWorkbenchStore((state) => state.selectDocument);
-  const documentIdFromUrl = searchParams.get('document');
-  const selectedDocument = documents.find((document) => document.id === selectedDocumentId) ?? null;
-
-  useEffect(() => {
-    if (
-      documentIdFromUrl &&
-      documentIdFromUrl !== selectedDocumentId &&
-      documents.some((document) => document.id === documentIdFromUrl)
-    ) {
-      void selectDocument(documentIdFromUrl);
-    }
-  }, [documentIdFromUrl, documents, selectDocument, selectedDocumentId]);
-
-  return (
-    <div className="grid min-w-0 gap-4">
-      <PageHeader
-        description="为文档设置安全级别和部门访问范围。空间成员角色决定是否可以修改这些规则。"
-        title="访问权限"
-      />
-      <section className="grid min-w-0 gap-3 border border-border bg-card p-4 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-        <div className="min-w-0">
-          <p className="text-xs font-medium text-muted-foreground">当前文档</p>
-          <p className="mt-1 truncate text-base font-semibold text-foreground" title={selectedDocument?.title}>{selectedDocument?.title ?? '尚未选择文档'}</p>
-        </div>
-        {selectedDocument ? <Badge variant={statusVariant[selectedDocument.status]}>{workspaceStatusLabels[selectedDocument.status]}</Badge> : null}
-      </section>
-      <div className="grid min-w-0 gap-4 xl:grid-cols-[minmax(280px,0.7fr)_minmax(0,1.3fr)]">
-        <Card className="min-w-0">
-          <CardHeader><CardTitle>选择文档</CardTitle><CardDescription>先选择需要查看或调整访问范围的文档。</CardDescription></CardHeader>
-          <CardContent className="grid max-h-[65vh] gap-1 overflow-auto">
-            {documents.length === 0 ? <p className="text-sm text-muted-foreground">当前空间还没有文档。</p> : null}
-            {documents.map((document) => (
-              <Button className="justify-start" key={document.id} onClick={() => void selectDocument(document.id)} variant={document.id === selectedDocumentId ? 'secondary' : 'ghost'}>
-                <FileText className="size-4" /><span className="truncate" title={document.title}>{document.title}</span>
-              </Button>
-            ))}
-          </CardContent>
-        </Card>
-        <div className="min-w-0"><DocumentAccessScopePanel /></div>
-      </div>
-    </div>
-  );
-}
-
-function DocumentTasksPage() {
-  const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
-  const [error, setError] = useState<string | null>(null);
-  const [jobs, setJobs] = useState<SpacePipelineJob[]>([]);
-  const [loading, setLoading] = useState(false);
-  const [status, setStatus] = useState<PipelineJobStatus | 'ALL'>('ALL');
-
-  useEffect(() => {
-    if (!selectedSpaceId) {
-      setJobs([]);
-      return;
-    }
-    let active = true;
-    const load = async () => {
-      try {
-        setLoading(true);
-        const result = await pipelineService.listSpaceJobs(selectedSpaceId, { limit: 50, status: status === 'ALL' ? undefined : status });
-        if (active) {
-          setError(null);
-          setJobs(result.items);
-        }
-      } catch (loadError) {
-        if (active) setError(loadError instanceof Error ? loadError.message : '加载入库任务失败。');
-      } finally {
-        if (active) setLoading(false);
-      }
-    };
-    void load();
-    const timer = window.setInterval(load, 2000);
-    return () => {
-      active = false;
-      window.clearInterval(timer);
-    };
-  }, [selectedSpaceId, status]);
-
-  return (
-    <div className="grid min-w-0 gap-4">
-      <PageHeader
-        actions={<Select onValueChange={(value) => setStatus(value as PipelineJobStatus | 'ALL')} value={status}><SelectTrigger className="w-36"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">全部状态</SelectItem>{Object.entries(pipelineStatusLabels).map(([value, label]) => <SelectItem key={value} value={value}>{label}</SelectItem>)}</SelectContent></Select>}
-        description="上传后的文档会自动进入队列。这里用于查看等待、处理、失败和重新处理的任务记录。"
-        title="入库任务"
-      />
-      <Card className="min-w-0"><CardContent className="grid gap-3 p-4">
-        {!selectedSpaceId ? <p className="text-sm text-muted-foreground">请先在顶部选择知识空间。</p> : null}
-        {error ? <ErrorBanner message={error} /> : null}
-        {loading && jobs.length === 0 ? <p className="text-sm text-muted-foreground">正在加载任务...</p> : null}
-        {!loading && selectedSpaceId && jobs.length === 0 ? <p className="text-sm text-muted-foreground">当前空间暂无入库任务。</p> : null}
-        {jobs.map((job) => <article className="grid min-w-0 gap-2 border-b border-border pb-3 text-sm last:border-0 last:pb-0 md:grid-cols-[minmax(0,1fr)_auto] md:items-center" key={job.id}><div className="min-w-0"><p className="truncate font-medium">{job.document.title}</p><p className="mt-1 truncate text-xs text-muted-foreground">{job.latestEvent?.stage ?? '等待处理'} · {formatDateTime(job.updatedAt)}</p></div><Badge className="w-fit" variant={job.status === 'SUCCEEDED' ? 'success' : job.status === 'FAILED' ? 'destructive' : 'warning'}>{pipelineStatusLabels[job.status]}</Badge></article>)}
-      </CardContent></Card>
-    </div>
-  );
-}
 
 function DocumentsPage() {
   const router = useRouter();
@@ -732,7 +395,7 @@ function DocumentsPage() {
   return (
     <div className="grid min-w-0 gap-4">
       <PageHeader
-        actions={!selectedSpaceId ? <Button onClick={() => router.push(buildConsoleHref('document-spaces'))} variant="outline"><Database />创建知识空间</Button> : undefined}
+        actions={selectedSpaceId ? <Button onClick={() => router.push(buildConsoleHref('document-tasks', { space: selectedSpaceId }))} variant="outline"><FileArchive />查看入库任务</Button> : <Button onClick={() => router.push(buildConsoleHref('document-spaces'))} variant="outline"><Database />创建知识库</Button>}
         description="在当前知识空间上传资料。系统会自动将文件排队、解析、分块、向量化并建立检索索引。"
         title="文档中心"
       />
@@ -772,53 +435,6 @@ function DocumentsPage() {
 
 function StatusStep({ label, tone, value }: { label: string; tone: 'default' | 'success' | 'warning'; value: string }) {
   return <div className="min-w-0 border border-border bg-slate-50 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{label}</span><Badge variant={tone === 'success' ? 'success' : tone === 'warning' ? 'warning' : 'secondary'}>{value}</Badge></div></div>;
-}
-
-function SystemPage({ activeTab }: { activeTab: 'status' | 'executions' | 'debug' }) {
-  const authToken = useWorkbenchStore((state) => state.authToken);
-  const clearAuth = useWorkbenchStore((state) => state.clearAuth);
-  const setAuthToken = useWorkbenchStore((state) => state.setAuthToken);
-  const executionRuns = useObservabilityStore((state) => state.executionRuns);
-  const loadingReadiness = useObservabilityStore((state) => state.loadingReadiness);
-  const metricsBreakdown = useObservabilityStore((state) => state.metricsBreakdown);
-  const readiness = useObservabilityStore((state) => state.readiness);
-  const refresh = useObservabilityStore((state) => state.refresh);
-  const selectExecution = useObservabilityStore((state) => state.selectExecution);
-  const selectedRun = useObservabilityStore((state) => state.selectedRun);
-  const timeline = useObservabilityStore((state) => state.timeline);
-  const [manualToken, setManualTokenDraft] = useState(authToken);
-  const page = {
-    debug: { description: '用于排查认证与 Agent 执行问题的受限工具。', title: '高级调试' },
-    executions: { description: '查看检索、问答和入库等操作的执行时间线。', title: '执行记录' },
-    status: { description: '监控服务可用性、依赖检查和运行指标。', title: '系统健康' },
-  }[activeTab];
-
-  const handleManualToken = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    await setAuthToken(manualToken);
-  };
-
-  return (
-    <div className="grid gap-4">
-      <PageHeader actions={<Button onClick={() => void refresh()} variant="outline"><RefreshCw />刷新</Button>} description={page.description} title={page.title} />
-      {activeTab === 'status' ? <>
-        <div className="grid gap-4 md:grid-cols-3">
-          <StatCard icon={Gauge} label="总体状态" tone={readiness?.status === 'ok' ? 'success' : 'warning'} value={readiness?.status === 'ok' ? '正常' : '待检查'} />
-          <StatCard icon={Activity} label="监控指标" value={metricsBreakdown ? '已接入' : '待刷新'} />
-          <StatCard icon={Database} label="检查项" value={readiness?.checks.length ?? 0} />
-        </div>
-        <Card><CardHeader><CardTitle>服务健康检查</CardTitle><CardDescription>来自 `/health/readiness` 的依赖与服务检查结果。</CardDescription></CardHeader><CardContent>{loadingReadiness ? <div className="grid gap-3"><Skeleton className="h-10" /><Skeleton className="h-10" /></div> : !readiness ? <EmptyState description="点击刷新获取系统健康状态。" icon={Gauge} title="暂无状态" /> : <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">{readiness.checks.map((check) => <div className="rounded-md border p-3" key={check.name}><div className="flex items-center justify-between gap-2"><span className="font-medium">{check.name}</span><Badge variant={check.status === 'ok' ? 'success' : check.status === 'failed' ? 'destructive' : 'secondary'}>{check.status === 'ok' ? '正常' : check.status === 'failed' ? '失败' : '跳过'}</Badge></div><p className="mt-2 text-xs text-muted-foreground">{check.message ?? `${check.durationMs ?? 0} ms`}</p></div>)}</div>}</CardContent></Card>
-      </> : null}
-      {activeTab === 'executions' ? <div className="grid gap-4 xl:grid-cols-[360px_minmax(0,1fr)]">
-        <Card><CardHeader><CardTitle>最近执行</CardTitle><CardDescription>{executionRuns.length} 条记录</CardDescription></CardHeader><CardContent className="grid max-h-[65vh] gap-2 overflow-auto">{executionRuns.length === 0 ? <EmptyState description="问答、搜索或入库后会生成执行记录。" icon={Activity} title="暂无记录" /> : executionRuns.map((run) => <button className="rounded-md border p-3 text-left text-sm transition hover:bg-muted" key={run.executionId} onClick={() => void selectExecution(run.executionId)} type="button"><div className="flex items-center justify-between gap-2"><span className="truncate font-medium">{getExecutionSourceLabel(run.source)}</span><Badge variant={run.status === 'SUCCEEDED' ? 'success' : run.status === 'FAILED' ? 'destructive' : 'warning'}>{run.status === 'SUCCEEDED' ? '成功' : run.status === 'FAILED' ? '失败' : '运行中'}</Badge></div><div className="mt-1 text-xs text-muted-foreground">{formatDateTime(run.startedAt)}</div></button>)}</CardContent></Card>
-        <Card><CardHeader><CardTitle>执行时间线</CardTitle><CardDescription>{selectedRun?.executionId ?? '选择一条执行记录查看详情。'}</CardDescription></CardHeader><CardContent className="grid gap-3">{timeline.length === 0 ? <EmptyState description="选择执行记录后显示处理节点和耗时。" icon={Activity} title="暂无时间线" /> : timeline.map((event) => <div className="grid gap-2 rounded-md border p-3 text-sm" key={event.id}><div className="flex items-center justify-between gap-2"><span className="font-medium">{getExecutionStageLabel(event.stage)}</span><Badge variant={event.status === 'SUCCEEDED' ? 'success' : event.status === 'FAILED' ? 'destructive' : 'secondary'}>{event.status === 'SUCCEEDED' ? '成功' : event.status === 'FAILED' ? '失败' : '跳过'}</Badge></div><div className="flex flex-wrap gap-3 text-xs text-muted-foreground"><span>{getExecutionEventTypeLabel(event.type)}</span><span>{formatDateTime(event.timestamp)}</span><span>{event.durationMs ?? 0} ms</span></div>{event.errorMessage ? <ErrorBanner message={event.errorMessage} /> : null}</div>)}</CardContent></Card>
-      </div> : null}
-      {activeTab === 'debug' ? <>
-        <Card><CardHeader><CardTitle>访问凭证</CardTitle><CardDescription>仅在高级调试场景使用；日常工作区会自动使用当前登录凭证。</CardDescription></CardHeader><CardContent><form className="grid gap-3 md:grid-cols-[minmax(0,1fr)_auto_auto]" onSubmit={handleManualToken}><Input onChange={(event) => setManualTokenDraft(event.target.value)} placeholder="粘贴 JWT Token" type="password" value={manualToken} /><Button type="submit" variant="outline">保存凭证</Button><Button onClick={clearAuth} type="button" variant="outline">清除</Button></form></CardContent></Card>
-        <Card><CardHeader><CardTitle>高级调试面板</CardTitle><CardDescription>用于排查 Agent 的执行链路和节点输出。</CardDescription></CardHeader><CardContent><AgentDebugWorkbench /></CardContent></Card>
-      </> : null}
-    </div>
-  );
 }
 
 export function LoginPage() {
@@ -1515,7 +1131,7 @@ function ProfilePage() {
               <div className="flex flex-wrap gap-2">
                 {(authUser?.roles.length ? authUser.roles : ['管理员']).map((role) => (
                   <Badge key={role} variant="secondary">
-                    {role}
+                    {getDisplaySystemRole({ code: role }).name}
                   </Badge>
                 ))}
               </div>
@@ -1525,8 +1141,9 @@ function ProfilePage() {
               <div className="flex flex-wrap gap-2">
                 {(authUser?.permissions.length ? authUser.permissions : ['knowledge.read']).map(
                   (permission) => (
-                    <Badge key={permission} variant="outline">
-                      {permission}
+                    <Badge className="max-w-full gap-1.5" key={permission} title={getDisplayPermission(permission).description} variant="outline">
+                      <span>{getDisplayPermission(permission).name}</span>
+                      <code className="shrink-0 text-[10px] text-muted-foreground">{permission}</code>
                     </Badge>
                   ),
                 )}
@@ -1554,28 +1171,6 @@ function ProfilePage() {
           </CardContent>
         </Card>
       </div>
-    </div>
-  );
-}
-
-function PageHeader({
-  actions,
-  description,
-  title,
-}: {
-  actions?: ReactNode;
-  description: string;
-  title: string;
-}) {
-  return (
-    <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-      <div>
-        <h1 className="text-xl font-semibold tracking-normal text-foreground sm:text-2xl">
-          {title}
-        </h1>
-        <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{description}</p>
-      </div>
-      {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
     </div>
   );
 }
@@ -1741,35 +1336,6 @@ function CitationDocumentReferences({ citations }: { citations: AgentCitation[] 
           </div>
         </details>
       ))}
-    </div>
-  );
-}
-
-function ErrorBanner({ message }: { message: string }) {
-  return (
-    <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-      {message}
-    </div>
-  );
-}
-
-function EmptyState({
-  action,
-  description,
-  icon: Icon,
-  title,
-}: {
-  action?: ReactNode;
-  description: string;
-  icon: LucideIcon;
-  title: string;
-}) {
-  return (
-    <div className="grid place-items-center rounded-md border border-dashed border-slate-300 bg-slate-50 px-6 py-8 text-center">
-      <Icon className="mb-3 size-8 text-slate-400" />
-      <p className="font-medium">{title}</p>
-      <p className="mt-1 max-w-md text-sm text-muted-foreground">{description}</p>
-      {action ? <div className="mt-4">{action}</div> : null}
     </div>
   );
 }

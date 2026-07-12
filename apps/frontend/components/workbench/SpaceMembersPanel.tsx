@@ -6,6 +6,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Input } from '@/components/ui/input';
+import { getDisplayUserName } from '@/lib/identity-copy';
 import {
   Select,
   SelectContent,
@@ -136,12 +137,13 @@ function SpaceMemberRow({
 }) {
   const isLastOwner = member.role === 'OWNER' && ownerCount <= 1;
   const isSelf = member.userId === currentUserId;
+  const displayName = getDisplayUserName(member.user.name, member.user.email);
 
   return (
     <article className="space-members-panel__member">
-      <div aria-hidden="true" className="space-members-panel__avatar">{toInitial(member.user.name ?? member.user.email)}</div>
+      <div aria-hidden="true" className="space-members-panel__avatar">{toInitial(displayName)}</div>
       <div className="space-members-panel__identity">
-        <strong title={member.user.name ?? member.user.email}>{member.user.name ?? member.user.email}{isSelf ? <Badge variant="secondary">我</Badge> : null}</strong>
+        <strong title={displayName}>{displayName}{isSelf ? <Badge variant="secondary">我</Badge> : null}</strong>
         <span title={member.user.email}>{member.user.email}</span>
         <small>{roleDescriptions[member.role]}</small>
       </div>

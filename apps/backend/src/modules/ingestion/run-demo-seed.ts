@@ -26,41 +26,41 @@ const passwordSaltRounds = 10;
 const demoPermissions = [
   {
     code: 'user.read',
-    description: 'View user records and assigned roles.',
-    name: 'Read users',
+    description: '查看用户记录和已分配角色。',
+    name: '查看用户',
   },
   {
     code: 'user.write',
-    description: 'Create and update user records.',
-    name: 'Write users',
+    description: '创建和更新用户记录。',
+    name: '管理用户',
   },
   {
     code: 'role.manage',
-    description: 'Manage roles and permissions.',
-    name: 'Manage roles',
+    description: '管理系统角色和权限。',
+    name: '管理角色',
   },
   {
     code: 'knowledge.read',
-    description: 'Read knowledge spaces, documents, chunks, and retrieval candidates.',
-    name: 'Read knowledge',
+    description: '查看知识库、文档、切片和检索候选内容。',
+    name: '查看知识库',
   },
   {
     code: 'knowledge.retrieve',
-    description: 'Run knowledge retrieval over accessible spaces.',
-    name: 'Retrieve knowledge',
+    description: '在已获授权的知识库中执行检索。',
+    name: '检索知识库',
   },
   {
     code: 'knowledge.confidential.read',
-    description: 'Read confidential knowledge resources when policy allows it.',
-    name: 'Read confidential knowledge',
+    description: '在策略允许时查看机密知识资源。',
+    name: '查看机密知识',
   },
 ] as const;
 
 const demoRole = {
   code: 'admin',
-  description: 'Full platform administration access.',
+  description: '拥有平台级完整管理权限。',
   isSystem: true,
-  name: 'Administrator',
+  name: '系统管理员',
   permissions: demoPermissions.map((permission) => permission.code),
 } as const;
 
@@ -325,7 +325,7 @@ async function ensureDemoUser(
     departmentId: department.id,
     email: args.email,
     isActive: true,
-    name: 'Demo Administrator',
+    name: '演示系统管理员',
     organizationId: organization.id,
     passwordHash: await hash(args.password, passwordSaltRounds),
     tenantId: tenant.id,

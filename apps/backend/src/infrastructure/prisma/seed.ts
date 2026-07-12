@@ -11,41 +11,41 @@ const passwordSaltRounds = 10;
 const permissions = [
   {
     code: 'user.read',
-    name: 'Read users',
-    description: 'View user records and assigned roles.',
+    name: '查看用户',
+    description: '查看用户记录和已分配角色。',
   },
   {
     code: 'user.write',
-    name: 'Write users',
-    description: 'Create and update user records.',
+    name: '管理用户',
+    description: '创建和更新用户记录。',
   },
   {
     code: 'role.manage',
-    name: 'Manage roles',
-    description: 'Manage roles and permissions.',
+    name: '管理角色',
+    description: '管理系统角色和权限。',
   },
   {
     code: 'knowledge.read',
-    name: 'Read knowledge',
-    description: 'Read knowledge spaces, documents, chunks, and retrieval candidates.',
+    name: '查看知识库',
+    description: '查看知识库、文档、切片和检索候选内容。',
   },
   {
     code: 'knowledge.retrieve',
-    name: 'Retrieve knowledge',
-    description: 'Run knowledge retrieval over accessible spaces.',
+    name: '检索知识库',
+    description: '在已获授权的知识库中执行检索。',
   },
   {
     code: 'knowledge.confidential.read',
-    name: 'Read confidential knowledge',
-    description: 'Read confidential knowledge resources when policy allows it.',
+    name: '查看机密知识',
+    description: '在策略允许时查看机密知识资源。',
   },
 ] as const;
 
 const roles = [
   {
     code: 'admin',
-    name: 'Administrator',
-    description: 'Full platform administration access.',
+    name: '系统管理员',
+    description: '拥有平台级完整管理权限。',
     isSystem: true,
     permissions: [
       'user.read',
@@ -58,8 +58,8 @@ const roles = [
   },
   {
     code: 'user',
-    name: 'User',
-    description: 'Default authenticated user access.',
+    name: '标准用户',
+    description: '拥有默认的已认证用户权限。',
     isSystem: true,
     permissions: ['user.read', 'knowledge.read', 'knowledge.retrieve'],
   },
@@ -89,7 +89,7 @@ async function seed() {
 
     const admin = await userRepository.upsert({
       email: 'admin@example.com',
-      name: 'System Administrator',
+      name: '系统管理员',
       passwordHash: await hash(seedAdminPassword, passwordSaltRounds),
       isActive: true,
     });

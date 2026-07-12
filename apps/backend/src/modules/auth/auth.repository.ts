@@ -29,6 +29,36 @@ export interface PermissionRecord {
   description: string | null;
 }
 
+export interface AuthorizationAuditRole {
+  code: string;
+  description: string | null;
+  isSystem: boolean;
+  name: string;
+  permissions: string[];
+}
+
+export interface AuthorizationAuditUser {
+  createdAt: Date;
+  department: { code: string; id: string; name: string } | null;
+  email: string;
+  id: string;
+  isActive: boolean;
+  name: string | null;
+  organization: { code: string; id: string; name: string } | null;
+  roles: AuthorizationAuditRole[];
+  spaceMemberships: Array<{
+    role: 'OWNER' | 'EDITOR' | 'VIEWER';
+    space: {
+      id: string;
+      name: string;
+      status: 'ACTIVE' | 'ARCHIVED' | 'DELETED';
+      type: 'GENERAL' | 'DEPARTMENT' | 'PROJECT' | 'CUSTOMER';
+    };
+  }>;
+  tenant: { code: string; id: string; name: string } | null;
+  updatedAt: Date;
+}
+
 export interface UserCredentialsRecord {
   id: string;
   email: string;
@@ -98,6 +128,138 @@ export class AuthRepository {
     });
 
     return user ? toUserCredentialsRecord(user) : null;
+  }
+
+  async listAuthorizationAuditRoles(): Promise<AuthorizationAuditRole[]> {
+    const roles = await this.prisma.role.findMany({
+      orderBy: {
+        code: 'asc',
+      },
+      select: {
+        code: true,
+        description: true,
+        isSystem: true,
+        name: true,
+        permissions: {
+          select: {
+            permission: {
+              select: {
+                code: true,
+              },
+            },
+          },
+        },
+      },
+    });
+
+    return roles.map((role) => ({
+      code: role.code,
+      description: role.description,
+      isSystem: role.isSystem,
+      name: role.name,
+      permissions: role.permissions.map(({ permission }) => permission.code),
+    }));
+  }
+
+  async listAuthorizationAuditUsers(tenantId?: string): Promise<AuthorizationAuditUser[]> {
+    const users = await this.prisma.user.findMany({
+      where: tenantId ? { tenantId } : undefined,
+      orderBy: [{ email: 'asc' }],
+      select: {
+        createdAt: true,
+        department: {
+          select: {
+            code: true,
+            id: true,
+            name: true,
+          },
+        },
+        email: true,
+        id: true,
+        isActive: true,
+        name: true,
+        organization: {
+          select: {
+            code: true,
+            id: true,
+            name: true,
+          },
+        },
+        roles: {
+          select: {
+            role: {
+              select: {
+                code: true,
+                description: true,
+                isSystem: true,
+                name: true,
+                permissions: {
+                  select: {
+                    permission: {
+                      select: {
+                        code: true,
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+        spaces: {
+          where: {
+            space: {
+              status: {
+                not: 'DELETED',
+              },
+              ...(tenantId ? { tenantId } : {}),
+            },
+          },
+          select: {
+            role: true,
+            space: {
+              select: {
+                id: true,
+                name: true,
+                status: true,
+                type: true,
+              },
+            },
+          },
+        },
+        tenant: {
+          select: {
+            code: true,
+            id: true,
+            name: true,
+          },
+        },
+        updatedAt: true,
+      },
+    });
+
+    return users.map((user) => ({
+      createdAt: user.createdAt,
+      department: user.department,
+      email: user.email,
+      id: user.id,
+      isActive: user.isActive,
+      name: user.name,
+      organization: user.organization,
+      roles: user.roles.map(({ role }) => ({
+        code: role.code,
+        description: role.description,
+        isSystem: role.isSystem,
+        name: role.name,
+        permissions: role.permissions.map(({ permission }) => permission.code),
+      })),
+      spaceMemberships: user.spaces.map((membership) => ({
+        role: membership.role,
+        space: membership.space,
+      })),
+      tenant: user.tenant,
+      updatedAt: user.updatedAt,
+    }));
   }
 
   async upsertRole(input: UpsertRoleInput): Promise<RoleRecord> {
