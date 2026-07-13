@@ -8,11 +8,21 @@ interface EnterpriseState {
   error: string | null;
   loading: boolean;
   structure: EnterpriseStructure | null;
-  createDepartment: (input: { name: string; organizationId: string; parentId?: string }) => Promise<boolean>;
+  createDepartment: (input: {
+    name: string;
+    organizationId: string;
+    parentId?: string;
+  }) => Promise<boolean>;
   createOrganization: (name: string) => Promise<boolean>;
   loadStructure: () => Promise<void>;
-  updateDepartment: (id: string, input: { name?: string; parentId?: string | null; status?: 'ACTIVE' | 'DISABLED' }) => Promise<boolean>;
-  updateOrganization: (id: string, input: { name?: string; status?: 'ACTIVE' | 'DISABLED' }) => Promise<boolean>;
+  updateDepartment: (
+    id: string,
+    input: { name?: string; parentId?: string | null; status?: 'ACTIVE' | 'DISABLED' },
+  ) => Promise<boolean>;
+  updateOrganization: (
+    id: string,
+    input: { name?: string; status?: 'ACTIVE' | 'DISABLED' },
+  ) => Promise<boolean>;
 }
 
 const toErrorMessage = (error: unknown): string =>

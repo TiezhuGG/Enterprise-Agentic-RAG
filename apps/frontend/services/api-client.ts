@@ -80,7 +80,7 @@ export const readApiError = async (response: Response): Promise<Error> => {
     const localizedMessage =
       (preserveProviderMessage && safeMessage
         ? safeMessage
-        : getAppErrorMessage(body.code) ?? safeMessage) || fallbackMessage;
+        : (getAppErrorMessage(body.code) ?? safeMessage)) || fallbackMessage;
 
     handleAuthenticationFailure(response.status);
 

@@ -1,7 +1,14 @@
 export type SpaceMemberRole = 'OWNER' | 'EDITOR' | 'VIEWER';
 export type KnowledgeSpaceType = 'GENERAL' | 'DEPARTMENT' | 'PROJECT' | 'CUSTOMER';
 export type AppSection =
-  'dashboard' | 'documents' | 'governance' | 'search' | 'assistant' | 'graph' | 'profile' | 'system';
+  | 'dashboard'
+  | 'documents'
+  | 'governance'
+  | 'search'
+  | 'assistant'
+  | 'graph'
+  | 'profile'
+  | 'system';
 
 export interface SpaceMember {
   spaceId: string;

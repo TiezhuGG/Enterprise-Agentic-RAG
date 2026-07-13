@@ -54,7 +54,12 @@ export const authorizationAuditService = {
 
   async updateUser(
     userId: string,
-    input: { departmentId?: string; isActive?: boolean; name?: string; systemRole?: 'admin' | 'user' },
+    input: {
+      departmentId?: string;
+      isActive?: boolean;
+      name?: string;
+      systemRole?: 'admin' | 'user';
+    },
   ): Promise<void> {
     const response = await fetch(createApiUrl(`/auth/governance/users/${userId}`), {
       body: JSON.stringify(input),

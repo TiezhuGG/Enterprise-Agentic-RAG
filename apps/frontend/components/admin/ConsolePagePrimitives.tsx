@@ -18,7 +18,9 @@ export function ConsolePageHeader({
   return (
     <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
       <div className="min-w-0">
-        <h1 className="text-xl font-semibold tracking-normal text-foreground sm:text-2xl">{title}</h1>
+        <h1 className="text-xl font-semibold tracking-normal text-foreground sm:text-2xl">
+          {title}
+        </h1>
         <p className="mt-1 max-w-3xl text-sm text-muted-foreground">{description}</p>
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap gap-2">{actions}</div> : null}
@@ -65,7 +67,20 @@ export function ConsoleStatusBadge({
   className?: string;
   tone?: ConsoleStatusTone;
 }) {
-  const variant = tone === 'danger' ? 'destructive' : tone === 'info' ? 'info' : tone === 'success' ? 'success' : tone === 'warning' ? 'warning' : 'secondary';
+  const variant =
+    tone === 'danger'
+      ? 'destructive'
+      : tone === 'info'
+        ? 'info'
+        : tone === 'success'
+          ? 'success'
+          : tone === 'warning'
+            ? 'warning'
+            : 'secondary';
 
-  return <Badge className={cn(className)} variant={variant}>{children}</Badge>;
+  return (
+    <Badge className={cn(className)} variant={variant}>
+      {children}
+    </Badge>
+  );
 }

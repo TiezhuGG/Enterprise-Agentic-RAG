@@ -132,7 +132,11 @@ async function seed() {
       organizationId: organization.id,
       tenantId: tenant.id,
     });
-    await userRepository.updatePassword(admin.id, await hash(seedAdminPassword, passwordSaltRounds), false);
+    await userRepository.updatePassword(
+      admin.id,
+      await hash(seedAdminPassword, passwordSaltRounds),
+      false,
+    );
 
     await enterpriseRepository.backfillUserKnowledgeSpacesTenant(admin.id, tenant.id);
   } finally {

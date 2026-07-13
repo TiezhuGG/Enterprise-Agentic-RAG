@@ -336,7 +336,8 @@ export function GraphBrowser() {
       {error ? <div className="workbench-error">{error}</div> : null}
       {llmUnavailable ? (
         <div className="workbench-error">
-          大模型服务当前不可用：{llmCheck?.message ?? '请前往系统状态检查供应商连接。'} 已有图谱仍可浏览，但暂不能抽取或重试图谱。
+          大模型服务当前不可用：{llmCheck?.message ?? '请前往系统状态检查供应商连接。'}{' '}
+          已有图谱仍可浏览，但暂不能抽取或重试图谱。
         </div>
       ) : null}
 
@@ -532,7 +533,11 @@ export function GraphBrowser() {
 
           <div className="graph-browser__side">
             <GraphExtractionExplainabilityPanel
-              canRetry={Boolean(selectedDocumentId) && graphExplainability.status === 'failed' && !llmUnavailable}
+              canRetry={
+                Boolean(selectedDocumentId) &&
+                graphExplainability.status === 'failed' &&
+                !llmUnavailable
+              }
               onRetry={() => void retrySelectedDocumentGraph()}
               summary={graphExplainability}
             />

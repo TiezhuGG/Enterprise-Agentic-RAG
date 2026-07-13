@@ -2,7 +2,10 @@ import type { LoginRequest, LoginResponse } from '@/types/auth';
 import { createApiUrl, createJsonHeaders, readApiError } from './api-client';
 
 export const authService = {
-  async changePassword(input: { currentPassword: string; newPassword: string }): Promise<LoginResponse> {
+  async changePassword(input: {
+    currentPassword: string;
+    newPassword: string;
+  }): Promise<LoginResponse> {
     const response = await fetch(createApiUrl('/auth/change-password'), {
       body: JSON.stringify(input),
       headers: createJsonHeaders(),

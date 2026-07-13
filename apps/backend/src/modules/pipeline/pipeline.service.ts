@@ -1,4 +1,9 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import type { ExecutionContext } from '../../common';
 import { DocumentRepository, type DocumentEntity } from '../document';
 import { KnowledgeSpaceRepository, type SpaceMemberRole } from '../knowledge-space';
@@ -61,7 +66,10 @@ export class PipelineService {
     return this.createDocumentJob(context, document, 'QUEUED', metadata);
   }
 
-  async claimNextQueuedJob(workerId: string, leaseDurationMs: number): Promise<PipelineJobEntity | null> {
+  async claimNextQueuedJob(
+    workerId: string,
+    leaseDurationMs: number,
+  ): Promise<PipelineJobEntity | null> {
     return this.pipelineRepository.claimNextQueuedJob(workerId, leaseDurationMs);
   }
 

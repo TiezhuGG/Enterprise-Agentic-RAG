@@ -101,7 +101,9 @@ export class IngestionQueueService implements OnModuleInit, OnModuleDestroy {
           status: 'failed',
         });
         await this.pipelineService.finishJob(job.id, 'FAILED');
-        this.logger.warn(`Ingestion job ${job.id} failed after ${job.attemptCount} attempts: ${errorMessage}`);
+        this.logger.warn(
+          `Ingestion job ${job.id} failed after ${job.attemptCount} attempts: ${errorMessage}`,
+        );
       }
     } finally {
       clearInterval(leaseHeartbeat);

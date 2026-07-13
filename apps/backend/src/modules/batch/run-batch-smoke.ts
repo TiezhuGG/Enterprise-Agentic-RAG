@@ -116,7 +116,9 @@ async function main() {
     });
     assertBatchResult('ingest', ingestResult, 2);
     const successfulIngestions = ingestResult.results
-      .filter((item): item is typeof item & { data: IngestionJobResponse } => item.status === 'success')
+      .filter(
+        (item): item is typeof item & { data: IngestionJobResponse } => item.status === 'success',
+      )
       .map((item) => item.data);
 
     for (const result of successfulIngestions) {
@@ -126,7 +128,9 @@ async function main() {
     }
 
     const firstJobId = successfulIngestions[0]?.pipelineJobId;
-    const pipelineEvents = firstJobId ? await pipelineService.listJobEvents(context, firstJobId) : [];
+    const pipelineEvents = firstJobId
+      ? await pipelineService.listJobEvents(context, firstJobId)
+      : [];
     const pipelineStages = pipelineEvents.map((event) => `${event.stage}:${event.status}`);
     assertIncludes(pipelineStages, 'queue:SUCCEEDED');
 

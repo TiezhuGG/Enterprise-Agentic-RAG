@@ -319,7 +319,10 @@ export class UserRepository {
   }
 
   async replaceSystemRole(userId: string, roleCode: 'admin' | 'user'): Promise<void> {
-    const role = await this.prisma.role.findUnique({ where: { code: roleCode }, select: { id: true } });
+    const role = await this.prisma.role.findUnique({
+      where: { code: roleCode },
+      select: { id: true },
+    });
     if (!role) throw new Error(`Role not found: ${roleCode}`);
 
     await this.prisma.$transaction(async (transaction) => {
@@ -386,7 +389,11 @@ export class UserRepository {
     return user;
   }
 
-  async updatePassword(userId: string, passwordHash: string, mustChangePassword: boolean): Promise<void> {
+  async updatePassword(
+    userId: string,
+    passwordHash: string,
+    mustChangePassword: boolean,
+  ): Promise<void> {
     await this.prisma.user.update({
       where: { id: userId },
       data: { mustChangePassword, passwordHash },

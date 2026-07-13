@@ -1,7 +1,11 @@
 import { Body, Controller, Get, Param, Patch, Post, UseGuards } from '@nestjs/common';
 import { RequestContextService, type ExecutionContext } from '../../common';
 import { AuthService } from './auth.service';
-import { AuthRepository, type AuthorizationAuditRole, type AuthorizationAuditUser } from './auth.repository';
+import {
+  AuthRepository,
+  type AuthorizationAuditRole,
+  type AuthorizationAuditUser,
+} from './auth.repository';
 import type { AuthenticatedUser, LoginResponse } from './auth.types';
 import { CurrentUser } from './decorators/current-user.decorator';
 import { Permissions } from './decorators/permissions.decorator';
@@ -79,7 +83,11 @@ export class AuthController {
     @Param('id') userId: string,
     @Body() input: UpdateGovernanceUserDto,
   ): Promise<void> {
-    return this.authService.updateGovernanceUser(this.requestContextService.create(user), userId, input);
+    return this.authService.updateGovernanceUser(
+      this.requestContextService.create(user),
+      userId,
+      input,
+    );
   }
 
   @Post('governance/users/:id/reset-password')

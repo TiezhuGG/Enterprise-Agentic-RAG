@@ -55,7 +55,14 @@ export class EnterpriseService {
       name: input.name.trim(),
       tenantId: this.requireTenantId(context),
     });
-    await this.audit(context, 'organization.created', 'organization', organization.id, undefined, organization);
+    await this.audit(
+      context,
+      'organization.created',
+      'organization',
+      organization.id,
+      undefined,
+      organization,
+    );
     return organization;
   }
 
@@ -79,7 +86,14 @@ export class EnterpriseService {
       ...input,
       name: input.name?.trim(),
     });
-    await this.audit(context, 'organization.updated', 'organization', organization.id, existing, organization);
+    await this.audit(
+      context,
+      'organization.updated',
+      'organization',
+      organization.id,
+      existing,
+      organization,
+    );
     return organization;
   }
 
@@ -100,7 +114,14 @@ export class EnterpriseService {
       name: input.name.trim(),
       tenantId,
     });
-    await this.audit(context, 'department.created', 'department', department.id, undefined, department);
+    await this.audit(
+      context,
+      'department.created',
+      'department',
+      department.id,
+      undefined,
+      department,
+    );
     return department;
   }
 
@@ -128,7 +149,14 @@ export class EnterpriseService {
       ...input,
       name: input.name?.trim(),
     });
-    await this.audit(context, 'department.updated', 'department', department.id, existing, department);
+    await this.audit(
+      context,
+      'department.updated',
+      'department',
+      department.id,
+      existing,
+      department,
+    );
     return department;
   }
 
@@ -138,9 +166,8 @@ export class EnterpriseService {
   ): Promise<EnterpriseDisableCheck> {
     const organization = await this.enterpriseRepository.findOrganizationById(organizationId);
     this.assertOrganizationTenant(organization, this.requireTenantId(context));
-    const activeDepartmentCount = await this.enterpriseRepository.countActiveOrganizationDepartments(
-      organizationId,
-    );
+    const activeDepartmentCount =
+      await this.enterpriseRepository.countActiveOrganizationDepartments(organizationId);
 
     return {
       activeChildDepartmentCount: 0,
@@ -157,7 +184,8 @@ export class EnterpriseService {
   ): Promise<EnterpriseDisableCheck> {
     const department = await this.enterpriseRepository.findDepartmentById(departmentId);
     this.assertDepartmentTenant(department, this.requireTenantId(context));
-    const dependencies = await this.enterpriseRepository.getDepartmentDisableDependencies(departmentId);
+    const dependencies =
+      await this.enterpriseRepository.getDepartmentDisableDependencies(departmentId);
 
     return {
       activeChildDepartmentCount: dependencies.activeChildDepartmentCount,
@@ -177,7 +205,8 @@ export class EnterpriseService {
     required: boolean,
   ): Promise<DepartmentEntity | null> {
     if (!departmentId) {
-      if (required) throw new BadRequestException('A department must be selected for this knowledge base type');
+      if (required)
+        throw new BadRequestException('A department must be selected for this knowledge base type');
       return null;
     }
 
@@ -219,7 +248,8 @@ export class EnterpriseService {
     departmentId?: string,
   ): Promise<void> {
     if (!parentId) return;
-    if (parentId === departmentId) throw new BadRequestException('A department cannot be its own parent');
+    if (parentId === departmentId)
+      throw new BadRequestException('A department cannot be its own parent');
 
     let depth = 1;
     let cursorId: string | null = parentId;
@@ -227,11 +257,15 @@ export class EnterpriseService {
       const parent = await this.enterpriseRepository.findDepartmentById(cursorId);
       this.assertDepartmentTenant(parent, tenantId);
       if (parent.organizationId !== organizationId || parent.status !== 'ACTIVE') {
-        throw new BadRequestException('The parent department must be active and in the same organization');
+        throw new BadRequestException(
+          'The parent department must be active and in the same organization',
+        );
       }
-      if (parent.id === departmentId) throw new BadRequestException('Department hierarchy cannot contain a cycle');
+      if (parent.id === departmentId)
+        throw new BadRequestException('Department hierarchy cannot contain a cycle');
       depth += 1;
-      if (depth > 4) throw new BadRequestException('Department hierarchy is limited to four levels');
+      if (depth > 4)
+        throw new BadRequestException('Department hierarchy is limited to four levels');
       cursorId = parent.parentId;
     }
   }

@@ -1,0 +1,254 @@
+name: enterprise-rag-demo
+
+x-logging: &default-logging
+  driver: json-file
+  options:
+    max-file: '3'
+    max-size: 10m
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:?POSTGRES_DB is required}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?POSTGRES_PASSWORD is required}
+      POSTGRES_USER: ${POSTGRES_USER:?POSTGRES_USER is required}
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *default-logging
+    mem_limit: 1g
+    restart: unless-stopped
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+  redis:
+    image: redis:7-alpine
+    command:
+      - redis-server
+      - --appendonly
+      - 'yes'
+      - --maxmemory
+      - 128mb
+      - --maxmemory-policy
+      - allkeys-lru
+    healthcheck:
+      test: ['CMD', 'redis-cli', 'ping']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *default-logging
+    mem_limit: 256m
+    restart: unless-stopped
+    volumes:
+      - redis_data:/data
+
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.15.3
+    environment:
+      discovery.type: single-node
+      ELASTIC_PASSWORD: ${ELASTICSEARCH_PASSWORD:?ELASTICSEARCH_PASSWORD is required}
+      ES_JAVA_OPTS: -Xms512m -Xmx512m
+      xpack.security.enabled: 'true'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'curl -fsS -u elastic:"$$ELASTIC_PASSWORD" http://127.0.0.1:9200/_cluster/health || exit 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    logging: *default-logging
+    mem_limit: 1280m
+    restart: unless-stopped
+    volumes:
+      - elasticsearch_data:/usr/share/elasticsearch/data
+
+  minio:
+    image: quay.io/minio/minio:latest
+    command: server /data --console-address ':9001'
+    environment:
+      MINIO_ROOT_PASSWORD: ${MINIO_SECRET_KEY:?MINIO_SECRET_KEY is required}
+      MINIO_ROOT_USER: ${MINIO_ACCESS_KEY:?MINIO_ACCESS_KEY is required}
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'mc ready local || curl -fsS http://127.0.0.1:9000/minio/health/live || exit 1',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    logging: *default-logging
+    mem_limit: 512m
+    restart: unless-stopped
+    volumes:
+      - minio_data:/data
+
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: ${NEO4J_USERNAME:?NEO4J_USERNAME is required}/${NEO4J_PASSWORD:?NEO4J_PASSWORD is required}
+      NEO4J_server_memory_heap_initial__size: 384m
+      NEO4J_server_memory_heap_max__size: 384m
+      NEO4J_server_memory_pagecache_size: 256m
+    healthcheck:
+      test: ['CMD-SHELL', 'wget --quiet --tries=1 --spider http://127.0.0.1:7474 || exit 1']
+      interval: 10s
+      timeout: 5s
+      retries: 20
+      start_period: 30s
+    logging: *default-logging
+    mem_limit: 1g
+    restart: unless-stopped
+    volumes:
+      - neo4j_data:/data
+
+  ollama:
+    image: ollama/ollama:latest
+    environment:
+      OLLAMA_KEEP_ALIVE: 10m
+    healthcheck:
+      test: ['CMD', 'ollama', 'list']
+      interval: 10s
+      timeout: 10s
+      retries: 12
+      start_period: 20s
+    logging: *default-logging
+    mem_limit: 1536m
+    restart: unless-stopped
+    volumes:
+      - ollama_data:/root/.ollama
+
+  backend:
+    image: ${GHCR_IMAGE_PREFIX:?GHCR_IMAGE_PREFIX is required}/backend:${IMAGE_TAG:-latest}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - path: ${SERVER_ENV_FILE:-../.env.production}
+        required: true
+    environment:
+      APP_PORT: 3000
+      INGESTION_WORKER_ENABLED: 'false'
+      SKIP_PRISMA_GENERATE: 'true'
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3000/health'').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+    logging: *default-logging
+    mem_limit: 768m
+    restart: unless-stopped
+
+  ingestion-worker:
+    image: ${GHCR_IMAGE_PREFIX:?GHCR_IMAGE_PREFIX is required}/backend:${IMAGE_TAG:-latest}
+    depends_on:
+      elasticsearch:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+      neo4j:
+        condition: service_healthy
+      ollama:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    env_file:
+      - path: ${SERVER_ENV_FILE:-../.env.production}
+        required: true
+    environment:
+      APP_PORT: 3002
+      INGESTION_WORKER_ENABLED: 'true'
+      SKIP_PRISMA_GENERATE: 'true'
+    logging: *default-logging
+    mem_limit: 1g
+    restart: unless-stopped
+
+  frontend:
+    image: ${GHCR_IMAGE_PREFIX:?GHCR_IMAGE_PREFIX is required}/frontend:${IMAGE_TAG:-latest}
+    depends_on:
+      backend:
+        condition: service_healthy
+    environment:
+      APP_ENV: production
+      NEXT_PUBLIC_API_BASE_URL: /api
+      PORT: 3001
+    healthcheck:
+      test:
+        [
+          'CMD-SHELL',
+          'node -e "fetch(''http://127.0.0.1:3001'').then((response) => process.exit(response.ok ? 0 : 1)).catch(() => process.exit(1))"',
+        ]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 20s
+    logging: *default-logging
+    mem_limit: 512m
+    restart: unless-stopped
+
+  caddy:
+    image: caddy:2-alpine
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    healthcheck:
+      test: ['CMD', 'wget', '--quiet', '--tries=1', '--spider', 'http://127.0.0.1/']
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    logging: *default-logging
+    mem_limit: 128m
+    ports:
+      - '${PUBLIC_HTTP_PORT:-80}:80'
+    restart: unless-stopped
+    volumes:
+      - ./Caddyfile.demo:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+networks:
+  default:
+    name: enterprise-rag-demo-app
+
+volumes:
+  caddy_config:
+    name: enterprise-rag-demo-caddy-config
+  caddy_data:
+    name: enterprise-rag-demo-caddy-data
+  elasticsearch_data:
+    name: enterprise-rag-demo-elasticsearch
+  minio_data:
+    name: enterprise-rag-demo-minio
+  neo4j_data:
+    name: enterprise-rag-demo-neo4j
+  ollama_data:
+    name: enterprise-rag-demo-ollama
+  postgres_data:
+    name: enterprise-rag-demo-postgres
+  redis_data:
+    name: enterprise-rag-demo-redis

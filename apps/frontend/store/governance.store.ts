@@ -10,10 +10,24 @@ interface GovernanceState {
   roles: AuthorizationAuditRole[];
   users: AuthorizationAuditUser[];
   loadAuthorizationAudit: () => Promise<void>;
-  createUser: (input: { departmentId: string; email: string; name: string; systemRole: 'admin' | 'user'; temporaryPassword: string }) => Promise<boolean>;
+  createUser: (input: {
+    departmentId: string;
+    email: string;
+    name: string;
+    systemRole: 'admin' | 'user';
+    temporaryPassword: string;
+  }) => Promise<boolean>;
   resetUserPassword: (userId: string, temporaryPassword: string) => Promise<boolean>;
   reset: () => void;
-  updateUser: (userId: string, input: { departmentId?: string; isActive?: boolean; name?: string; systemRole?: 'admin' | 'user' }) => Promise<boolean>;
+  updateUser: (
+    userId: string,
+    input: {
+      departmentId?: string;
+      isActive?: boolean;
+      name?: string;
+      systemRole?: 'admin' | 'user';
+    },
+  ) => Promise<boolean>;
 }
 
 const initialState = {

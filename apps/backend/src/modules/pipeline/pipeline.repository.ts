@@ -76,9 +76,7 @@ const toPipelineJobDetail = (job: PipelineJobModel): PipelineJobDetail => ({
   events: job.events?.map(toPipelineEventEntity) ?? [],
 });
 
-const toSpacePipelineJobEntity = (
-  job: PipelineJobWithDocumentModel,
-): SpacePipelineJobEntity => ({
+const toSpacePipelineJobEntity = (job: PipelineJobWithDocumentModel): SpacePipelineJobEntity => ({
   ...toPipelineJobEntity(job),
   document: job.document,
   graphEvent: null,
@@ -131,7 +129,10 @@ export class PipelineRepository {
     return toPipelineJobEntity(job);
   }
 
-  async claimNextQueuedJob(workerId: string, leaseDurationMs: number): Promise<PipelineJobEntity | null> {
+  async claimNextQueuedJob(
+    workerId: string,
+    leaseDurationMs: number,
+  ): Promise<PipelineJobEntity | null> {
     const now = new Date();
     const queuedJob = await this.prisma.pipelineJob.findFirst({
       orderBy: {
@@ -343,9 +344,7 @@ export class PipelineRepository {
       },
     });
     const hasNextPage = jobs.length > options.limit;
-    const items = (hasNextPage ? jobs.slice(0, options.limit) : jobs).map(
-      toSpacePipelineJobEntity,
-    );
+    const items = (hasNextPage ? jobs.slice(0, options.limit) : jobs).map(toSpacePipelineJobEntity);
     const graphEvents = items.length
       ? await this.prisma.pipelineEvent.findMany({
           orderBy: { createdAt: 'desc' },
@@ -368,7 +367,7 @@ export class PipelineRepository {
         ...item,
         graphEvent: graphEventsByJobId.get(item.id) ?? null,
       })),
-      nextCursor: hasNextPage ? items.at(-1)?.id ?? null : null,
+      nextCursor: hasNextPage ? (items.at(-1)?.id ?? null) : null,
     };
   }
   async findJobById(jobId: string): Promise<PipelineJobEntity | null> {

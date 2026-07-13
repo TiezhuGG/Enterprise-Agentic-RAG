@@ -1,0 +1,127 @@
+name: Build and Deploy Demo
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+    inputs:
+      deploy:
+        description: Deploy images to the configured server after building
+        required: true
+        type: boolean
+        default: true
+
+concurrency:
+  group: demo-production
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Validate demo deployment manifest
+        run: SERVER_ENV_FILE=../.env.demo.example docker compose --env-file .env.demo.example -f docker/docker-compose.demo.yml config --quiet
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 11.7.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm format:check
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm build
+
+  build-images:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    outputs:
+      image-prefix: ${{ steps.image-prefix.outputs.value }}
+    steps:
+      - uses: actions/checkout@v4
+      - id: image-prefix
+        name: Resolve image prefix
+        shell: bash
+        env:
+          CONFIGURED_PREFIX: ${{ vars.GHCR_IMAGE_PREFIX }}
+        run: |
+          prefix="${CONFIGURED_PREFIX:-ghcr.io/${GITHUB_REPOSITORY}}"
+          echo "value=${prefix,,}" >> "$GITHUB_OUTPUT"
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build backend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/backend/Dockerfile
+          platforms: ${{ vars.DEPLOY_PLATFORM || 'linux/amd64' }}
+          push: true
+          tags: |
+            ${{ steps.image-prefix.outputs.value }}/backend:${{ github.sha }}
+            ${{ steps.image-prefix.outputs.value }}/backend:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=backend
+          cache-to: type=gha,mode=max,scope=backend
+      - name: Build frontend image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: apps/frontend/Dockerfile
+          platforms: ${{ vars.DEPLOY_PLATFORM || 'linux/amd64' }}
+          push: true
+          build-args: |
+            APP_ENV=production
+            NEXT_STANDALONE=true
+            NEXT_PUBLIC_API_BASE_URL=${{ vars.PUBLIC_API_BASE_URL || '/api' }}
+          tags: |
+            ${{ steps.image-prefix.outputs.value }}/frontend:${{ github.sha }}
+            ${{ steps.image-prefix.outputs.value }}/frontend:latest
+          labels: |
+            org.opencontainers.image.source=${{ github.server_url }}/${{ github.repository }}
+            org.opencontainers.image.revision=${{ github.sha }}
+          cache-from: type=gha,scope=frontend
+          cache-to: type=gha,mode=max,scope=frontend
+
+  deploy:
+    if: github.event_name != 'workflow_dispatch' || inputs.deploy
+    needs: build-images
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    environment: demo
+    steps:
+      - name: Configure SSH
+        shell: bash
+        env:
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_SSH_KEY: ${{ secrets.SERVER_SSH_KEY }}
+        run: |
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SERVER_SSH_KEY" > ~/.ssh/id_ed25519
+          chmod 600 ~/.ssh/id_ed25519
+          ssh-keyscan -p "${SERVER_PORT:-22}" "$SERVER_HOST" >> ~/.ssh/known_hosts
+      - name: Deploy selected image tag
+        shell: bash
+        env:
+          IMAGE_PREFIX: ${{ needs.build-images.outputs.image-prefix }}
+          SERVER_HOST: ${{ secrets.SERVER_HOST }}
+          SERVER_PORT: ${{ secrets.SERVER_PORT }}
+          SERVER_USER: ${{ secrets.SERVER_USER }}
+        run: |
+          ssh -p "${SERVER_PORT:-22}" "$SERVER_USER@$SERVER_HOST" \
+            "cd /opt/enterprise-rag && git pull --ff-only origin main && GHCR_IMAGE_PREFIX='$IMAGE_PREFIX' bash scripts/deploy-server.sh '${GITHUB_SHA}'"

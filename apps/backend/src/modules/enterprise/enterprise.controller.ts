@@ -75,7 +75,10 @@ export class EnterpriseController {
   @Permissions('enterprise.manage')
   @UseGuards(RolesGuard, PermissionsGuard)
   getOrganizationDisableCheck(@CurrentUser() user: AuthenticatedUser, @Param('id') id: string) {
-    return this.enterpriseService.getOrganizationDisableCheck(this.createExecutionContext(user), id);
+    return this.enterpriseService.getOrganizationDisableCheck(
+      this.createExecutionContext(user),
+      id,
+    );
   }
 
   @Patch('organizations/:id')

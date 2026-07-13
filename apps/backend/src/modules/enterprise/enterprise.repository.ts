@@ -193,7 +193,9 @@ export class EnterpriseRepository {
   }
 
   async findOrganizationById(organizationId: string): Promise<OrganizationEntity | null> {
-    const organization = await this.prisma.organization.findUnique({ where: { id: organizationId } });
+    const organization = await this.prisma.organization.findUnique({
+      where: { id: organizationId },
+    });
     return organization ? toOrganizationEntity(organization) : null;
   }
 

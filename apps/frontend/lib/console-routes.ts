@@ -24,7 +24,8 @@ export interface ConsoleRouteDefinition {
   title: string;
 }
 
-export type ConsoleNavigationGroup = 'overview' | 'knowledge' | 'applications' | 'governance' | 'operations';
+export type ConsoleNavigationGroup =
+  'overview' | 'knowledge' | 'applications' | 'governance' | 'operations';
 
 export interface ConsoleNavigationItem {
   group: ConsoleNavigationGroup;
@@ -39,20 +40,75 @@ export interface ConsoleNavigationGroupDefinition {
 
 export const consoleRoutes: Record<ConsoleRouteKey, ConsoleRouteDefinition> = {
   dashboard: { key: 'dashboard', path: '/console', section: 'dashboard', title: '仪表盘' },
-  documents: { key: 'documents', path: '/console/documents', section: 'documents', title: '文档列表' },
-  'document-spaces': { key: 'document-spaces', path: '/console/knowledge-bases', section: 'documents', title: '知识库管理' },
-  'knowledge-base-detail': { key: 'knowledge-base-detail', path: '/console/knowledge-bases/[spaceId]', section: 'documents', title: '知识库详情' },
-  'document-tasks': { key: 'document-tasks', path: '/console/documents/tasks', section: 'documents', title: '入库任务' },
-  'document-access': { key: 'document-access', path: '/console/documents/access', section: 'governance', title: '访问权限' },
-  'organization-departments': { key: 'organization-departments', path: '/console/governance/organization', section: 'governance', title: '组织与部门' },
-  'user-roles': { key: 'user-roles', path: '/console/governance/users', section: 'governance', title: '用户与角色' },
+  documents: {
+    key: 'documents',
+    path: '/console/documents',
+    section: 'documents',
+    title: '文档列表',
+  },
+  'document-spaces': {
+    key: 'document-spaces',
+    path: '/console/knowledge-bases',
+    section: 'documents',
+    title: '知识库管理',
+  },
+  'knowledge-base-detail': {
+    key: 'knowledge-base-detail',
+    path: '/console/knowledge-bases/[spaceId]',
+    section: 'documents',
+    title: '知识库详情',
+  },
+  'document-tasks': {
+    key: 'document-tasks',
+    path: '/console/documents/tasks',
+    section: 'documents',
+    title: '入库任务',
+  },
+  'document-access': {
+    key: 'document-access',
+    path: '/console/documents/access',
+    section: 'governance',
+    title: '访问权限',
+  },
+  'organization-departments': {
+    key: 'organization-departments',
+    path: '/console/governance/organization',
+    section: 'governance',
+    title: '组织与部门',
+  },
+  'user-roles': {
+    key: 'user-roles',
+    path: '/console/governance/users',
+    section: 'governance',
+    title: '用户与角色',
+  },
   search: { key: 'search', path: '/console/search', section: 'search', title: '智能搜索' },
-  assistant: { key: 'assistant', path: '/console/assistant', section: 'assistant', title: 'AI 智能问答' },
+  assistant: {
+    key: 'assistant',
+    path: '/console/assistant',
+    section: 'assistant',
+    title: 'AI 智能问答',
+  },
   graph: { key: 'graph', path: '/console/graph', section: 'graph', title: '知识图谱' },
   profile: { key: 'profile', path: '/console/profile', section: 'profile', title: '个人中心' },
-  'system-status': { key: 'system-status', path: '/console/system', section: 'system', title: '系统状态' },
-  'system-executions': { key: 'system-executions', path: '/console/system/executions', section: 'system', title: '执行记录' },
-  'system-debug': { key: 'system-debug', path: '/console/system/debug', section: 'system', title: '高级调试' },
+  'system-status': {
+    key: 'system-status',
+    path: '/console/system',
+    section: 'system',
+    title: '系统状态',
+  },
+  'system-executions': {
+    key: 'system-executions',
+    path: '/console/system/executions',
+    section: 'system',
+    title: '执行记录',
+  },
+  'system-debug': {
+    key: 'system-debug',
+    path: '/console/system/debug',
+    section: 'system',
+    title: '高级调试',
+  },
 };
 
 export const consoleNavigationGroups: ConsoleNavigationGroupDefinition[] = [
@@ -84,7 +140,9 @@ const pathToRoute = new Map(
     .map((route) => [route.path.replace('/console/', '').replace('/console', ''), route]),
 );
 
-export const getConsoleRouteFromSegments = (segments: string[] | undefined): ConsoleRouteDefinition | null => {
+export const getConsoleRouteFromSegments = (
+  segments: string[] | undefined,
+): ConsoleRouteDefinition | null => {
   const path = segments?.join('/') ?? '';
 
   if (segments?.[0] === 'knowledge-bases') {
@@ -97,7 +155,8 @@ export const getConsoleRouteFromSegments = (segments: string[] | undefined): Con
   return pathToRoute.get(path) ?? null;
 };
 
-export const buildKnowledgeBaseHref = (spaceId: string): string => `/console/knowledge-bases/${spaceId}`;
+export const buildKnowledgeBaseHref = (spaceId: string): string =>
+  `/console/knowledge-bases/${spaceId}`;
 
 export const getConsoleRouteForSection = (section: AppSection): ConsoleRouteDefinition => {
   const key: Record<AppSection, ConsoleRouteKey> = {

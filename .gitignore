@@ -10,6 +10,7 @@ apps/backend/src/infrastructure/prisma/generated/
 .env.*
 !.env.example
 !.env.production.example
+!.env.demo.example
 
 *.log
 *.tsbuildinfo

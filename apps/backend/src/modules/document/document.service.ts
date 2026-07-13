@@ -276,10 +276,7 @@ export class DocumentService {
     const document = await this.findActiveDocument(id);
     await this.ensureSpaceRole(context, document.spaceId, writeRoles);
     const normalizedScope = normalizeDocumentAccessScope(input);
-    const updatedDocument = await this.documentRepository.updateAccessScope(
-      id,
-      normalizedScope,
-    );
+    const updatedDocument = await this.documentRepository.updateAccessScope(id, normalizedScope);
     await this.authRepository.recordGovernanceAudit({
       action: 'document.access_scope_updated',
       actorUserId: context.userId,

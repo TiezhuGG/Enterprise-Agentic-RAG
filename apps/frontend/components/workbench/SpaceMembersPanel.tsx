@@ -70,19 +70,34 @@ export function SpaceMembersPanel() {
           </CardDescription>
         </div>
         <Badge variant={canManage ? 'success' : 'secondary'}>
-          {canManage ? '空间负责人' : `空间角色：${memberRoleLabels[currentMember?.role ?? 'VIEWER']}`}
+          {canManage
+            ? '空间负责人'
+            : `空间角色：${memberRoleLabels[currentMember?.role ?? 'VIEWER']}`}
         </Badge>
       </CardHeader>
       <CardContent className="space-members-panel">
         {spaceMembersError ? <div className="workbench-error">{spaceMembersError}</div> : null}
         <div className="space-members-panel__summary">
-          <div><Users /><span>{spaceMembers.length} 名成员</span></div>
-          <div><ShieldCheck /><span>{ownerCount} 名负责人</span></div>
+          <div>
+            <Users />
+            <span>{spaceMembers.length} 名成员</span>
+          </div>
+          <div>
+            <ShieldCheck />
+            <span>{ownerCount} 名负责人</span>
+          </div>
         </div>
 
         {canManage ? (
           <div className="flex justify-end">
-            <Button disabled={!selectedSpaceId || loadingSpaceMembers} onClick={() => setMemberPickerOpen(true)} type="button"><UserPlus />添加成员</Button>
+            <Button
+              disabled={!selectedSpaceId || loadingSpaceMembers}
+              onClick={() => setMemberPickerOpen(true)}
+              type="button"
+            >
+              <UserPlus />
+              添加成员
+            </Button>
           </div>
         ) : (
           <div className="space-members-panel__readonly">
@@ -91,7 +106,9 @@ export function SpaceMembersPanel() {
         )}
 
         <div className="space-members-panel__list">
-          {spaceMembers.length === 0 ? <div className="space-members-panel__empty">暂无成员信息。</div> : null}
+          {spaceMembers.length === 0 ? (
+            <div className="space-members-panel__empty">暂无成员信息。</div>
+          ) : null}
           {spaceMembers.map((member) => (
             <SpaceMemberRow
               canManage={canManage}
@@ -135,7 +152,8 @@ function MemberPickerDialog({
   useEffect(() => {
     if (!open || !spaceId) return;
     setLoading(true);
-    void knowledgeSpaceService.listMemberCandidates(spaceId, keyword)
+    void knowledgeSpaceService
+      .listMemberCandidates(spaceId, keyword)
       .then(setCandidates)
       .finally(() => setLoading(false));
   }, [keyword, open, spaceId]);
@@ -163,24 +181,80 @@ function MemberPickerDialog({
       <DialogContent className="max-w-2xl">
         <DialogHeader>
           <DialogTitle>添加知识库成员</DialogTitle>
-          <DialogDescription>从当前租户的活跃用户中选择成员。部门仅显示组织归属，不会自动决定知识库访问权限。</DialogDescription>
+          <DialogDescription>
+            从当前租户的活跃用户中选择成员。部门仅显示组织归属，不会自动决定知识库访问权限。
+          </DialogDescription>
         </DialogHeader>
-        <Input onChange={(event) => setKeyword(event.target.value)} placeholder="搜索姓名、邮箱或部门" value={keyword} />
+        <Input
+          onChange={(event) => setKeyword(event.target.value)}
+          placeholder="搜索姓名、邮箱或部门"
+          value={keyword}
+        />
         <div className="max-h-[50vh] overflow-y-auto border">
-          {loading ? <p className="p-4 text-sm text-muted-foreground">正在加载可添加成员…</p> : candidates.length === 0 ? <p className="p-4 text-sm text-muted-foreground">没有可添加的活跃用户。</p> : candidates.map((candidate) => {
-            const active = Boolean(selected[candidate.id]);
-            return <label className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_120px] items-center gap-3 border-b p-3 last:border-0" key={candidate.id}>
-              <input checked={active} className="size-4" onChange={() => toggleCandidate(candidate)} type="checkbox" />
-              <span className="min-w-0"><strong className="block truncate">{getDisplayUserName(candidate.name, candidate.email)}</strong><span className="block truncate text-xs text-muted-foreground">{candidate.email} · {candidate.department?.name ?? '未分配部门'}</span></span>
-              <Select disabled={!active} onValueChange={(value) => setSelected((current) => ({ ...current, [candidate.id]: value as SpaceMemberRole }))} value={selected[candidate.id] ?? 'VIEWER'}>
-                <SelectTrigger><SelectValue /></SelectTrigger><SelectContent>{(['VIEWER', 'EDITOR', 'OWNER'] as SpaceMemberRole[]).map((role) => <SelectItem key={role} value={role}>{memberRoleLabels[role]}</SelectItem>)}</SelectContent>
-              </Select>
-            </label>;
-          })}
+          {loading ? (
+            <p className="p-4 text-sm text-muted-foreground">正在加载可添加成员…</p>
+          ) : candidates.length === 0 ? (
+            <p className="p-4 text-sm text-muted-foreground">没有可添加的活跃用户。</p>
+          ) : (
+            candidates.map((candidate) => {
+              const active = Boolean(selected[candidate.id]);
+              return (
+                <label
+                  className="grid min-w-0 grid-cols-[auto_minmax(0,1fr)_120px] items-center gap-3 border-b p-3 last:border-0"
+                  key={candidate.id}
+                >
+                  <input
+                    checked={active}
+                    className="size-4"
+                    onChange={() => toggleCandidate(candidate)}
+                    type="checkbox"
+                  />
+                  <span className="min-w-0">
+                    <strong className="block truncate">
+                      {getDisplayUserName(candidate.name, candidate.email)}
+                    </strong>
+                    <span className="block truncate text-xs text-muted-foreground">
+                      {candidate.email} · {candidate.department?.name ?? '未分配部门'}
+                    </span>
+                  </span>
+                  <Select
+                    disabled={!active}
+                    onValueChange={(value) =>
+                      setSelected((current) => ({
+                        ...current,
+                        [candidate.id]: value as SpaceMemberRole,
+                      }))
+                    }
+                    value={selected[candidate.id] ?? 'VIEWER'}
+                  >
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      {(['VIEWER', 'EDITOR', 'OWNER'] as SpaceMemberRole[]).map((role) => (
+                        <SelectItem key={role} value={role}>
+                          {memberRoleLabels[role]}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </label>
+              );
+            })
+          )}
         </div>
         <DialogFooter>
-          <Button onClick={() => onOpenChange(false)} type="button" variant="outline">取消</Button>
-          <Button disabled={selectedCount === 0 || loading} onClick={() => void handleAdd()} type="button"><UserPlus />添加 {selectedCount || ''} 名成员</Button>
+          <Button onClick={() => onOpenChange(false)} type="button" variant="outline">
+            取消
+          </Button>
+          <Button
+            disabled={selectedCount === 0 || loading}
+            onClick={() => void handleAdd()}
+            type="button"
+          >
+            <UserPlus />
+            添加 {selectedCount || ''} 名成员
+          </Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>
@@ -210,26 +284,50 @@ function SpaceMemberRow({
 
   return (
     <article className="space-members-panel__member">
-      <div aria-hidden="true" className="space-members-panel__avatar">{toInitial(displayName)}</div>
+      <div aria-hidden="true" className="space-members-panel__avatar">
+        {toInitial(displayName)}
+      </div>
       <div className="space-members-panel__identity">
-        <strong title={displayName}>{displayName}{isSelf ? <Badge variant="secondary">我</Badge> : null}</strong>
+        <strong title={displayName}>
+          {displayName}
+          {isSelf ? <Badge variant="secondary">我</Badge> : null}
+        </strong>
         <span title={member.user.email}>{member.user.email}</span>
         <small>{roleDescriptions[member.role]}</small>
       </div>
       {canManage ? (
-        <Select disabled={loading || isLastOwner} onValueChange={(value) => void onUpdateRole(member.userId, value as SpaceMemberRole)} value={member.role}>
-          <SelectTrigger className="space-members-panel__role"><SelectValue /></SelectTrigger>
+        <Select
+          disabled={loading || isLastOwner}
+          onValueChange={(value) => void onUpdateRole(member.userId, value as SpaceMemberRole)}
+          value={member.role}
+        >
+          <SelectTrigger className="space-members-panel__role">
+            <SelectValue />
+          </SelectTrigger>
           <SelectContent>
             {(['VIEWER', 'EDITOR', 'OWNER'] as SpaceMemberRole[]).map((role) => (
-              <SelectItem key={role} value={role}>{memberRoleLabels[role]}</SelectItem>
+              <SelectItem key={role} value={role}>
+                {memberRoleLabels[role]}
+              </SelectItem>
             ))}
           </SelectContent>
         </Select>
       ) : (
-        <Badge className="w-fit" variant="secondary">{memberRoleLabels[member.role]}</Badge>
+        <Badge className="w-fit" variant="secondary">
+          {memberRoleLabels[member.role]}
+        </Badge>
       )}
       {canManage ? (
-        <Button disabled={loading || isLastOwner} onClick={() => void onRemove(member.userId)} size="icon" title={isLastOwner ? '不能移除最后一位空间负责人。' : '移除成员'} type="button" variant="ghost"><Trash2 /></Button>
+        <Button
+          disabled={loading || isLastOwner}
+          onClick={() => void onRemove(member.userId)}
+          size="icon"
+          title={isLastOwner ? '不能移除最后一位空间负责人。' : '移除成员'}
+          type="button"
+          variant="ghost"
+        >
+          <Trash2 />
+        </Button>
       ) : null}
     </article>
   );

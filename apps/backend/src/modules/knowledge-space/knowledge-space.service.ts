@@ -53,7 +53,13 @@ export class KnowledgeSpaceService {
       tenantId: context.tenantId,
       departmentId: department?.id,
     });
-    await this.audit(context, 'knowledge_base.created', space.id, undefined, space.departmentId ?? undefined);
+    await this.audit(
+      context,
+      'knowledge_base.created',
+      space.id,
+      undefined,
+      space.departmentId ?? undefined,
+    );
     return space;
   }
 
@@ -88,9 +94,10 @@ export class KnowledgeSpaceService {
         : writeRoles,
     );
     const type = input.type ?? current.space.type;
-    const requestedDepartmentId = input.departmentId === undefined
-      ? current.space.departmentId ?? undefined
-      : input.departmentId ?? undefined;
+    const requestedDepartmentId =
+      input.departmentId === undefined
+        ? (current.space.departmentId ?? undefined)
+        : (input.departmentId ?? undefined);
     const department = await this.enterpriseService.getActiveDepartment(
       context,
       requestedDepartmentId,
@@ -104,7 +111,7 @@ export class KnowledgeSpaceService {
       status: input.status,
       type: input.type,
       visibility: input.visibility,
-      departmentId: input.departmentId === undefined ? undefined : department?.id ?? null,
+      departmentId: input.departmentId === undefined ? undefined : (department?.id ?? null),
     });
     if (input.departmentId !== undefined) {
       await this.audit(
@@ -178,14 +185,22 @@ export class KnowledgeSpaceService {
     input: AddSpaceMembersDto,
   ): Promise<SpaceMemberDetailEntity[]> {
     const { space } = await this.ensureMemberRole(context, spaceId, ['OWNER']);
-    const uniqueMembers = [...new Map(input.members.map((member) => [member.userId, member])).values()];
+    const uniqueMembers = [
+      ...new Map(input.members.map((member) => [member.userId, member])).values(),
+    ];
     for (const member of uniqueMembers) {
       const targetUser = await this.userRepository.findById(member.userId);
       if (!targetUser || !targetUser.isActive) throw new NotFoundException('User not found');
       this.assertSameTenant(space.tenantId, targetUser);
       await this.knowledgeSpaceRepository.upsertMember(spaceId, targetUser.id, member.role);
     }
-    await this.audit(context, 'knowledge_base.members_added', spaceId, undefined, `${uniqueMembers.length}`);
+    await this.audit(
+      context,
+      'knowledge_base.members_added',
+      spaceId,
+      undefined,
+      `${uniqueMembers.length}`,
+    );
     return this.knowledgeSpaceRepository.listMembers(spaceId);
   }
 
@@ -203,7 +218,13 @@ export class KnowledgeSpaceService {
     }
 
     await this.knowledgeSpaceRepository.updateMemberRole(spaceId, userId, input.role);
-    await this.audit(context, 'knowledge_base.member_role_updated', spaceId, targetMember.role, input.role);
+    await this.audit(
+      context,
+      'knowledge_base.member_role_updated',
+      spaceId,
+      targetMember.role,
+      input.role,
+    );
 
     return this.knowledgeSpaceRepository.listMembers(spaceId);
   }

@@ -75,7 +75,10 @@ export function SpaceCreationDialog({ onOpenChange, open }: SpaceCreationDialogP
 
   useEffect(() => {
     if (!open) return;
-    void enterpriseService.listDepartments().then(setDepartments).catch(() => setDepartments([]));
+    void enterpriseService
+      .listDepartments()
+      .then(setDepartments)
+      .catch(() => setDepartments([]));
   }, [open]);
 
   const handleOpenChange = (nextOpen: boolean) => {
@@ -136,7 +139,9 @@ export function SpaceCreationDialog({ onOpenChange, open }: SpaceCreationDialogP
                 >
                   <Icon className="row-span-2 mt-0.5 size-4 text-primary" />
                   <span className="font-medium">{template.label}</span>
-                  <span className="text-xs leading-5 text-muted-foreground">{template.description}</span>
+                  <span className="text-xs leading-5 text-muted-foreground">
+                    {template.description}
+                  </span>
                 </button>
               );
             })}
@@ -153,12 +158,19 @@ export function SpaceCreationDialog({ onOpenChange, open }: SpaceCreationDialogP
           </label>
           <label className="grid gap-2 text-sm font-medium">
             归属部门{type === 'DEPARTMENT' ? '（必填）' : '（可选）'}
-            <Select onValueChange={(value) => setDepartmentId(value === 'none' ? '' : value)} value={departmentId || 'none'}>
-              <SelectTrigger><SelectValue placeholder="选择业务归属部门" /></SelectTrigger>
+            <Select
+              onValueChange={(value) => setDepartmentId(value === 'none' ? '' : value)}
+              value={departmentId || 'none'}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="选择业务归属部门" />
+              </SelectTrigger>
               <SelectContent>
                 <SelectItem value="none">不绑定部门</SelectItem>
                 {departments.map((department) => (
-                  <SelectItem key={department.id} value={department.id}>{department.name}</SelectItem>
+                  <SelectItem key={department.id} value={department.id}>
+                    {department.name}
+                  </SelectItem>
                 ))}
               </SelectContent>
             </Select>
@@ -184,7 +196,10 @@ export function SpaceCreationDialog({ onOpenChange, open }: SpaceCreationDialogP
             <Button onClick={() => handleOpenChange(false)} type="button" variant="outline">
               取消
             </Button>
-            <Button disabled={loading || !name.trim() || (type === 'DEPARTMENT' && !departmentId)} type="submit">
+            <Button
+              disabled={loading || !name.trim() || (type === 'DEPARTMENT' && !departmentId)}
+              type="submit"
+            >
               <Plus />
               创建空间
             </Button>

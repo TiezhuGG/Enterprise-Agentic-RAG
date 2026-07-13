@@ -1,4 +1,10 @@
-export const pipelineJobStatuses = ['QUEUED', 'RUNNING', 'SUCCEEDED', 'FAILED', 'CANCELED'] as const;
+export const pipelineJobStatuses = [
+  'QUEUED',
+  'RUNNING',
+  'SUCCEEDED',
+  'FAILED',
+  'CANCELED',
+] as const;
 export type PipelineJobStatus = (typeof pipelineJobStatuses)[number];
 
 export const pipelineEventStatuses = ['STARTED', 'SUCCEEDED', 'FAILED', 'SKIPPED'] as const;

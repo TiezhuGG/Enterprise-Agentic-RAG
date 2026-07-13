@@ -1,4 +1,10 @@
-import { BadRequestException, ForbiddenException, Injectable, NotFoundException, UnauthorizedException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { compare, hash } from 'bcryptjs';
 import { ConfigService } from '../../config';
@@ -81,7 +87,9 @@ export class AuthService {
         tenantId,
       });
     } catch (error) {
-      throw new BadRequestException(error instanceof Error ? error.message : 'Unable to create user');
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Unable to create user',
+      );
     }
     await this.userRepository.replaceSystemRole(user.id, input.systemRole);
     await this.authRepository.recordGovernanceAudit({
@@ -105,7 +113,9 @@ export class AuthService {
     const isAdmin = existing.roles.some((role) => role.code === 'admin');
     const removesLastAdmin = isAdmin && (input.isActive === false || input.systemRole === 'user');
     if (removesLastAdmin && (await this.userRepository.countActiveTenantAdmins(tenantId)) <= 1) {
-      throw new ForbiddenException('The last active system administrator cannot be disabled or downgraded');
+      throw new ForbiddenException(
+        'The last active system administrator cannot be disabled or downgraded',
+      );
     }
 
     let updated: UserRecord;
@@ -117,7 +127,9 @@ export class AuthService {
         tenantId,
       });
     } catch (error) {
-      throw new BadRequestException(error instanceof Error ? error.message : 'Unable to update user');
+      throw new BadRequestException(
+        error instanceof Error ? error.message : 'Unable to update user',
+      );
     }
     if (input.systemRole) await this.userRepository.replaceSystemRole(userId, input.systemRole);
     await this.authRepository.recordGovernanceAudit({
@@ -157,13 +169,18 @@ export class AuthService {
     });
   }
 
-  async changePassword(context: ExecutionContext, input: ChangePasswordDto): Promise<LoginResponse> {
+  async changePassword(
+    context: ExecutionContext,
+    input: ChangePasswordDto,
+  ): Promise<LoginResponse> {
     const user = await this.userRepository.findById(context.userId);
     if (!user?.passwordHash || !(await compare(input.currentPassword, user.passwordHash))) {
       throw new UnauthorizedException('Current password is incorrect');
     }
     if (input.currentPassword === input.newPassword) {
-      throw new BadRequestException('Choose a new password that differs from the temporary password');
+      throw new BadRequestException(
+        'Choose a new password that differs from the temporary password',
+      );
     }
     await this.userRepository.updatePassword(user.id, await hash(input.newPassword, 10), false);
     const refreshed = await this.userRepository.findById(user.id);

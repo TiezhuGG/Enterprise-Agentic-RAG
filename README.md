@@ -254,6 +254,7 @@ pnpm deploy:prod -- --demo --graph
 
 Deployment checklist: [docs/demo/DEPLOYMENT_CHECKLIST.md](docs/demo/DEPLOYMENT_CHECKLIST.md)
 Online demo deployment guide: [docs/demo/ONLINE_DEMO_DEPLOYMENT.md](docs/demo/ONLINE_DEMO_DEPLOYMENT.md)
+Low-cost single-server deployment: [docs/deployment/SINGLE_SERVER_DEMO.md](docs/deployment/SINGLE_SERVER_DEMO.md)
 
 ## Demo Assets
 

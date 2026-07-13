@@ -14,5 +14,10 @@ export default async function ConsoleSegmentsPage({
     notFound();
   }
 
-  return <EnterpriseAdminApp routeKey={route.key} spaceId={segments[0] === 'knowledge-bases' ? segments[1] : undefined} />;
+  return (
+    <EnterpriseAdminApp
+      routeKey={route.key}
+      spaceId={segments[0] === 'knowledge-bases' ? segments[1] : undefined}
+    />
+  );
 }

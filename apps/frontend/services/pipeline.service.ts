@@ -1,4 +1,10 @@
-import type { PipelineEvent, PipelineJob, PipelineJobDetail, PipelineJobStatus, SpacePipelineJobList } from '@/types/workbench';
+import type {
+  PipelineEvent,
+  PipelineJob,
+  PipelineJobDetail,
+  PipelineJobStatus,
+  SpacePipelineJobList,
+} from '@/types/workbench';
 import { createApiUrl, createJsonHeaders, readApiError } from './api-client';
 
 export const pipelineService = {
@@ -27,9 +33,13 @@ export const pipelineService = {
     if (options.limit) searchParams.set('limit', String(options.limit));
     if (options.status) searchParams.set('status', options.status);
     const query = searchParams.toString();
-    const response = await fetch(createApiUrl(`/spaces/${spaceId}/pipeline/jobs${query ? `?${query}` : ''}`), {
-      headers: createJsonHeaders(), method: 'GET',
-    });
+    const response = await fetch(
+      createApiUrl(`/spaces/${spaceId}/pipeline/jobs${query ? `?${query}` : ''}`),
+      {
+        headers: createJsonHeaders(),
+        method: 'GET',
+      },
+    );
     if (!response.ok) throw await readApiError(response);
     return (await response.json()) as SpacePipelineJobList;
   },

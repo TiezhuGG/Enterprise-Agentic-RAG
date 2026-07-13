@@ -143,10 +143,13 @@ export const knowledgeSpaceService = {
   async listMemberCandidates(spaceId: string, query = ''): Promise<SpaceMemberCandidate[]> {
     const search = new URLSearchParams();
     if (query.trim()) search.set('q', query.trim());
-    const response = await fetch(createApiUrl(`/spaces/${spaceId}/member-candidates?${search.toString()}`), {
-      headers: createJsonHeaders(),
-      method: 'GET',
-    });
+    const response = await fetch(
+      createApiUrl(`/spaces/${spaceId}/member-candidates?${search.toString()}`),
+      {
+        headers: createJsonHeaders(),
+        method: 'GET',
+      },
+    );
     if (!response.ok) throw await readApiError(response);
     return (await response.json()) as SpaceMemberCandidate[];
   },

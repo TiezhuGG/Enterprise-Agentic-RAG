@@ -565,7 +565,9 @@ export class IngestionService {
   }
 
   private readStringArray(value: unknown): string[] {
-    return Array.isArray(value) ? value.filter((item): item is string => typeof item === 'string') : [];
+    return Array.isArray(value)
+      ? value.filter((item): item is string => typeof item === 'string')
+      : [];
   }
 
   private readContextMetadataString(context: ExecutionContext, key: string): string | undefined {
