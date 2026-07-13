@@ -2,7 +2,7 @@ import { Body, Controller, Patch, Post, UseGuards } from '@nestjs/common';
 import { RequestContextService, type ExecutionContext } from '../../common';
 import { CurrentUser, JwtAuthGuard, type AuthenticatedUser } from '../auth';
 import type { DocumentEntity } from '../document';
-import type { IngestionResult } from '../ingestion';
+import type { IngestionJobResponse } from '../ingestion';
 import type { DocumentTaxonomyEntity } from '../taxonomy';
 import { BatchService } from './batch.service';
 import type { BatchOperationResponse } from './batch.types';
@@ -30,7 +30,7 @@ export class BatchController {
   ingestDocuments(
     @CurrentUser() user: AuthenticatedUser,
     @Body() input: BatchIngestDto,
-  ): Promise<BatchOperationResponse<IngestionResult>> {
+  ): Promise<BatchOperationResponse<IngestionJobResponse>> {
     return this.batchService.ingestDocuments(this.createExecutionContext(user), input);
   }
 

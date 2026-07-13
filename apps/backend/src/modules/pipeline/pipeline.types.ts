@@ -14,6 +14,10 @@ export interface PipelineJobEntity {
   requestId: string | null;
   triggeredBy: string | null;
   status: PipelineJobStatus;
+  workerId: string | null;
+  leaseExpiresAt: Date | null;
+  attemptCount: number;
+  nextRetryAt: Date | null;
   metadata: Record<string, unknown>;
   startedAt: Date;
   finishedAt: Date | null;

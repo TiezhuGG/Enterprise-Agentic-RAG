@@ -26,7 +26,7 @@ Frontend: http://localhost:3001
 
 ```text
 email: admin@example.com
-password: Admin123!
+password: 123456 (仅本地演示环境)
 ```
 
 详细演示脚本见 [docs/demo/DEMO_SCRIPT.md](docs/demo/DEMO_SCRIPT.md)。
@@ -36,7 +36,7 @@ password: Admin123!
 ```mermaid
 flowchart TB
   subgraph Frontend
-    Workbench["Demo Workbench"]
+    Workbench["Enterprise Console"]
     AgentDebug["Agent Debug"]
     Assistant["Assistant UI"]
     ObservabilityUI["Observability UI"]
@@ -153,7 +153,7 @@ START
 - Tenant / organization / department model and tenant-aware RBAC
 - Data permission policy with security level and department filtering
 - Multimodal provider boundary for OCR / ASR / Video and multimodal document indexing
-- Frontend Demo Workbench, Agent Debug, Assistant, Observability panels
+- Frontend enterprise console, Agent Debug, Assistant, Observability panels
 - Docker Compose packaging and demo scripts
 - RAG evaluation scaffolding
 
@@ -165,8 +165,7 @@ The MVP intentionally does not implement:
 - Autonomous Agent
 - External tool calling / function calling
 - Graph visualization editor
-- Commercial admin permission UI
-- Distributed job queue
+- 自定义系统角色与审批流
 - Full OCR layout analysis, speaker diarization, or local video frame extraction
 
 ## Project Structure
@@ -249,7 +248,8 @@ Useful deployment variants:
 pnpm deploy:prod:dry-run
 pnpm deploy:prod:smoke
 pnpm deploy:prod -- --skip-build
-pnpm deploy:prod -- --graph
+pnpm deploy:prod -- --seed
+pnpm deploy:prod -- --demo --graph
 ```
 
 Deployment checklist: [docs/demo/DEPLOYMENT_CHECKLIST.md](docs/demo/DEPLOYMENT_CHECKLIST.md)
@@ -286,10 +286,10 @@ pnpm build
 pnpm db:validate
 ```
 
-For a deployable demo, also run:
+For an isolated demo environment, also run:
 
 ```bash
 pnpm deploy:prod:dry-run
 pnpm provider:smoke
-pnpm demo:seed --reset --no-graph
+pnpm deploy:prod -- --seed --demo
 ```

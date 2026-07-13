@@ -219,6 +219,8 @@ export function GraphBrowser() {
   const spaces = useWorkbenchStore((state) => state.spaces);
   const readiness = useObservabilityStore((state) => state.readiness);
   const graphCheck = readiness?.checks.find((check) => check.name === 'graph') ?? null;
+  const llmCheck = readiness?.checks.find((check) => check.name === 'llm') ?? null;
+  const llmUnavailable = llmCheck?.status === 'failed';
   const {
     clearSelection,
     error,
@@ -332,6 +334,11 @@ export function GraphBrowser() {
       </div>
 
       {error ? <div className="workbench-error">{error}</div> : null}
+      {llmUnavailable ? (
+        <div className="workbench-error">
+          大模型服务当前不可用：{llmCheck?.message ?? '请前往系统状态检查供应商连接。'} 已有图谱仍可浏览，但暂不能抽取或重试图谱。
+        </div>
+      ) : null}
 
       <div className="graph-browser__stats">
         <GraphStat icon={Database} label="当前空间" value={selectedSpace?.name ?? '未选择'} />
@@ -525,7 +532,7 @@ export function GraphBrowser() {
 
           <div className="graph-browser__side">
             <GraphExtractionExplainabilityPanel
-              canRetry={Boolean(selectedDocumentId) && graphExplainability.status === 'failed'}
+              canRetry={Boolean(selectedDocumentId) && graphExplainability.status === 'failed' && !llmUnavailable}
               onRetry={() => void retrySelectedDocumentGraph()}
               summary={graphExplainability}
             />

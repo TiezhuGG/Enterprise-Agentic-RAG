@@ -2,7 +2,7 @@ import { Injectable } from '@nestjs/common';
 import type { ExecutionContext } from '../../common';
 import { toAppErrorMessage } from '../../common';
 import { DocumentService, type DocumentEntity } from '../document';
-import { IngestionService, type IngestionResult } from '../ingestion';
+import { IngestionService, type IngestionJobResponse } from '../ingestion';
 import { TaxonomyService, type DocumentTaxonomyEntity } from '../taxonomy';
 import type { BatchDocumentIdsDto } from './dto/batch-document-ids.dto';
 import type { BatchIngestDto } from './dto/batch-ingest.dto';
@@ -29,9 +29,9 @@ export class BatchService {
   ingestDocuments(
     context: ExecutionContext,
     input: BatchIngestDto,
-  ): Promise<BatchOperationResponse<IngestionResult>> {
+  ): Promise<BatchOperationResponse<IngestionJobResponse>> {
     return this.runBatch('ingest', input.documentIds, async (documentId) =>
-      this.ingestionService.ingestDocument(context, documentId, {
+      this.ingestionService.enqueueDocumentIngestion(context, documentId, {
         force: input.force,
         includeEmbedding: input.includeEmbedding,
         includeGraph: input.includeGraph,

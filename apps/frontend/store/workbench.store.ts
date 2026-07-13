@@ -1575,6 +1575,7 @@ export const useWorkbenchStore = create<WorkbenchStore>((set, get) => ({
       await get().loadDocuments(spaceId);
       await get().selectDocument(response.document.id);
       await get().loadDocumentPreview(response.document.id);
+      await get().loadDocumentVersions(response.document.id);
       if (response.ingestionJob) {
         await get().loadPipeline(response.document.id, response.ingestionJob.pipelineJobId);
         get().pollIngestionJob(response.document.id, response.ingestionJob.pipelineJobId);

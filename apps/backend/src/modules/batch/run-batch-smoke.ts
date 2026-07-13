@@ -5,7 +5,7 @@ import { PipelineService } from '../pipeline';
 import { TaxonomyService } from '../taxonomy';
 import { UploadService, type UploadedDocumentFile } from '../upload';
 import { UserRepository, type UserRecord } from '../user';
-import type { IngestionResult } from '../ingestion';
+import type { IngestionJobResponse } from '../ingestion';
 import { KnowledgeSpaceService } from '../knowledge-space';
 import { BatchService } from './batch.service';
 import type { BatchOperationResponse } from './batch.types';
@@ -116,25 +116,19 @@ async function main() {
     });
     assertBatchResult('ingest', ingestResult, 2);
     const successfulIngestions = ingestResult.results
-      .filter((item): item is typeof item & { data: IngestionResult } => item.status === 'success')
+      .filter((item): item is typeof item & { data: IngestionJobResponse } => item.status === 'success')
       .map((item) => item.data);
 
     for (const result of successfulIngestions) {
-      if (result.status !== 'READY' || result.counts.chunks <= 0) {
-        throw new Error(`Ingestion did not produce ready chunks for ${result.documentId}`);
+      if (result.status !== 'QUEUED' || !result.pipelineJobId) {
+        throw new Error(`Ingestion did not enqueue a pipeline job for ${result.documentId}`);
       }
     }
 
     const firstJobId = successfulIngestions[0]?.pipelineJobId;
-    const pipelineEvents = firstJobId
-      ? await pipelineService.listJobEvents(context, firstJobId)
-      : [];
+    const pipelineEvents = firstJobId ? await pipelineService.listJobEvents(context, firstJobId) : [];
     const pipelineStages = pipelineEvents.map((event) => `${event.stage}:${event.status}`);
-    assertIncludes(pipelineStages, 'document-processing:SUCCEEDED');
-    assertIncludes(pipelineStages, 'chunking:SUCCEEDED');
-    assertIncludes(pipelineStages, 'embedding:SKIPPED');
-    assertIncludes(pipelineStages, 'graph-extraction:SKIPPED');
-    assertIncludes(pipelineStages, 'done:SUCCEEDED');
+    assertIncludes(pipelineStages, 'queue:SUCCEEDED');
 
     const archiveResult = await batchService.archiveDocuments(context, {
       documentIds,
@@ -148,10 +142,6 @@ async function main() {
           documents: documentIds,
           ingest: {
             ...summarizeBatch(ingestResult),
-            chunkCounts: successfulIngestions.map((result) => ({
-              chunks: result.counts.chunks,
-              documentId: result.documentId,
-            })),
             pipelineJobIds: successfulIngestions
               .map((result) => result.pipelineJobId)
               .filter(Boolean),

@@ -136,7 +136,7 @@ export class RetrievalService {
       ]);
 
       stages.push(vectorStage.breakdown, keywordStage.breakdown, graphStage.breakdown);
-      this.throwFirstStageError([vectorStage, keywordStage, graphStage]);
+      this.ensureAtLeastOneRetrieverAvailable([vectorStage, keywordStage, graphStage]);
 
       const vectorResults = vectorStage.result;
       const keywordResults = keywordStage.result;
@@ -186,9 +186,11 @@ export class RetrievalService {
             )
           : this.passThroughResultsStage('reranker', rrfResults, `mode=${mode}`);
 
-      stages.push(rerankerStage.breakdown);
-      this.throwFirstStageError([rerankerStage]);
-      const rerankedResults = rerankerStage.result;
+      const effectiveRerankerStage = rerankerStage.error
+        ? this.createRerankerFallbackStage(rerankerStage, rrfResults)
+        : rerankerStage;
+      stages.push(effectiveRerankerStage.breakdown);
+      const rerankedResults = effectiveRerankerStage.result;
       const expandedResults = await this.expandCompleteDocumentResults(query, rerankedResults);
       const contextStage = await this.runPipelineStage(
         'context-builder',
@@ -572,5 +574,30 @@ export class RetrievalService {
     if (failedStage) {
       throw failedStage.error;
     }
+  }
+
+  private ensureAtLeastOneRetrieverAvailable(
+    stages: Array<RetrievalStageOutcome<RetrieverResult[]>>,
+  ): void {
+    if (stages.some((stage) => !stage.error && stage.breakdown.status !== 'skipped')) {
+      return;
+    }
+
+    this.throwFirstStageError(stages);
+  }
+
+  private createRerankerFallbackStage(
+    failedStage: RetrievalStageOutcome<RetrievalResult[]>,
+    results: RetrievalResult[],
+  ): RetrievalStageOutcome<RetrievalResult[]> {
+    return {
+      breakdown: {
+        ...failedStage.breakdown,
+        outputCount: results.length,
+        reason: 'reranker-unavailable; used RRF ranking',
+        status: 'skipped',
+      },
+      result: results,
+    };
   }
 }

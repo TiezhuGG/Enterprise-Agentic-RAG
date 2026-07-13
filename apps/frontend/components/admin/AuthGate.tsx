@@ -2,11 +2,13 @@
 
 import { ReactNode, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
+import { authExpiredEventName } from '@/services/api-client';
 import { useWorkbenchStore } from '@/store/workbench.store';
 
 export function AuthGate({ children }: { children: ReactNode }) {
   const authHydrated = useWorkbenchStore((state) => state.authHydrated);
   const authToken = useWorkbenchStore((state) => state.authToken);
+  const clearAuth = useWorkbenchStore((state) => state.clearAuth);
   const initialize = useWorkbenchStore((state) => state.initialize);
   const router = useRouter();
 
@@ -15,6 +17,12 @@ export function AuthGate({ children }: { children: ReactNode }) {
       void initialize();
     }
   }, [authHydrated, initialize]);
+
+  useEffect(() => {
+    const handleAuthExpired = () => clearAuth();
+    window.addEventListener(authExpiredEventName, handleAuthExpired);
+    return () => window.removeEventListener(authExpiredEventName, handleAuthExpired);
+  }, [clearAuth]);
 
   useEffect(() => {
     if (authHydrated && !authToken) {

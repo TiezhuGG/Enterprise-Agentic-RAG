@@ -52,6 +52,7 @@ export const createConfiguration = (): AppConfiguration => {
         .map((origin) => origin.trim())
         .filter(Boolean),
       env: env.APP_ENV,
+      ingestionWorkerEnabled: env.INGESTION_WORKER_ENABLED,
       port: env.APP_PORT,
     },
     database: {

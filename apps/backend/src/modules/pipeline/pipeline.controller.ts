@@ -1,4 +1,4 @@
-import { Controller, Get, Param, Query, UseGuards } from '@nestjs/common';
+import { Controller, Get, HttpCode, Param, Post, Query, UseGuards } from '@nestjs/common';
 import { RequestContextService, type ExecutionContext } from '../../common';
 import { CurrentUser, JwtAuthGuard, type AuthenticatedUser } from '../auth';
 import { PipelineService } from './pipeline.service';
@@ -58,6 +58,15 @@ export class PipelineController {
     @Param('jobId') jobId: string,
   ): Promise<PipelineEventEntity[]> {
     return this.pipelineService.listJobEvents(this.createExecutionContext(user), jobId);
+  }
+
+  @Post('pipeline/jobs/:jobId/cancel')
+  @HttpCode(200)
+  cancelQueuedJob(
+    @CurrentUser() user: AuthenticatedUser,
+    @Param('jobId') jobId: string,
+  ): Promise<PipelineJobEntity> {
+    return this.pipelineService.cancelQueuedJob(this.createExecutionContext(user), jobId);
   }
 
   private createExecutionContext(user: AuthenticatedUser): ExecutionContext {

@@ -1,7 +1,7 @@
 import type {
   BatchOperationResponse,
   DocumentTaxonomy,
-  IngestionResult,
+  IngestionJobResponse,
   KnowledgeDocument,
   UpdateDocumentTaxonomyRequest,
 } from '@/types/workbench';
@@ -27,7 +27,7 @@ export const batchService = {
   async ingestDocuments(
     documentIds: string[],
     input: { force?: boolean; includeEmbedding?: boolean; includeGraph?: boolean } = {},
-  ): Promise<BatchOperationResponse<IngestionResult>> {
+  ): Promise<BatchOperationResponse<IngestionJobResponse>> {
     const response = await fetch(createApiUrl('/documents/batch/ingest'), {
       body: JSON.stringify({ ...input, documentIds }),
       headers: createJsonHeaders(),
@@ -38,7 +38,7 @@ export const batchService = {
       throw await readApiError(response);
     }
 
-    return (await response.json()) as BatchOperationResponse<IngestionResult>;
+    return (await response.json()) as BatchOperationResponse<IngestionJobResponse>;
   },
 
   async updateTaxonomy(

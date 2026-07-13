@@ -1,10 +1,13 @@
 import { Injectable, Logger, OnModuleDestroy, OnModuleInit } from '@nestjs/common';
 import { toAppErrorMessage } from '../../common';
+import { ConfigService } from '../../config';
 import { PipelineService, type PipelineJobEntity } from '../pipeline';
 import { IngestionService } from './ingestion.service';
 
 const pollingIntervalMs = 2000;
-const restartAbortMessage = '服务重启，任务已中止，请重新解析';
+const leaseDurationMs = 10 * 60 * 1000;
+const leaseHeartbeatMs = 30 * 1000;
+const maxAttempts = 3;
 
 @Injectable()
 export class IngestionQueueService implements OnModuleInit, OnModuleDestroy {
@@ -12,17 +15,24 @@ export class IngestionQueueService implements OnModuleInit, OnModuleDestroy {
   private pollingTimer: NodeJS.Timeout | null = null;
   private processing = false;
   private stopped = false;
+  private readonly workerId = `${process.env.HOSTNAME || 'ingestion-worker'}-${process.pid}`;
 
   constructor(
+    private readonly configService: ConfigService,
     private readonly ingestionService: IngestionService,
     private readonly pipelineService: PipelineService,
   ) {}
 
   async onModuleInit(): Promise<void> {
-    const failedCount = await this.pipelineService.failStaleAsyncRunningJobs(restartAbortMessage);
+    if (!this.configService.getAppConfig().ingestionWorkerEnabled) {
+      this.logger.log('Ingestion queue worker is disabled for this application instance');
+      return;
+    }
 
-    if (failedCount > 0) {
-      this.logger.warn(`Marked ${failedCount} stale ingestion job(s) as failed after restart`);
+    const recoveredCount = await this.pipelineService.recoverExpiredLeases();
+
+    if (recoveredCount > 0) {
+      this.logger.warn(`Requeued ${recoveredCount} ingestion job(s) with expired worker leases`);
     }
 
     this.pollingTimer = setInterval(() => {
@@ -49,7 +59,8 @@ export class IngestionQueueService implements OnModuleInit, OnModuleDestroy {
     this.processing = true;
 
     try {
-      const job = await this.pipelineService.claimNextQueuedJob();
+      await this.pipelineService.recoverExpiredLeases();
+      const job = await this.pipelineService.claimNextQueuedJob(this.workerId, leaseDurationMs);
 
       if (job) {
         await this.processJob(job);
@@ -65,22 +76,35 @@ export class IngestionQueueService implements OnModuleInit, OnModuleDestroy {
   }
 
   private async processJob(job: PipelineJobEntity): Promise<void> {
+    const leaseHeartbeat = setInterval(() => {
+      void this.pipelineService.extendLease(job.id, this.workerId, leaseDurationMs);
+    }, leaseHeartbeatMs);
+
     try {
       await this.ingestionService.runQueuedDocumentIngestion(job);
     } catch (error) {
       const errorMessage = toAppErrorMessage(error, '文档解析失败');
 
-      await this.pipelineService.recordStageEvent(job, {
-        durationMs: 0,
-        errorMessage,
-        metadata: {
-          reason: 'queue-worker-failed',
-        },
-        stage: 'queue-worker',
-        status: 'failed',
-      });
-      await this.pipelineService.finishJob(job.id, 'FAILED');
-      this.logger.warn(`Ingestion job ${job.id} failed: ${errorMessage}`);
+      if (job.attemptCount < maxAttempts) {
+        const delayMs = 2 ** Math.max(0, job.attemptCount - 1) * 30_000;
+        await this.pipelineService.scheduleRetry(job, delayMs);
+        this.logger.warn(`Ingestion job ${job.id} failed and will retry: ${errorMessage}`);
+      } else {
+        await this.pipelineService.recordStageEvent(job, {
+          durationMs: 0,
+          errorMessage,
+          metadata: {
+            attempts: job.attemptCount,
+            reason: 'queue-worker-retries-exhausted',
+          },
+          stage: 'queue-worker',
+          status: 'failed',
+        });
+        await this.pipelineService.finishJob(job.id, 'FAILED');
+        this.logger.warn(`Ingestion job ${job.id} failed after ${job.attemptCount} attempts: ${errorMessage}`);
+      }
+    } finally {
+      clearInterval(leaseHeartbeat);
     }
   }
 }

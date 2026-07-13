@@ -470,6 +470,10 @@ model PipelineJob {
   requestId   String?           @map("request_id")
   triggeredBy String?           @map("triggered_by")
   status      PipelineJobStatus @default(RUNNING)
+  workerId    String?           @map("worker_id")
+  leaseExpiresAt DateTime?      @map("lease_expires_at")
+  attemptCount Int              @default(0) @map("attempt_count")
+  nextRetryAt DateTime?         @map("next_retry_at")
   metadata    Json              @default("{}")
   startedAt   DateTime          @default(now()) @map("started_at")
   finishedAt  DateTime?         @map("finished_at")
@@ -483,6 +487,8 @@ model PipelineJob {
   @@index([spaceId, createdAt])
   @@index([executionId])
   @@index([status])
+  @@index([status, nextRetryAt, createdAt])
+  @@index([status, leaseExpiresAt])
   @@map("pipeline_jobs")
 }
 

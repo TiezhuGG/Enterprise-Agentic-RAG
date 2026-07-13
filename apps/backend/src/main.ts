@@ -17,6 +17,24 @@ async function bootstrap() {
   const { corsOrigins, port } = configService.getAppConfig();
 
   app.useGlobalFilters(new AppExceptionFilter());
+  app.use(
+    (
+      _request: unknown,
+      response: { setHeader: (name: string, value: string) => void },
+      next: () => void,
+    ) => {
+    response.setHeader('Referrer-Policy', 'strict-origin-when-cross-origin');
+    response.setHeader('X-Content-Type-Options', 'nosniff');
+    response.setHeader('X-Frame-Options', 'DENY');
+    response.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()');
+
+    if (configService.getAppConfig().env === 'production') {
+      response.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains');
+    }
+
+      next();
+    },
+  );
   app.enableCors({
     allowedHeaders: ['Authorization', 'Content-Type'],
     methods: ['GET', 'HEAD', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],

@@ -46,6 +46,16 @@ export const pipelineService = {
     return (await response.json()) as PipelineJobDetail;
   },
 
+  async cancelQueuedJob(jobId: string): Promise<PipelineJob> {
+    const response = await fetch(createApiUrl(`/pipeline/jobs/${jobId}/cancel`), {
+      headers: createJsonHeaders(),
+      method: 'POST',
+    });
+
+    if (!response.ok) throw await readApiError(response);
+    return (await response.json()) as PipelineJob;
+  },
+
   async listJobEvents(jobId: string): Promise<PipelineEvent[]> {
     const response = await fetch(createApiUrl(`/pipeline/jobs/${jobId}/events`), {
       headers: createJsonHeaders(),

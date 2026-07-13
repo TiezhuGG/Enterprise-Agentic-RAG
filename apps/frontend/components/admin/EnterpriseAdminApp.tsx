@@ -317,6 +317,10 @@ function DocumentsPage() {
   const router = useRouter();
   const deleteSelectedDocument = useWorkbenchStore((state) => state.deleteSelectedDocument);
   const documents = useWorkbenchStore((state) => state.documents);
+  const selectedDocumentIds = useWorkbenchStore((state) => state.selectedDocumentIds);
+  const batchArchiveDocuments = useWorkbenchStore((state) => state.batchArchiveDocuments);
+  const batchIngestDocuments = useWorkbenchStore((state) => state.batchIngestDocuments);
+  const batchState = useWorkbenchStore((state) => state.batchState);
   const ingestSelectedDocument = useWorkbenchStore((state) => state.ingestSelectedDocument);
   const ingestionOptions = useWorkbenchStore((state) => state.ingestionOptions);
   const ingestionState = useWorkbenchStore((state) => state.ingestionState);
@@ -327,6 +331,7 @@ function DocumentsPage() {
   const selectedSpaceId = useWorkbenchStore((state) => state.selectedSpaceId);
   const selectDocument = useWorkbenchStore((state) => state.selectDocument);
   const retrySelectedDocumentGraph = useWorkbenchStore((state) => state.retrySelectedDocumentGraph);
+  const toggleDocumentSelection = useWorkbenchStore((state) => state.toggleDocumentSelection);
   const setIngestionOptions = useWorkbenchStore((state) => state.setIngestionOptions);
   const uploadDocument = useWorkbenchStore((state) => state.uploadDocument);
   const uploadState = useWorkbenchStore((state) => state.uploadState);
@@ -451,14 +456,16 @@ function DocumentsPage() {
           <CardHeader className="gap-4">
             <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><CardTitle>文档列表</CardTitle><CardDescription>当前显示 {filteredDocuments.length} / {documents.length} 份文档。</CardDescription></div><form className="flex flex-wrap gap-2" onSubmit={handleUpload}><input accept={acceptedDocumentTypes} hidden onChange={(event) => setFile(event.target.files?.[0] ?? null)} ref={fileInputRef} type="file" /><Button disabled={!selectedSpaceId || uploadState.status === 'uploading'} onClick={() => fileInputRef.current?.click()} type="button" variant="outline"><UploadCloud />选择文件</Button><Button disabled={!selectedSpaceId || !file || uploadState.status === 'uploading'} type="submit">{uploadState.status === 'uploading' ? <Loader2 className="animate-spin" /> : <UploadCloud />}上传并自动入库</Button></form></div>
             <div className="grid min-w-0 gap-2 md:grid-cols-[minmax(0,1fr)_180px]"><Input onChange={(event) => setKeyword(event.target.value)} placeholder="搜索文档名称" value={keyword} /><Select onValueChange={(value) => setStatusFilter(value as DocumentStatus | 'ALL')} value={statusFilter}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">全部状态</SelectItem>{Object.entries(workspaceStatusLabels).map(([status, label]) => <SelectItem key={status} value={status}>{label}</SelectItem>)}</SelectContent></Select></div>
+            {selectedDocumentIds.length > 0 ? <div className="flex flex-wrap items-center gap-2 rounded-md border border-primary/30 bg-primary/5 p-2 text-sm"><span>已选择 {selectedDocumentIds.length} 份文档</span><Button disabled={batchState.status === 'running'} onClick={() => void batchIngestDocuments()} size="sm" type="button" variant="outline"><RefreshCw />批量重新处理</Button><Button disabled={batchState.status === 'running'} onClick={() => void batchArchiveDocuments()} size="sm" type="button" variant="outline"><FileArchive />批量归档</Button>{batchState.errorMessage ? <span className="text-destructive">{batchState.errorMessage}</span> : null}</div> : null}
             {file ? <p className="text-xs text-muted-foreground">已选择：{file.name}</p> : null}
           </CardHeader>
           <CardContent>
-            {!selectedSpaceId ? <EmptyState action={<Button onClick={() => router.push(buildConsoleHref('document-spaces'))} variant="outline">前往知识空间</Button>} description="先创建或选择知识空间，再上传文档。" icon={Database} title="请选择知识空间" /> : loadingDocuments ? <div className="grid gap-3"><Skeleton className="h-12" /><Skeleton className="h-12" /><Skeleton className="h-12" /></div> : filteredDocuments.length === 0 ? <EmptyState description="当前筛选条件下没有文档。" icon={FileText} title="暂无文档" /> : <div className="overflow-x-auto"><Table className="min-w-[720px]"><TableHeader><TableRow><TableHead>文档名称</TableHead><TableHead>类型</TableHead><TableHead>大小</TableHead><TableHead>处理状态</TableHead><TableHead>更新时间</TableHead><TableHead className="text-right">操作</TableHead></TableRow></TableHeader><TableBody>{filteredDocuments.map((document) => <TableRow className={cn(document.id === selectedDocumentId && 'bg-muted/60')} key={document.id} onClick={() => void selectDocument(document.id)}><TableCell><div className="flex min-w-0 items-center gap-2"><DocumentTypeIcon type={document.type} /><span className="max-w-64 truncate font-medium" title={document.title}>{document.title}</span></div></TableCell><TableCell>{typeLabel[document.type]}</TableCell><TableCell>{formatSize(document.size)}</TableCell><TableCell><div className="grid min-w-32 gap-1"><Badge className="w-fit" variant={statusVariant[document.status]}>{workspaceStatusLabels[document.status]}</Badge>{graphTaskStates[document.id] === 'FAILED' ? <Badge className="w-fit" variant="destructive">图谱抽取失败</Badge> : graphTaskStates[document.id] === 'SUCCEEDED' ? <span className="text-xs text-emerald-700">图谱抽取成功</span> : null}<Progress className="h-1.5" value={statusProgress[document.status]} /></div></TableCell><TableCell>{formatDateTime(document.updatedAt)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost"><MoreHorizontal /><span className="sr-only">打开操作</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleRawPreview(document); }}><Eye className="size-4" />预览原文件</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleDownload(document); }}><Download className="size-4" />下载原文件</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void selectDocument(document.id); }}><FileText className="size-4" />查看处理详情</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); router.push(buildConsoleHref('document-access', { document: document.id, space: selectedSpaceId })); }}><ShieldCheck className="size-4" />管理访问范围</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleReprocess(document.id); }}><RefreshCw className="size-4" />{document.status === 'FAILED' ? '重试入库' : '重新处理'}</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={(event) => { event.stopPropagation(); void selectDocument(document.id).then(() => deleteSelectedDocument()); }}><Trash2 className="size-4" />删除文档</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)}</TableBody></Table></div>}
+            {!selectedSpaceId ? <EmptyState action={<Button onClick={() => router.push(buildConsoleHref('document-spaces'))} variant="outline">前往知识空间</Button>} description="先创建或选择知识空间，再上传文档。" icon={Database} title="请选择知识空间" /> : loadingDocuments ? <div className="grid gap-3"><Skeleton className="h-12" /><Skeleton className="h-12" /><Skeleton className="h-12" /></div> : filteredDocuments.length === 0 ? <EmptyState description="当前筛选条件下没有文档。" icon={FileText} title="暂无文档" /> : <div className="overflow-x-auto"><Table className="min-w-[720px]"><TableHeader><TableRow><TableHead className="w-10"><span className="sr-only">选择</span></TableHead><TableHead>文档名称</TableHead><TableHead>类型</TableHead><TableHead>大小</TableHead><TableHead>处理状态</TableHead><TableHead>更新时间</TableHead><TableHead className="text-right">操作</TableHead></TableRow></TableHeader><TableBody>{filteredDocuments.map((document) => <TableRow className={cn(document.id === selectedDocumentId && 'bg-muted/60')} key={document.id} onClick={() => void selectDocument(document.id)}><TableCell onClick={(event) => event.stopPropagation()}><input aria-label={`选择 ${document.title}`} checked={selectedDocumentIds.includes(document.id)} onChange={() => toggleDocumentSelection(document.id)} type="checkbox" /></TableCell><TableCell><div className="flex min-w-0 items-center gap-2"><DocumentTypeIcon type={document.type} /><span className="max-w-64 truncate font-medium" title={document.title}>{document.title}</span></div></TableCell><TableCell>{typeLabel[document.type]}</TableCell><TableCell>{formatSize(document.size)}</TableCell><TableCell><div className="grid min-w-32 gap-1"><Badge className="w-fit" variant={statusVariant[document.status]}>{workspaceStatusLabels[document.status]}</Badge>{graphTaskStates[document.id] === 'FAILED' ? <Badge className="w-fit" variant="destructive">图谱抽取失败</Badge> : graphTaskStates[document.id] === 'SUCCEEDED' ? <span className="text-xs text-emerald-700">图谱抽取成功</span> : null}<Progress className="h-1.5" value={statusProgress[document.status]} /></div></TableCell><TableCell>{formatDateTime(document.updatedAt)}</TableCell><TableCell className="text-right"><DropdownMenu><DropdownMenuTrigger asChild><Button size="icon" variant="ghost"><MoreHorizontal /><span className="sr-only">打开操作</span></Button></DropdownMenuTrigger><DropdownMenuContent align="end"><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleRawPreview(document); }}><Eye className="size-4" />预览原文件</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleDownload(document); }}><Download className="size-4" />下载原文件</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void selectDocument(document.id); }}><FileText className="size-4" />查看处理详情</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); router.push(buildConsoleHref('document-access', { document: document.id, space: selectedSpaceId })); }}><ShieldCheck className="size-4" />管理访问范围</DropdownMenuItem><DropdownMenuItem onClick={(event) => { event.stopPropagation(); void handleReprocess(document.id); }}><RefreshCw className="size-4" />{document.status === 'FAILED' ? '重试入库' : '重新处理'}</DropdownMenuItem><DropdownMenuSeparator /><DropdownMenuItem className="text-destructive" onClick={(event) => { event.stopPropagation(); void selectDocument(document.id).then(() => deleteSelectedDocument()); }}><Trash2 className="size-4" />删除文档</DropdownMenuItem></DropdownMenuContent></DropdownMenu></TableCell></TableRow>)}</TableBody></Table></div>}
           </CardContent>
         </Card>
         <div className="grid min-w-0 gap-4">
           <DocumentPreviewPanel />
+          <DocumentVersionPanel />
           <Card className="min-w-0"><CardHeader><CardTitle>文档处理</CardTitle><CardDescription>{selectedDocument?.title ?? '选择一份文档后查看处理状态。'}</CardDescription></CardHeader><CardContent className="grid gap-4">{selectedDocument ? <><div className="grid gap-3 rounded-md border bg-muted/35 p-3 text-sm"><MetricLine label="文档状态" value={workspaceStatusLabels[selectedDocument.status]} /><MetricLine label="分块数量" value={ingestionStatus?.chunkCount ?? '-'} /><MetricLine label="向量数量" value={ingestionStatus?.embeddingCount ?? '-'} /><MetricLine label="图谱实体" value={ingestionStatus?.graphEntityCount ?? '-'} /><MetricLine label="图谱增强" value={graphExtractionState} /></div>{graphExtractionEvent?.status === 'FAILED' ? <ErrorBanner message={`图谱抽取失败：${graphExtractionEvent.errorMessage ?? '大模型或图谱服务不可用。文档仍可用于搜索和问答。'}`} /> : null}<label className="flex items-center gap-2 rounded-md border p-3 text-sm"><input checked={ingestionOptions.includeGraph} onChange={(event) => setIngestionOptions({ includeGraph: event.target.checked })} type="checkbox" /><span>重新处理时抽取知识图谱</span></label><Button disabled={ingestionState.status === 'queued' || ingestionState.status === 'running'} onClick={() => void ingestSelectedDocument()}>{ingestionState.status === 'queued' || ingestionState.status === 'running' ? <Loader2 className="animate-spin" /> : <RefreshCw />}{ingestionState.status === 'queued' ? '排队中' : ingestionState.status === 'running' ? '处理中' : selectedDocument.status === 'FAILED' ? '重试入库' : '重新处理'}</Button>{graphExtractionEvent?.status === 'FAILED' ? <Button disabled={ingestionState.status === 'queued' || ingestionState.status === 'running'} onClick={() => void retrySelectedDocumentGraph()} variant="outline"><RefreshCw />仅重试图谱抽取</Button> : null}<p className="text-xs leading-6 text-muted-foreground">上传后默认执行解析、分块、向量化和索引。图谱失败不会影响基础检索，可单独重试图谱抽取。</p></> : <EmptyState description="从文档列表选择一份文档。" icon={FileText} title="未选择文档" />}</CardContent></Card>
         </div>
       </div>
@@ -474,6 +481,72 @@ function DocumentsPage() {
   );
 }
 
+function DocumentVersionPanel() {
+  const documentVersions = useWorkbenchStore((state) => state.documentVersions);
+  const loadingDocumentVersions = useWorkbenchStore((state) => state.loadingDocumentVersions);
+  const selectedDocumentId = useWorkbenchStore((state) => state.selectedDocumentId);
+  const uploadDocumentVersion = useWorkbenchStore((state) => state.uploadDocumentVersion);
+  const uploadingDocumentVersion = useWorkbenchStore((state) => state.uploadingDocumentVersion);
+  const loadDocumentVersions = useWorkbenchStore((state) => state.loadDocumentVersions);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    void loadDocumentVersions(selectedDocumentId ?? undefined);
+  }, [loadDocumentVersions, selectedDocumentId]);
+
+  return (
+    <Card className="min-w-0">
+      <CardHeader className="flex-row items-center justify-between space-y-0">
+        <div>
+          <CardTitle>版本历史</CardTitle>
+          <CardDescription>上传新版本会自动入队处理，当前版本始终用于检索。</CardDescription>
+        </div>
+        <input
+          hidden
+          onChange={(event) => {
+            const file = event.target.files?.[0];
+            if (file) void uploadDocumentVersion(file);
+            event.target.value = '';
+          }}
+          ref={fileInputRef}
+          type="file"
+        />
+        <Button
+          disabled={!selectedDocumentId || uploadingDocumentVersion}
+          onClick={() => fileInputRef.current?.click()}
+          size="sm"
+          type="button"
+          variant="outline"
+        >
+          {uploadingDocumentVersion ? <Loader2 className="animate-spin" /> : <UploadCloud />}
+          上传新版本
+        </Button>
+      </CardHeader>
+      <CardContent>
+        {!selectedDocumentId ? (
+          <p className="text-sm text-muted-foreground">选择文档后可查看版本并上传替换版本。</p>
+        ) : loadingDocumentVersions ? (
+          <p className="text-sm text-muted-foreground">正在加载版本历史...</p>
+        ) : documentVersions.length === 0 ? (
+          <p className="text-sm text-muted-foreground">暂未找到版本记录。</p>
+        ) : (
+          <div className="grid gap-2">
+            {documentVersions.map((version) => (
+              <div className="flex min-w-0 items-center justify-between gap-3 border-b pb-2 text-sm last:border-0 last:pb-0" key={version.id}>
+                <div className="min-w-0">
+                  <p className="truncate font-medium" title={version.title}>版本 {version.versionNumber} · {version.title}</p>
+                  <p className="text-xs text-muted-foreground">{formatSize(version.size)} · {formatDateTime(version.createdAt)}</p>
+                </div>
+                <Badge variant={version.isCurrent ? 'success' : 'secondary'}>{version.isCurrent ? '当前版本' : '历史版本'}</Badge>
+              </div>
+            ))}
+          </div>
+        )}
+      </CardContent>
+    </Card>
+  );
+}
+
 function StatusStep({ label, tone, value }: { label: string; tone: 'danger' | 'default' | 'success' | 'warning'; value: string }) {
   return <div className="min-w-0 border border-border bg-slate-50 p-3"><div className="flex items-center justify-between gap-2"><span className="text-sm font-medium">{label}</span><Badge variant={tone === 'danger' ? 'destructive' : tone === 'success' ? 'success' : tone === 'warning' ? 'warning' : 'secondary'}>{value}</Badge></div></div>;
 }
@@ -486,8 +559,9 @@ export function LoginPage() {
   const initialize = useWorkbenchStore((state) => state.initialize);
   const login = useWorkbenchStore((state) => state.login);
   const router = useRouter();
-  const [email, setEmail] = useState('admin@example.com');
-  const [password, setPassword] = useState('123456');
+  const isDevelopmentBuild = process.env.NODE_ENV !== 'production';
+  const [email, setEmail] = useState(isDevelopmentBuild ? 'admin@example.com' : '');
+  const [password, setPassword] = useState(isDevelopmentBuild ? '123456' : '');
 
   useEffect(() => {
     if (!authHydrated) {
@@ -909,6 +983,9 @@ function SearchPage() {
 }
 
 function AssistantPage() {
+  const readiness = useObservabilityStore((state) => state.readiness);
+  const llmCheck = readiness?.checks.find((check) => check.name === 'llm') ?? null;
+  const llmUnavailable = llmCheck?.status === 'failed';
   const {
     attachments,
     citations,
@@ -940,7 +1017,7 @@ function AssistantPage() {
     event.preventDefault();
     const message = messageDraft.trim();
 
-    if (!message || streaming) {
+    if (!message || streaming || llmUnavailable) {
       return;
     }
 
@@ -961,6 +1038,9 @@ function AssistantPage() {
         title="AI 智能问答"
       />
       {error ? <ErrorBanner message={error} /> : null}
+      {llmUnavailable ? (
+        <ErrorBanner message={`大模型服务当前不可用：${llmCheck?.message ?? '请前往系统状态检查供应商连接。'}`} />
+      ) : null}
       <div className="grid min-h-[calc(100vh-12rem)] gap-4 xl:grid-cols-[280px_minmax(0,1fr)_320px]">
         <Card className="min-h-0">
           <CardHeader className="flex-row items-center justify-between space-y-0">
@@ -1038,7 +1118,7 @@ function AssistantPage() {
             ) : null}
             <div className="grid gap-3">
               <Textarea
-                disabled={streaming}
+                disabled={streaming || llmUnavailable}
                 onChange={(event) => setMessageDraft(event.target.value)}
                 placeholder="请输入问题，Shift + Enter 换行"
                 value={messageDraft}
@@ -1059,7 +1139,7 @@ function AssistantPage() {
                     type="file"
                   />
                   <Button
-                    disabled={streaming}
+                    disabled={streaming || llmUnavailable}
                     onClick={() => fileInputRef.current?.click()}
                     type="button"
                     variant="outline"
@@ -1067,7 +1147,7 @@ function AssistantPage() {
                     <UploadCloud />
                     附件
                   </Button>
-                  <Button disabled={streaming || !messageDraft.trim()} type="submit">
+                  <Button disabled={streaming || llmUnavailable || !messageDraft.trim()} type="submit">
                     {streaming ? <Loader2 className="animate-spin" /> : <Send />}
                     发送
                   </Button>

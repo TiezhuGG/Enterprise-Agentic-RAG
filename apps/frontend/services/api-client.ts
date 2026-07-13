@@ -2,6 +2,7 @@ import { apiBaseUrl } from '@/lib/env';
 import { getAppErrorMessage, toShortSafeMessage } from '@/lib/error-copy';
 
 const authTokenStorageKey = 'enterprise-agentic-rag.authToken';
+const authExpiredEvent = 'enterprise-agentic-rag.auth-expired';
 
 export class ApiClientError extends Error {
   constructor(
@@ -56,6 +57,18 @@ export const createJsonHeaders = (): HeadersInit => {
   };
 };
 
+const handleAuthenticationFailure = (status: number): void => {
+  if (status !== 401) {
+    return;
+  }
+
+  setAuthToken('');
+
+  if (typeof window !== 'undefined') {
+    window.dispatchEvent(new Event(authExpiredEvent));
+  }
+};
+
 export const readApiError = async (response: Response): Promise<Error> => {
   const fallbackMessage = `请求失败，状态码 ${response.status}`;
 
@@ -69,8 +82,14 @@ export const readApiError = async (response: Response): Promise<Error> => {
         ? safeMessage
         : getAppErrorMessage(body.code) ?? safeMessage) || fallbackMessage;
 
+    handleAuthenticationFailure(response.status);
+
     return new ApiClientError(localizedMessage, response.status, body.code);
   } catch {
+    handleAuthenticationFailure(response.status);
+
     return new ApiClientError(fallbackMessage, response.status);
   }
 };
+
+export const authExpiredEventName = authExpiredEvent;

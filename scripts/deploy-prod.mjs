@@ -50,9 +50,9 @@ Options:
   --dry-run                 Print planned commands without executing them.
   --smoke-only              Do not build or start compose; run health wait and smoke steps only.
   --skip-build              Skip docker compose build.
-  --skip-seed               Skip database seed.
+  --seed                    Run the database seed (off by default).
   --skip-provider-smoke     Skip provider smoke.
-  --skip-demo               Skip demo dataset seed.
+  --demo                    Seed the demo dataset (off by default; resets demo data).
   --graph                   Run demo seed with graph extraction enabled.
   --allow-placeholders      Allow values containing "change-me".
   --help                    Show this help.
@@ -99,7 +99,7 @@ async function main() {
 
   runBackend(args, ['pnpm', '--filter', backendPackage, 'prisma:deploy']);
 
-  if (!args.skipSeed) {
+  if (args.seed) {
     runBackend(args, ['pnpm', '--filter', backendPackage, 'prisma:seed']);
   }
 
@@ -107,7 +107,7 @@ async function main() {
     runBackend(args, ['pnpm', '--filter', backendPackage, 'provider:smoke']);
   }
 
-  if (!args.skipDemo) {
+  if (args.demo) {
     runBackend(args, [
       'pnpm',
       '--filter',
@@ -122,7 +122,7 @@ async function main() {
   console.log('Deployment finished.');
   console.log(`Frontend: http://127.0.0.1:${env.FRONTEND_PORT || '3001'}`);
   console.log(`Backend:  http://127.0.0.1:${env.BACKEND_PORT || env.APP_PORT || '3000'}`);
-  console.log('Next: login with the demo account printed by demo:seed.');
+  console.log('Next: sign in with a provisioned production account.');
 }
 
 function parseArgs(argv) {
@@ -133,9 +133,9 @@ function parseArgs(argv) {
     graph: false,
     help: false,
     skipBuild: false,
-    skipDemo: false,
+    demo: false,
     skipProviderSmoke: false,
-    skipSeed: false,
+    seed: false,
     smokeOnly: false,
   };
 
@@ -163,14 +163,14 @@ function parseArgs(argv) {
       case '--skip-build':
         args.skipBuild = true;
         break;
-      case '--skip-demo':
-        args.skipDemo = true;
+      case '--demo':
+        args.demo = true;
         break;
       case '--skip-provider-smoke':
         args.skipProviderSmoke = true;
         break;
-      case '--skip-seed':
-        args.skipSeed = true;
+      case '--seed':
+        args.seed = true;
         break;
       case '--smoke-only':
         args.smokeOnly = true;
@@ -288,7 +288,7 @@ function printPlan(args, env) {
     ]),
   );
 
-  if (!args.skipSeed) {
+  if (args.seed) {
     commands.push(
       composeCommand(args, [
         'exec',
@@ -316,7 +316,7 @@ function printPlan(args, env) {
     );
   }
 
-  if (!args.skipDemo) {
+  if (args.demo) {
     commands.push(
       composeCommand(args, [
         'exec',

@@ -311,6 +311,10 @@ export interface PipelineJob {
   requestId: string | null;
   triggeredBy: string | null;
   status: PipelineJobStatus;
+  workerId: string | null;
+  leaseExpiresAt: string | null;
+  attemptCount: number;
+  nextRetryAt: string | null;
   metadata: Record<string, unknown>;
   startedAt: string;
   finishedAt: string | null;

@@ -77,6 +77,15 @@ export class IngestionService {
     this.observabilityService.ensureExecutionId(context);
 
     const activeDocument = await this.findWritableDocument(context, documentId);
+    const existingJob = await this.pipelineService.findActiveDocumentJob(activeDocument.id);
+
+    if (existingJob) {
+      throw createAppBadRequestException(
+        'INGESTION_FAILED',
+        '该文档已有正在排队或处理中的入库任务，请在任务完成后再重新处理',
+      );
+    }
+
     const pipelineJob = await this.pipelineService.startDocumentJob(context, activeDocument, {
       force: options.force,
       includeEmbedding: options.includeEmbedding,
@@ -96,16 +105,37 @@ export class IngestionService {
     this.observabilityService.ensureExecutionId(context);
 
     const activeDocument = await this.findWritableDocument(context, documentId);
-    const queuedDocument = await this.documentRepository.update(activeDocument.id, {
-      status: 'CREATED',
-    });
-    const pipelineJob = await this.pipelineService.startQueuedDocumentJob(context, queuedDocument, {
+    const existingJob = await this.pipelineService.findActiveDocumentJob(activeDocument.id);
+
+    if (existingJob) {
+      return {
+        documentId: activeDocument.id,
+        pipelineJobId: existingJob.id,
+        spaceId: activeDocument.spaceId,
+        status: 'QUEUED',
+      };
+    }
+
+    const pipelineJob = await this.pipelineService.startQueuedDocumentJob(context, activeDocument, {
       force: options.force,
       includeEmbedding: options.includeEmbedding,
       includeGraph: options.includeGraph,
       ingestionAsync: true,
       ingestionOptions: options,
       executionContext: this.createExecutionContextSnapshot(context),
+    });
+
+    if (pipelineJob.status === 'RUNNING') {
+      return {
+        documentId: activeDocument.id,
+        pipelineJobId: pipelineJob.id,
+        spaceId: activeDocument.spaceId,
+        status: 'QUEUED',
+      };
+    }
+
+    const queuedDocument = await this.documentRepository.update(activeDocument.id, {
+      status: 'CREATED',
     });
 
     await this.pipelineService.recordStageEvent(pipelineJob, {

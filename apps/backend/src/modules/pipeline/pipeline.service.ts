@@ -15,6 +15,7 @@ import type {
 } from './pipeline.types';
 
 const readRoles: SpaceMemberRole[] = ['OWNER', 'EDITOR', 'VIEWER'];
+const writeRoles: SpaceMemberRole[] = ['OWNER', 'EDITOR'];
 const defaultJobListLimit = 20;
 const maxJobListLimit = 100;
 const maxStringLength = 240;
@@ -51,33 +52,59 @@ export class PipelineService {
     document: DocumentEntity,
     metadata: Record<string, unknown> = {},
   ): Promise<PipelineJobEntity> {
+    const activeJob = await this.pipelineRepository.findActiveJobByDocumentId(document.id);
+
+    if (activeJob) {
+      return activeJob;
+    }
+
     return this.createDocumentJob(context, document, 'QUEUED', metadata);
   }
 
-  async claimNextQueuedJob(): Promise<PipelineJobEntity | null> {
-    return this.pipelineRepository.claimNextQueuedJob();
+  async claimNextQueuedJob(workerId: string, leaseDurationMs: number): Promise<PipelineJobEntity | null> {
+    return this.pipelineRepository.claimNextQueuedJob(workerId, leaseDurationMs);
   }
 
-  async failStaleAsyncRunningJobs(errorMessage: string): Promise<number> {
-    const jobs = await this.pipelineRepository.listRunningJobs(maxJobListLimit);
-    const asyncJobs = jobs.filter((job) => job.metadata.ingestionAsync === true);
+  async extendLease(jobId: string, workerId: string, leaseDurationMs: number): Promise<boolean> {
+    return this.pipelineRepository.extendLease(jobId, workerId, leaseDurationMs);
+  }
+
+  async findActiveDocumentJob(documentId: string): Promise<PipelineJobEntity | null> {
+    return this.pipelineRepository.findActiveJobByDocumentId(documentId);
+  }
+
+  async recoverExpiredLeases(): Promise<number> {
+    const jobs = await this.pipelineRepository.recoverExpiredLeases();
 
     await Promise.all(
-      asyncJobs.map(async (job) => {
+      jobs.map(async (job) => {
         await this.recordStageEvent(job, {
           durationMs: 0,
-          errorMessage,
           metadata: {
-            reason: 'service-restarted',
+            reason: 'worker-lease-expired',
           },
           stage: 'queue-worker',
-          status: 'failed',
+          status: 'skipped',
         });
-        await this.finishJob(job.id, 'FAILED');
       }),
     );
 
-    return asyncJobs.length;
+    return jobs.length;
+  }
+
+  async scheduleRetry(job: PipelineJobEntity, delayMs: number): Promise<PipelineJobEntity> {
+    const retryAt = new Date(Date.now() + delayMs);
+    const scheduled = await this.pipelineRepository.scheduleRetry(job.id, retryAt);
+    await this.recordStageEvent(scheduled, {
+      durationMs: 0,
+      metadata: {
+        attempt: scheduled.attemptCount,
+        retryAt: retryAt.toISOString(),
+      },
+      stage: 'queue-retry',
+      status: 'skipped',
+    });
+    return scheduled;
   }
 
   private async createDocumentJob(
@@ -168,6 +195,28 @@ export class PipelineService {
     return this.pipelineRepository.listEventsByJobId(job.id);
   }
 
+  async cancelQueuedJob(context: ExecutionContext, jobId: string): Promise<PipelineJobEntity> {
+    const job = await this.pipelineRepository.findJobById(jobId);
+
+    if (!job) throw new NotFoundException('Pipeline job not found');
+
+    await this.ensureWritableSpace(context, job.spaceId);
+    const canceled = await this.pipelineRepository.cancelQueuedJob(job.id);
+
+    if (!canceled) {
+      throw new BadRequestException('Only queued pipeline jobs can be canceled');
+    }
+
+    await this.recordStageEvent(canceled, {
+      durationMs: 0,
+      metadata: { reason: 'canceled-by-user' },
+      stage: 'queue',
+      status: 'skipped',
+    });
+
+    return canceled;
+  }
+
   private async findReadableDocument(
     context: ExecutionContext,
     documentId: string,
@@ -197,6 +246,19 @@ export class PipelineService {
     const member = space.members.find((spaceMember) => spaceMember.userId === context.userId);
 
     if (!member || !readRoles.includes(member.role)) {
+      throw new ForbiddenException('Insufficient knowledge space role');
+    }
+  }
+
+  private async ensureWritableSpace(context: ExecutionContext, spaceId: string): Promise<void> {
+    const space = await this.knowledgeSpaceRepository.findAccessibleById(
+      spaceId,
+      context.userId,
+      context.tenantId,
+    );
+    const member = space?.members.find((spaceMember) => spaceMember.userId === context.userId);
+
+    if (!member || !writeRoles.includes(member.role)) {
       throw new ForbiddenException('Insufficient knowledge space role');
     }
   }

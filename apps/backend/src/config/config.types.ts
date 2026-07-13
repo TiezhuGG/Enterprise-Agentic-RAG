@@ -5,6 +5,7 @@ export type AppEnvironment = (typeof appEnvironments)[number];
 export interface AppConfig {
   corsOrigins: string[];
   env: AppEnvironment;
+  ingestionWorkerEnabled: boolean;
   port: number;
 }
 
