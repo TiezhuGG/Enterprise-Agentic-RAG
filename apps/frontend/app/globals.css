@@ -3650,7 +3650,11 @@ textarea:disabled {
   align-items: end;
   display: grid;
   gap: 12px;
-  grid-template-columns: 150px minmax(180px, 1fr) 150px 150px minmax(220px, 1.4fr) auto auto;
+  grid-template-columns: 150px minmax(220px, 1fr) 150px minmax(260px, 1.2fr) auto;
+}
+
+.graph-browser__toolbar--network {
+  grid-template-columns: 130px minmax(160px, 1fr) 130px 130px minmax(190px, 1.2fr) auto;
 }
 
 .graph-browser__field,
@@ -3682,6 +3686,19 @@ textarea:disabled {
 
 .graph-browser__query input {
   padding-left: 32px;
+}
+
+.graph-browser__actions {
+  align-items: center;
+  display: flex;
+  gap: 8px;
+  justify-self: start;
+  white-space: nowrap;
+}
+
+.graph-browser__actions > button {
+  flex: 0 0 auto;
+  width: auto;
 }
 
 .graph-browser__grid {
@@ -4162,8 +4179,11 @@ textarea:disabled {
 }
 
 .graph-view-tabs [role='tablist'] {
-  max-width: 100%;
-  overflow-x: auto;
+  flex: 0 1 auto;
+  height: auto;
+  max-width: none;
+  overflow: visible;
+  width: fit-content;
 }
 
 .graph-view-tabs [role='tab'] {
@@ -4510,11 +4530,11 @@ textarea:disabled {
 
 @media (max-width: 1440px) {
   .graph-browser__toolbar {
-    grid-template-columns: repeat(4, minmax(120px, 1fr));
+    grid-template-columns: 150px minmax(180px, 1fr) 150px minmax(220px, 1fr) auto;
   }
 
-  .graph-browser__query {
-    grid-column: span 2;
+  .graph-browser__toolbar--network {
+    grid-template-columns: 120px minmax(150px, 1fr) 120px 120px minmax(180px, 1fr) auto;
   }
 }
 
@@ -4540,6 +4560,11 @@ textarea:disabled {
 
   .graph-view-tabs > button {
     align-self: flex-start;
+  }
+
+  .graph-view-tabs [role='tablist'] {
+    flex-wrap: wrap;
+    justify-content: flex-start;
   }
 
   .graph-business-view {

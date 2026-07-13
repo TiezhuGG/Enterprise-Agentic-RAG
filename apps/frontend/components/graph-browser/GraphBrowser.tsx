@@ -342,7 +342,13 @@ export function GraphBrowser() {
 
       <Card>
         <CardContent className="pt-5">
-          <form className="graph-browser__toolbar" onSubmit={handleSubmit}>
+          <form
+            className={cn(
+              'graph-browser__toolbar',
+              viewMode === 'network' && 'graph-browser__toolbar--network',
+            )}
+            onSubmit={handleSubmit}
+          >
             <label className="graph-browser__field">
               <span>范围</span>
               <Select
@@ -424,19 +430,21 @@ export function GraphBrowser() {
               />
             </div>
 
-            <Button disabled={!canLoad || loading} type="submit">
-              {loading ? <Loader2 className="animate-spin" /> : <Search />}
-              查询
-            </Button>
-            <Button
-              disabled={!canLoad || loading}
-              onClick={() => void loadGraph()}
-              type="button"
-              variant="outline"
-            >
-              <RefreshCw />
-              刷新
-            </Button>
+            <div className="graph-browser__actions">
+              <Button disabled={!canLoad || loading} type="submit">
+                {loading ? <Loader2 className="animate-spin" /> : <Search />}
+                查询
+              </Button>
+              <Button
+                disabled={!canLoad || loading}
+                onClick={() => void loadGraph()}
+                type="button"
+                variant="outline"
+              >
+                <RefreshCw />
+                刷新
+              </Button>
+            </div>
           </form>
         </CardContent>
       </Card>
