@@ -19,3 +19,5 @@ docs/demo/reports/*.md
 !docs/demo/reports/.gitkeep
 .DS_Store
 Thumbs.db
+
+docs/learning/
